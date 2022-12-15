@@ -51,34 +51,69 @@ def f(state, W):
     return dX
 
 
+def f_vdp(x):
+    x.flatten()
+    vdp0 = x[0]
+    vdp1 = -(.001 * (x[0]**2) - 1) * x[1] - x[0]
+    dx = np.array([[vdp0], [vdp1]])
+    return dx
+
+
 def controller(state):
     """
     Return the angular velocities of each motors
     """
     state = state.flatten()
-    _, _, _, φ, θ, ψ = list(state[0:6])
+    x, y, z, φ, θ, ψ = list(state[0:6])
     wr = state[9:12].reshape(3, 1)
-    # vr = state[6:9].reshape(3, 1)
-    # E = roblib.eulermat(φ, θ, ψ)
-    # dp = E @ vr
+    vr = state[6:9].reshape(3, 1)
+    E = roblib.eulermat(φ, θ, ψ)
+    dp = E @ vr
 
-    # tau desired, roll, pitch, yaw desired
-    τd0 = 200
-    φd = 0
-    θd = 0
-    ψd = 0
+    
+    xy_desired = f_vdp(np.array([[x], [y]]))
+    z_desired = -10
+    vel_x_desired = 20
+    
 
+    # thrust desired (tanh is used to scale between -1 and +1)
+    kp = 300
+    kd = 60
+    error_z = z - z_desired  # remember z pointing downward
+    thrust_desired = kp * np.tanh(error_z) + kd * vr[2]  # tau desired (τ0 desired)
+    
+    # roll desired
+    error_direction = roblib.angle(xy_desired) - roblib.angle(dp)
+    φ_desired = 0.5 * np.tanh(10 * roblib.sawtooth(error_direction))
+
+    # pitch desired
+    error_vel_x = vel_x_desired - vr[0]
+    θ_desired = -.3 * np.tanh(error_vel_x)
+
+    # yaw desired
+    ψ_desired = roblib.angle(dp)
+
+    # disired angular velocity in the body frame
     kwrd = 5
-    wrd = kwrd * np.linalg.inv(roblib.eulerderivative(φ, θ, ψ)) \
-            @ np.array([
-                [roblib.sawtooth(φd - φ)], [roblib.sawtooth(θd - θ)], [roblib.sawtooth(ψd - ψ)]
+    omega_desired_bf = kwrd * np.linalg.inv(roblib.eulerderivative(φ, θ, ψ)) @ np.array([
+                [roblib.sawtooth(φ_desired - φ)], [roblib.sawtooth(θ_desired - θ)], [roblib.sawtooth(ψ_desired - ψ)]
             ])
+    
+    error_w = omega_desired_bf - wr
+    kw = 100
+    torques_desired = I @ (kw * error_w + roblib.adjoint(wr) @ I @ wr)  # (τ1, τ2, τ3 desired)
 
-    error_w = wrd - wr
-    kw = 200
-    τd13 = I @ ((kw * error_w) + roblib.adjoint(wr) @ I @ wr)
+    W2 = np.linalg.inv(B_mat()) @ np.vstack(([thrust_desired], torques_desired))
 
-    W2 = np.linalg.inv(B_mat()) @ np.vstack(([τd0], τd13))
+    W2 = W2.flatten(order='C')
+    W2 = W2.tolist()
+
+    res = []
+    for i in W2:
+        res.append(i[0])
+
+    W2 = np.array(res).reshape(4, 1)
+
     w = np.sqrt(np.abs(W2)) * np.sign(W2)
     return w
 
@@ -88,23 +123,15 @@ def controller(state):
 
 
 if __name__ == "__main__":
-    
-    # rot speed: w1, w2, w3, w4 
-    # positions: x(forward), y, z(down) 
-    # derivative are velovities x_d, y_d, z_d (body frame)
-    # euler angles: phi, theta, psi (roll, pitch, yaw)
-    # derivative: phi_d, theta_d, yaw_d (body frame)
-    # state vector = [x, y, z, phi, theta, psi, x_d, y_d, z_d, phi_d, theta_d, yaw_d]
-    # robot_speed_world_frame = rot_mat . robot_speed_body_frame
 
     fig = plt.figure()
     ax = plt.axes(projection ="3d")
 
-    state = np.array([[0, 0, -5, 1, 0, 0, 10, 10, 0, 0, 0, 0]]).T
+    state = np.array([[0, 0, -5, 1, 0, 0, .2, -.3, 0, 0, 0, 0]]).T
     blade_angles = np.array([[0, 0, 0, 0]]).T
     dt = .01
 
-    for t in np.arange(0, 3, dt):
+    for t in np.arange(0, 10, dt):
 
         angular_velocity = controller(state)
 
