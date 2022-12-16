@@ -14,11 +14,19 @@ Quadrotor Dynamics - 3D Simulation
 I = np.array([[10, 0, 0], [0, 10, 0], [0, 0, 20]])
 m, g, b, d, l = 10, 9.81, 2, 1, 1
 
+path_x = []
+path_y = []
+path_z = []
 def draw_quad(state, angles, lim=30):
     ax.clear()
     ax.set_xlim3d(-lim, lim)
     ax.set_ylim3d(-lim, lim)
     ax.set_zlim3d(0, lim)
+
+    x, y, z = state[0:3]
+
+    path_x.append(-x); path_y.append(y); path_z.append(abs(z))
+    ax.scatter(path_x, path_y, path_z)
     roblib.draw_quadrotor3D(ax, state, angles, 5*l)
 
 
@@ -51,14 +59,6 @@ def f(state, W):
     return dX
 
 
-def f_vdp(x):
-    x.flatten()
-    vdp0 = x[0]
-    vdp1 = -(.001 * (x[0]**2) - 1) * x[1] - x[0]
-    dx = np.array([[vdp0], [vdp1]])
-    return dx
-
-
 def controller(state):
     """
     Return the angular velocities of each motors
@@ -71,7 +71,7 @@ def controller(state):
     dp = E @ vr
 
     
-    xy_desired = f_vdp(np.array([[x], [y]]))
+    xy_desired = np.array([[10], [10]])
     z_desired = -10
     vel_x_desired = 20
     
@@ -100,19 +100,16 @@ def controller(state):
             ])
     
     error_w = omega_desired_bf - wr
+    res = []
+    for i in error_w:
+        res.append(i[0])            
+
+    error_w = np.array(res).reshape(3, 1)
+
     kw = 100
-    torques_desired = I @ (kw * error_w + roblib.adjoint(wr) @ I @ wr)  # (τ1, τ2, τ3 desired)
+    torques_desired = I @ (kw * error_w + roblib.adjoint(wr) @ I @ wr)  # (τ1, τ2, τ3 desired)    
 
     W2 = np.linalg.inv(B_mat()) @ np.vstack(([thrust_desired], torques_desired))
-
-    W2 = W2.flatten(order='C')
-    W2 = W2.tolist()
-
-    res = []
-    for i in W2:
-        res.append(i[0])
-
-    W2 = np.array(res).reshape(4, 1)
 
     w = np.sqrt(np.abs(W2)) * np.sign(W2)
     return w
@@ -127,7 +124,7 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = plt.axes(projection ="3d")
 
-    state = np.array([[0, 0, -5, 1, 0, 0, .2, -.3, 0, 0, 0, 0]]).T
+    state = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]).T
     blade_angles = np.array([[0, 0, 0, 0]]).T
     dt = .01
 
