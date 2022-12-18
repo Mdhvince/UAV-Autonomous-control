@@ -18,6 +18,7 @@ path_x = []
 path_y = []
 path_z = []
 def draw_quad(state, angles, lim=30):
+
     ax.clear()
     ax.set_xlim3d(-lim, lim)
     ax.set_ylim3d(-lim, lim)
@@ -84,7 +85,6 @@ def controller(state):
     
     # roll desired
     error_direction = roblib.angle(xy_desired) - roblib.angle(dp)
-    print(error_direction)
     φ_desired = 0.5 * np.tanh(10 * roblib.sawtooth(error_direction))
 
     # pitch desired
