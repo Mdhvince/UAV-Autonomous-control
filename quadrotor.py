@@ -1,20 +1,21 @@
 import math
 import numpy as np
 
-G = 9.81
 
 class Quadrotor():
     
-    def __init__(self):
-        
-        L = 0.566  # rotor to rotor distance
-        self.kf = 1.0
-        self.km = 1.0
-        self.m = .5
+    def __init__(self, config):
+
+        self.g = config["DEFAULT"].getfloat("g")
+        quad_params = config["VEHICLE"]
+        L = quad_params.getfloat("distance_rotor_to_rotor")
+        self.kf = quad_params.getfloat("kf")
+        self.km = quad_params.getfloat("km")
+        self.m = quad_params.getfloat("mass")
+        self.i_x = quad_params.getfloat("Ix")
+        self.i_y = quad_params.getfloat("Iy")
+        self.i_z = quad_params.getfloat("Iz")
         self.l = L / (2*math.sqrt(2)) # perpendicular distance to axes
-        self.i_x = 0.1
-        self.i_y = 0.1
-        self.i_z = 0.2
         
         # x, y, z, Φ, θ, ψ, x_vel, y_vel, z_vel, p, q, r
         self.X=np.array([.0, .0, .0, .0, .0, .0, .0, .0, .0, .0, .0, .0])
@@ -26,7 +27,7 @@ class Quadrotor():
         u_bar_q = ubar_pqr[1]
         u_bar_r = ubar_pqr[2]
         
-        c = np.clip(c, -1.5*G, 2*G)
+        c = np.clip(c, -1.5*self.g, 2*self.g)
 
         u_bar_p = max(-1, u_bar_p)
         u_bar_q = max(-1, u_bar_q)
@@ -54,7 +55,7 @@ class Quadrotor():
         in order to have the linear acceleration x_acc, y_acc, z_acc in the world frame
         """
         R = self.R()
-        g = np.array([0, 0, G]).T
+        g = np.array([0, 0, self.g]).T
         c = np.array([0, 0, -self.f_total]).T
         return g + np.matmul(R, c) / self.m
     

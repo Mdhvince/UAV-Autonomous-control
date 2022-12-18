@@ -1,3 +1,4 @@
+import configparser
 from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
@@ -74,16 +75,16 @@ def animate_trajectory(quad, R, desired_traj):
 
 
 if __name__ == "__main__":
+
+    config = configparser.ConfigParser()
+    config_file = "config.ini"
+    config.read(config_file)
     
     inner_loop_relative_to_outer_loop = 10
     t, dt, desired = get_path()
 
-    quad = Quadrotor()
-
-    control_system = Controller(
-        kp_z=4.0, kd_z=1.5, kp_x=6.0, kd_x=4.0, kp_y=6.0, kd_y=4.0,
-        kp_roll=8.0, kp_pitch=8.0, kp_yaw=4.5,
-        kp_p=20.0, kp_q=20.0, kp_r=5.0)
+    quad = Quadrotor(config)
+    control_system = Controller(config)
     
     
     # declaring the initial state

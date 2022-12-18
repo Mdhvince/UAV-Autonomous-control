@@ -1,28 +1,25 @@
 import numpy as np
 
 
-G = 9.81
-
-
 class Controller():
     
-    def __init__(
-            self, kp_z=1.0, kd_z=1.0, kp_x=1.0, kd_x=1.0, kp_y=1.0, kd_y=1.0,
-            kp_roll=1.0, kp_pitch=1.0, kp_yaw=1.0,
-            kp_p=1.0,  kp_q=1.0, kp_r=1.0):
-        
-        self.kp_z = kp_z
-        self.kd_z = kd_z
-        self.kp_x = kp_x
-        self.kd_x = kd_x
-        self.kp_y = kp_y
-        self.kd_y = kd_y
-        self.kp_roll = kp_roll
-        self.kp_pitch = kp_pitch
-        self.kp_yaw = kp_yaw
-        self.kp_p = kp_p
-        self.kp_q = kp_q
-        self.kp_r = kp_r
+    def __init__(self, config):
+        self.g = config["DEFAULT"].getfloat("g")
+
+        controller = config["CONTROLLER"]
+
+        self.kp_z = controller.getfloat("kp_z")
+        self.kd_z = controller.getfloat("kd_z")
+        self.kp_x = controller.getfloat("kp_x")
+        self.kd_x = controller.getfloat("kd_x")
+        self.kp_y = controller.getfloat("kp_y")
+        self.kd_y = controller.getfloat("kd_y")
+        self.kp_roll = controller.getfloat("kp_roll")
+        self.kp_pitch = controller.getfloat("kp_pitch")
+        self.kp_yaw = controller.getfloat("kp_yaw")
+        self.kp_p = controller.getfloat("kp_p")
+        self.kp_q = controller.getfloat("kp_q")
+        self.kp_r = controller.getfloat("kp_r")
             
     
     def altitude_controller(
@@ -44,11 +41,10 @@ class Controller():
         """
         error = z_target - quad.z
         error_dot = z_dot_target - quad.z_vel
-
         u_1_bar = Controller._pd(self.kp_z, self.kd_z, error, error_dot, z_dot_dot_target)
 
         b_z = rot_mat[2, 2]
-        c = (u_1_bar - G) / b_z
+        c = (u_1_bar - self.g) / b_z
         return c
 
     def lateral_controller(
@@ -87,7 +83,7 @@ class Controller():
 
         pos_err = pos_target - pos_actual
         vel_err = vel_target - vel_actual
-        acc_cmd = kp_xy * pos_err + kd_xy * vel_err + ff_acc
+        acc_cmd = Controller._pd(kp_xy, kd_xy, pos_err, vel_err, ff_acc)
 
         # by dividing by c we can control the orientation independently of the thrust, this allow
         # more precise control
@@ -95,8 +91,6 @@ class Controller():
 
         return bxy_cmd
     
-
-    # inner loop controller
     def attitude_controller(self, bxy_cmd, psi_target, rot_mat, quad):
         """
         The attitude controller consists of the roll-pitch controller, yaw controller, and body rate controller.
@@ -184,10 +178,8 @@ class Controller():
 
     @staticmethod
     def _pd(kp, kd, error, error_dot, target):
-        # Proportional and differential control terms
         p_term = kp * error
         d_term = kd * error_dot
-        # Control command (with feed-forward term)
         return p_term + d_term + target
     
 
