@@ -15,79 +15,28 @@ class Quadrotor():
         self.i_x = quad_params.getfloat("Ix")
         self.i_y = quad_params.getfloat("Iy")
         self.i_z = quad_params.getfloat("Iz")
-        self.l = L / (2*math.sqrt(2)) # perpendicular distance to axes
-        
+        self.max_thrust = quad_params.getfloat("max_thrust")
+        self.min_thrust = quad_params.getfloat("min_thrust")
+        self.max_torque = quad_params.getfloat("max_torque")
+        self.kappa = quad_params.getfloat("kappa")
+
+        self.max_ascent_rate = quad_params.getfloat("max_ascent_rate")
+        self.max_descent_rate = quad_params.getfloat("max_descent_rate")
+        self.max_speed_xy = quad_params.getfloat("max_speed_xy")
+        self.max_horiz_accel = quad_params.getfloat("max_horiz_accel")
+        self.max_tilt_angle = quad_params.getfloat("max_tilt_angle")
+
+        self.l = L / math.sqrt(2)
+
         # x, y, z, Φ, θ, ψ, x_vel, y_vel, z_vel, p, q, r
         self.X=np.array([.0, .0, .0, .0, .0, .0, .0, .0, .0, .0, .0, .0])
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
-        
-    
-    def set_propeller_angular_velocities(self, c, ubar_pqr):
-        u_bar_p = ubar_pqr[0]
-        u_bar_q = ubar_pqr[1]
-        u_bar_r = ubar_pqr[2]
-        
-        c = np.clip(c, -1.5*self.g, 2*self.g)
-
-        u_bar_p = max(-1, u_bar_p)
-        u_bar_q = max(-1, u_bar_q)
-        u_bar_r = max(-1, u_bar_r)
-
-        c_bar = -c * self.m / self.kf
-        p_bar = self.i_x * u_bar_p / (self.kf * self.l)
-        q_bar = self.i_y * u_bar_q / (self.kf * self.l)
-        r_bar = self.i_z * u_bar_r /  self.km
-
-        omega_4_sq = (c_bar + p_bar - q_bar - r_bar) / 4
-        omega_3_sq = (c_bar - q_bar) / 2 - omega_4_sq
-        omega_2_sq = (c_bar - p_bar) / 2 - omega_3_sq
-        omega_1_sq =  c_bar - omega_2_sq - omega_3_sq - omega_4_sq
-                
-        self.omega[0] = -np.sqrt(omega_1_sq)
-        self.omega[1] =  np.sqrt(omega_2_sq)
-        self.omega[2] = -np.sqrt(omega_3_sq)
-        self.omega[3] =  np.sqrt(omega_4_sq)
-    
-
-    def linear_acceleration(self):
-        """
-        Convert the thrust body frame to world frame , divide by the mass and add the gravity
-        in order to have the linear acceleration x_acc, y_acc, z_acc in the world frame
-        """
-        R = self.R()
-        g = np.array([0, 0, self.g]).T
-        c = np.array([0, 0, -self.f_total]).T
-        return g + np.matmul(R, c) / self.m
-    
-
-    def get_omega_dot(self):
-        """Angular aceeleration in the body frame"""
-        p_dot = (self.tau_x - self.r * self.q * (self.i_z - self.i_y)) / self.i_x
-        q_dot = (self.tau_y - self.r * self.p * (self.i_x - self.i_z)) / self.i_y
-        r_dot = (self.tau_z - self.q * self.p * (self.i_y - self.i_x)) / self.i_z
-
-        return np.array([p_dot,q_dot,r_dot])
-    
-
-    def get_euler_derivatives(self):
-        """Angular velocity in the world frame"""
-        euler_rot_mat = np.array([
-                [1, math.sin(self.phi) * math.tan(self.theta), math.cos(self.phi) * math.tan(self.theta)],
-                [0, math.cos(self.phi), -math.sin(self.phi)],
-                [0, math.sin(self.phi) / math.cos(self.theta), math.cos(self.phi) / math.cos(self.theta)]
-            ])
-
-        # Turn rates in the body frame
-        pqr = np.array([self.p, self.q, self.r]).T
-
-        # Rotational velocities in world frame
-        phi_theta_psi_dot = np.matmul(euler_rot_mat, pqr)
-        
-        return phi_theta_psi_dot
-    
 
     def advance_state(self, dt):
-    
+        """
+        Simulate evolution of the vehicle state over time. Not needed when running on real drone,
+        since we can get the values from the sensors.
+        """
         euler_dot_lab = self.get_euler_derivatives()
         body_frame_angle_dot = self.get_omega_dot()
         accelerations = self.linear_acceleration()
@@ -106,7 +55,55 @@ class Quadrotor():
                         body_frame_angle_dot[2]])  # r acceleration (r rate velocity)
 
         self.X = self.X + X_dot * dt
-        return self.X
+
+
+    def set_propeller_angular_velocities(self, thrust_cmd, moment_cmd):
+        c_bar = thrust_cmd
+        p_bar = moment_cmd[0] / self.l
+        q_bar = moment_cmd[1] / self.l
+        r_bar = -moment_cmd[2] / self.kappa
+
+        self.omega[0] = (c_bar + p_bar + q_bar + r_bar) / 4  # front left
+        self.omega[1] = (c_bar - p_bar + q_bar - r_bar) / 4  # front right
+        self.omega[2] = (c_bar + p_bar - q_bar - r_bar) / 4  # rear left
+        self.omega[3] = (c_bar - p_bar - q_bar + r_bar) / 4  # rear right
+    
+
+    def linear_acceleration(self):  # used for state update
+        """
+        Convert the thrust body frame to world frame , divide by the mass and add the gravity
+        in order to have the linear acceleration x_acc, y_acc, z_acc in the world frame
+        """
+        R = self.R()
+        g = np.array([0, 0, self.g]).T
+        c = np.array([0, 0, -self.f_total]).T
+        return g + np.matmul(R, c) / self.m
+    
+
+    def get_omega_dot(self):  # used for state update
+        """Angular aceeleration in the body frame"""
+        p_dot = (self.tau_x - self.r * self.q * (self.i_z - self.i_y)) / self.i_x
+        q_dot = (self.tau_y - self.r * self.p * (self.i_x - self.i_z)) / self.i_y
+        r_dot = (self.tau_z - self.q * self.p * (self.i_y - self.i_x)) / self.i_z
+
+        return np.array([p_dot,q_dot,r_dot])
+    
+
+    def get_euler_derivatives(self):  # used for state update
+        """Angular velocity in the world frame"""
+        euler_rot_mat = np.array([
+                [1, math.sin(self.phi) * math.tan(self.theta), math.cos(self.phi) * math.tan(self.theta)],
+                [0, math.cos(self.phi), -math.sin(self.phi)],
+                [0, math.sin(self.phi) / math.cos(self.theta), math.cos(self.phi) / math.cos(self.theta)]
+            ])
+
+        # Turn rates in the body frame
+        pqr = np.array([self.p, self.q, self.r]).T
+
+        # Rotational velocities in world frame
+        phi_theta_psi_dot = np.matmul(euler_rot_mat, pqr)
+        
+        return phi_theta_psi_dot
     
 
     def R(self):
@@ -201,6 +198,7 @@ class Quadrotor():
     # collective force
     @property
     def f_total(self):
+        """Actual Thrust. Different from the Desired thrust in (thrust_cmd)"""
         f_t = self.f_1 + self.f_2 + self.f_3 + self.f_4
         return f_t
     
