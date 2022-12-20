@@ -139,12 +139,3 @@ if __name__ == "__main__":
         plt.pause(.001)
     
     plt.pause(1)
-
-
-
-    # Write a python3 script that simulate the 3d dynamic of a quadrotor.
-    # It should follow 3 arbitrary waypoints.
-    # starting with a state containing 12 elements x, y, z positions; roll, pitch, yaw angles; and the rest are their derivatives.
-    # the controller should output a numpy array containing the angular velocity of the 4 rotors ,
-    # it will take as input the state vector, disired 3d waypoints and velocities disired.
-    # Then another function will be responsible for updating the state such that we can place the 3d displacement of the quadrotor using matplotlib 3d.

@@ -55,6 +55,7 @@ class Quadrotor():
                         body_frame_angle_dot[2]])  # r acceleration (r rate velocity)
 
         self.X = self.X + X_dot * dt
+        return self.X
 
 
     def set_propeller_angular_velocities(self, thrust_cmd, moment_cmd):

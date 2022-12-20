@@ -1,5 +1,7 @@
 import numpy as np
 
+# We want to control the drone in the world frame BUT we get some sensore measurement from the IMU that are in the body frame.
+# And our controls (especially the moments that we command) have a more intuitive interpretation in the body frame.
 
 class Controller():
     
@@ -105,7 +107,7 @@ class Controller():
                     [rot_mat[1, 1], -rot_mat[0, 1]]
                 ]) / rot_mat[2, 2]
             
-            pq_cmd = np.matmul(rot_mat1, b_xy_cmd_dot.T)  # ratation rate [p_c, q_c]
+            pq_cmd = np.matmul(rot_mat1, b_xy_cmd_dot.T)  # rotation rate [p_c, q_c]
 
         return pq_cmd
     
