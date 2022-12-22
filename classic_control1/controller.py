@@ -111,6 +111,12 @@ class Controller():
 
         return pq_cmd
     
+    def yaw_controller(self, psi_target, quad):
+        psi_target = Controller.wrap_to_2pi(psi_target)
+        yaw_err = Controller.wrap_to_pi(psi_target - quad.psi)
+        r_c = self.kp_yaw * yaw_err
+        return r_c
+    
     def body_rate_controller(self, pqr_cmd, quad):
 
         MOI = np.array([quad.i_x, quad.i_y, quad.i_z])  # moment of inertia
@@ -124,13 +130,7 @@ class Controller():
 
         return moment_cmd
     
-    def yaw_controller(self, psi_target, quad):
-        psi_target = Controller.wrap_to_2pi(psi_target)
-        yaw_err = Controller.wrap_to_pi(psi_target - quad.psi)
-        r_c = self.kp_yaw * yaw_err
-        return r_c
-    
-            
+ 
 
     @staticmethod
     def wrap_to_pi(angle):

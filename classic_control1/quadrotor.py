@@ -57,7 +57,6 @@ class Quadrotor():
         self.X = self.X + X_dot * dt
         return self.X
 
-
     def set_propeller_angular_velocities(self, thrust_cmd, moment_cmd):
         c_bar = thrust_cmd
         p_bar = moment_cmd[0] / self.l
@@ -69,7 +68,6 @@ class Quadrotor():
         self.omega[2] = (c_bar + p_bar - q_bar - r_bar) / 4  # rear left
         self.omega[3] = (c_bar - p_bar - q_bar + r_bar) / 4  # rear right
     
-
     def linear_acceleration(self):  # used for state update
         """
         Convert the thrust body frame to world frame , divide by the mass and add the gravity
@@ -80,16 +78,13 @@ class Quadrotor():
         c = np.array([0, 0, -self.f_total]).T
         return g + np.matmul(R, c) / self.m
     
-
     def get_omega_dot(self):  # used for state update
         """Angular aceeleration in the body frame"""
         p_dot = (self.tau_x - self.r * self.q * (self.i_z - self.i_y)) / self.i_x
         q_dot = (self.tau_y - self.r * self.p * (self.i_x - self.i_z)) / self.i_y
         r_dot = (self.tau_z - self.q * self.p * (self.i_y - self.i_x)) / self.i_z
-
         return np.array([p_dot,q_dot,r_dot])
     
-
     def get_euler_derivatives(self):  # used for state update
         """Angular velocity in the world frame"""
         euler_rot_mat = np.array([
@@ -98,15 +93,15 @@ class Quadrotor():
                 [0, math.sin(self.phi) / math.cos(self.theta), math.cos(self.phi) / math.cos(self.theta)]
             ])
 
-        # Turn rates in the body frame
+        # Angular velocities in the body frame
         pqr = np.array([self.p, self.q, self.r]).T
 
-        # Rotational velocities in world frame
+        # Angular velocities in world frame
         phi_theta_psi_dot = np.matmul(euler_rot_mat, pqr)
         
         return phi_theta_psi_dot
-    
 
+    
     def R(self):
         """
         To transform between body frame accelerations and world frame accelerations
@@ -140,15 +135,15 @@ class Quadrotor():
 
     @property
     def phi(self):
-        return self.X[3]
+        return np.clip(self.X[3], -self.max_tilt_angle, self.max_tilt_angle)
 
     @property
     def theta(self):
-        return self.X[4]
+        return np.clip(self.X[4], -self.max_tilt_angle, self.max_tilt_angle)
 
     @property
     def psi(self):
-        return self.X[5]
+        return np.clip(self.X[5], -6, 6)
     
     @property
     def x_vel(self):
