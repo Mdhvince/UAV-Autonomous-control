@@ -1,12 +1,17 @@
+import math
+import warnings
 import configparser
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from matplotlib.cm import get_cmap, ScalarMappable
+from matplotlib.colors import Normalize
 
 from quadrotor import Quadrotor
 from controller import Controller
-from trajectory import get_path, get_path_random, get_path_straight
+from trajectory import get_path, get_path_random, get_path_straight, get_path_helix
+
+warnings.filterwarnings('ignore')
 
 
 def plot_trajectory(ax, drone_state_history, desired):
@@ -32,7 +37,7 @@ def plot_yaw_angle(t, desired, drone_state_history):
     plt.legend(['Planned yaw','Executed yaw'],fontsize = 14)
     plt.show()
 
-def plot_angular_velocities(t, omega_history):
+def plot_props_speed(t, omega_history):
     plt.plot(t, -omega_history[:-1,0],color='blue')
     plt.plot(t, omega_history[:-1,1],color='red')
     plt.plot(t, -omega_history[:-1,2],color='green')
@@ -55,6 +60,7 @@ def plot_position_error(t, drone_state_history, desired):
     plt.title('Error in flight position').set_fontsize(20)
     plt.xlabel('$t$ [$s$]').set_fontsize(20)
     plt.ylabel('$e$ [$m$]').set_fontsize(20)
+    plt.ylim(0.1, 1)
     plt.legend(['x', 'y', 'z'],fontsize = 14)
     plt.show()
 
@@ -78,95 +84,104 @@ def quad_pos(current_position, rot, L, H=0.05) -> np.ndarray:
 
     return quad_wf
 
+def plot3d_quad(ax, quad, drone_state_history, desired, scalar_map, norm):
+    rot_mat = quad.R()
+    current_position = np.array([quad.x, quad.y, quad.z])
+    quad_plot_coordinates = quad_pos(current_position, rot_mat, L=.7, H=0.005)
+    a = quad_plot_coordinates[0, :]
+    b = quad_plot_coordinates[1, :]
+    c = quad_plot_coordinates[2, :]
+
+    # Text
+    roll, pitch, yaw = math.degrees(quad.phi), math.degrees(quad.theta), math.degrees(quad.psi)
+    vel = np.linalg.norm([quad.x_vel, quad.y_vel, quad.z_vel])
+    text = (
+        f"""
+        Velocity: {round(vel, 2)} m/s\n
+        R: {round(roll, 2)} deg        P: {round(pitch, 2)} deg        Y: {round(yaw, 2)} deg\n
+        """
+    )
+    ax.text2D(0.1, 0.98, text, transform=ax.transAxes, size=12)
+
+    # quad
+    ax.plot(a[[0, 2]], b[[0, 2]], c[[0, 2]], 'b-', lw=5, alpha=.2)
+    ax.plot(a[[1, 3]], b[[1, 3]], c[[1, 3]], 'b-', lw=5, alpha=.2)
+    ax.scatter(a, b, c, alpha=.1)
+
+    # trajectory
+    color = scalar_map(norm(vel))
+
+    ax.plot(desired.x, desired.y, desired.z, marker='.',color='red', alpha=.2, markersize=1)
+    ax.plot(drone_state_history[-80:, 0],
+            drone_state_history[-80:, 1],
+            drone_state_history[-80:, 2],
+            marker='o',color=color, alpha=1, markersize=6, fillstyle='none')
+
+    # axis
+    scale = 0.5
+    px, py, pz = current_position
+    roll_axis = (rot_mat[:, 0] * scale) + current_position
+    pitch_axis = (rot_mat[:, 1] * scale) + current_position
+    yaw_axis = -(rot_mat[:, 2] * scale) + current_position
+
+    ax.plot([px, roll_axis[0]], [py, roll_axis[1]], [pz, roll_axis[2]], 'r', lw=3)
+    ax.plot([px, pitch_axis[0]], [py, pitch_axis[1]], [pz, pitch_axis[2]], 'g', lw=3)
+    ax.plot([px, yaw_axis[0]], [py, yaw_axis[1]], [pz, yaw_axis[2]], 'b', lw=3)
+    
+def setup_plot(colormap="coolwarm"):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    norm = Normalize(vmin=0, vmax=1)
+    scalar_map = get_cmap(colormap)
+    sm = ScalarMappable(cmap=scalar_map, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm)
+    cbar.set_label('Velocity (m/s)')
+    return ax, norm, scalar_map
+
 if __name__ == "__main__":
 
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = "/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini"
     config.read(config_file)
     inner_loop_relative_to_outer_loop = 10
     
-    quad = Quadrotor(config)
-    control_system = Controller(config)
-    t, dt, desired = get_path(20)
+    ax, norm, scalar_map = setup_plot(colormap="turbo")
+    # t, dt, desired = get_path_helix(total_time=20, r=1.5, height=3, dt=0.01)
+    t, dt, desired = get_path(total_time=20)
 
+    quad = Quadrotor(config, desired)
+    control = Controller(config)
     
-    
-    quad.X = np.array([
-        desired.x[0], desired.y[0], desired.z[0],
-        0.0, 0.0, 0.0,
-        desired.x_vel[0], desired.y_vel[0], desired.z_vel[0],
-        0.0, 0.0, 0.0
-    ])
-    
-    drone_state_history = quad.X
-    omega_history = quad.omega
-    accelerations = quad.linear_acceleration()
-    accelerations_history= accelerations
-    angular_vel_history = quad.get_euler_derivatives()
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    drone_state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
-    R = []
+    
+    for i in range(0, 2000):
+        i = n_waypoints-1 if i > n_waypoints-1 else i  # stay at the last waypoint if arrived
 
-
-    for i in range(0, n_waypoints):
-        rot_mat = quad.R()
-
-        thrust_cmd = control_system.altitude_controller(
-                desired.z[i], desired.z_vel[i], desired.z_acc[i], rot_mat, quad, dt)
-        
-        # reserve some thrust margin for angle control
-        thrust_margin = 0.1 * (quad.max_thrust - quad.min_thrust)
-        thrust_cmd = np.clip(thrust_cmd, (quad.min_thrust + thrust_margin) * 4, (quad.max_thrust-thrust_margin) * 4)
-
-        acc_cmd = control_system.lateral_controller(
-            desired.x[i], desired.x_vel[i], desired.x_acc[i],
-            desired.y[i], desired.y_vel[i], desired.y_acc[i], quad)
+        thrust_cmd = control.altitude(quad, desired, dt, index=i)
+        acc_cmd = control.lateral(quad, desired, index=i)
         
         for _ in range(inner_loop_relative_to_outer_loop):
-            rot_mat = quad.R()
-            pq_cmd = control_system.roll_pitch_controller(acc_cmd, thrust_cmd, rot_mat, quad)
-            r_cmd = control_system.yaw_controller(desired.yaw[i], quad)
-            pqr_cmd = np.append(pq_cmd, r_cmd)
-            moment_cmd = control_system.body_rate_controller(pqr_cmd, quad)
-
-            quad.set_propeller_angular_velocities(thrust_cmd, moment_cmd)
+            
+            moment_cmd = control.attitude(quad, thrust_cmd, acc_cmd, desired.yaw[i])
+            quad.set_propeller_speed(thrust_cmd, moment_cmd)
             _ = quad.advance_state(dt/inner_loop_relative_to_outer_loop)
        
-        current_position = np.array([quad.x, quad.y, quad.z])
-        quad_plot_coordinates = quad_pos(current_position, rot_mat, L=.7, H=0.005)
-        a = quad_plot_coordinates[0, :]
-        b = quad_plot_coordinates[1, :]
-        c = quad_plot_coordinates[2, :]
 
+        drone_state_history = np.vstack((drone_state_history, quad.X))
+        omega_history = np.vstack((omega_history, quad.omega))
         ax.clear()
-        vel = np.linalg.norm([quad.x_vel, quad.y_vel, quad.z_vel])
-        text = f"Velocity: {round(vel, 2)} m/s"
-        ax.text2D(0.1, 1, text, transform=ax.transAxes, size=15)
-        ax.plot(desired.x, desired.y, desired.z, marker='.',color='red', alpha=.2, markersize=1)
-        ax.plot(a[[0, 2]], b[[0, 2]], c[[0, 2]], 'b-', lw=5, alpha=.4)
-        ax.plot(a[[1, 3]], b[[1, 3]], c[[1, 3]], 'b-', lw=5, alpha=.4)
-        ax.scatter(a, b, c)
+        plot3d_quad(ax, quad, drone_state_history, desired, scalar_map, norm)
         ax.set_xlim(-2, 2)
         ax.set_ylim(-2, 3.5)
         ax.set_zlim(0, 3.5)
-
         plt.pause(.0001)
-
-     
-        drone_state_history = np.vstack((drone_state_history, quad.X))
-        omega_history = np.vstack((omega_history, quad.omega))
-        accelerations = quad.linear_acceleration()
-        accelerations_history= np.vstack((accelerations_history, accelerations))
-        angular_vel_history = np.vstack((angular_vel_history, quad.get_euler_derivatives()))
-
-
 
 
     plot_trajectory(ax, drone_state_history, desired)
     plot_yaw_angle(t, desired, drone_state_history)
-    plot_angular_velocities(t, omega_history)
+    plot_props_speed(t, omega_history)
     plot_position_error(t, drone_state_history, desired)
     plt.show()
 

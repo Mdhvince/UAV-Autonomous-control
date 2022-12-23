@@ -4,7 +4,7 @@ import numpy as np
 
 class Quadrotor():
     
-    def __init__(self, config):
+    def __init__(self, config, desired):
 
         self.g = config["DEFAULT"].getfloat("g")
         quad_params = config["VEHICLE"]
@@ -28,9 +28,17 @@ class Quadrotor():
 
         self.l = L / math.sqrt(2)
 
-        # x, y, z, Φ, θ, ψ, x_vel, y_vel, z_vel, p, q, r
-        self.X=np.array([.0, .0, .0, .0, .0, .0, .0, .0, .0, .0, .0, .0])
+        # state: x, y, z, Φ, θ, ψ, x_vel, y_vel, z_vel, p, q, r
+        self.X = np.array([
+            desired.x[0], desired.y[0], desired.z[0],
+            0.0, 0.0, 0.0,
+            desired.x_vel[0], desired.y_vel[0], desired.z_vel[0],
+            0.0, 0.0, 0.0
+        ])
+
+        # propeller speed
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
+
 
     def advance_state(self, dt):
         """
@@ -38,7 +46,7 @@ class Quadrotor():
         since we can get the values from the sensors.
         """
         euler_dot_lab = self.get_euler_derivatives()
-        body_frame_angle_dot = self.get_omega_dot()
+        body_frame_angle_dot = self.body_angular_acceleration()
         accelerations = self.linear_acceleration()
 
         X_dot = np.array([self.X[6],               # x velocity
@@ -57,16 +65,15 @@ class Quadrotor():
         self.X = self.X + X_dot * dt
         return self.X
 
-    def set_propeller_angular_velocities(self, thrust_cmd, moment_cmd):
+    def set_propeller_speed(self, thrust_cmd, moment_cmd):
         c_bar = thrust_cmd
         p_bar = moment_cmd[0] / self.l
         q_bar = moment_cmd[1] / self.l
         r_bar = -moment_cmd[2] / self.kappa
+        
+        U = np.array([p_bar, q_bar, r_bar, c_bar])
+        self.omega = Quadrotor.propeller_coeffs() @ U / 4
 
-        self.omega[0] = (c_bar + p_bar + q_bar + r_bar) / 4  # front left
-        self.omega[1] = (c_bar - p_bar + q_bar - r_bar) / 4  # front right
-        self.omega[2] = (c_bar + p_bar - q_bar - r_bar) / 4  # rear left
-        self.omega[3] = (c_bar - p_bar - q_bar + r_bar) / 4  # rear right
     
     def linear_acceleration(self):  # used for state update
         """
@@ -78,11 +85,12 @@ class Quadrotor():
         c = np.array([0, 0, -self.f_total]).T
         return g + np.matmul(R, c) / self.m
     
-    def get_omega_dot(self):  # used for state update
+    def body_angular_acceleration(self):  # used for state update
         """Angular aceeleration in the body frame"""
         p_dot = (self.tau_x - self.r * self.q * (self.i_z - self.i_y)) / self.i_x
         q_dot = (self.tau_y - self.r * self.p * (self.i_x - self.i_z)) / self.i_y
         r_dot = (self.tau_z - self.q * self.p * (self.i_y - self.i_x)) / self.i_z
+        
         return np.array([p_dot,q_dot,r_dot])
     
     def get_euler_derivatives(self):  # used for state update
@@ -93,8 +101,7 @@ class Quadrotor():
                 [0, math.sin(self.phi) / math.cos(self.theta), math.cos(self.phi) / math.cos(self.theta)]
             ])
 
-        # Angular velocities in the body frame
-        pqr = np.array([self.p, self.q, self.r]).T
+        pqr = self.body_angular_velocity.T
 
         # Angular velocities in world frame
         phi_theta_psi_dot = np.matmul(euler_rot_mat, pqr)
@@ -103,9 +110,7 @@ class Quadrotor():
 
     
     def R(self):
-        """
-        To transform between body frame accelerations and world frame accelerations
-        """
+        """XYZ"""
         r_x = np.array([[1, 0, 0],
                         [0, np.cos(self.phi), -np.sin(self.phi)],
                         [0, np.sin(self.phi), np.cos(self.phi)]])
@@ -121,6 +126,14 @@ class Quadrotor():
         r_yx = np.matmul(r_y, r_x)
         return np.matmul(r_z, r_yx)
     
+
+    @staticmethod
+    def propeller_coeffs():
+        return np.array([[1, 1, 1, 1],     # front left
+                         [1, -1, 1, -1],   # front right
+                         [1, 1, -1, -1],   # rear left
+                         [1, -1, -1, 1]])  # rear right
+
     @property
     def x(self):
         return self.X[0]
@@ -132,18 +145,26 @@ class Quadrotor():
     @property
     def z(self):
         return self.X[2]
+    
+    @property
+    def position(self):
+        return np.array([self.x, self.y, self.z])
 
     @property
     def phi(self):
-        return np.clip(self.X[3], -self.max_tilt_angle, self.max_tilt_angle)
+        return self.X[3]
 
     @property
     def theta(self):
-        return np.clip(self.X[4], -self.max_tilt_angle, self.max_tilt_angle)
+        return self.X[4]
 
     @property
     def psi(self):
-        return np.clip(self.X[5], -6, 6)
+        return self.X[5]
+    
+    @property
+    def euler_angles(self):
+        return np.array([self.phi, self.theta, self.psi])
     
     @property
     def x_vel(self):
@@ -156,6 +177,10 @@ class Quadrotor():
     @property
     def z_vel(self):
         return self.X[8]
+    
+    @property
+    def velocity(self):
+        return np.array([self.x_vel, self.y_vel, self.z_vel])
 
     # body rates [rad / s] (in body frame)
     @property 
@@ -169,6 +194,11 @@ class Quadrotor():
     @property 
     def r(self):
         return self.X[11]
+    
+    @property
+    def body_angular_velocity(self):
+        return np.array([self.p, self.q, self.r])
+
     
     # forces from the four propellers [N]
     @property
