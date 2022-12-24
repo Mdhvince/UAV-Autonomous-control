@@ -183,7 +183,6 @@ if __name__ == "__main__":
             quad.set_propeller_speed(thrust_cmd, moment_cmd)
             quad.update_state(dt/inner_loop_relative_to_outer_loop)
        
-
         drone_state_history = np.vstack((drone_state_history, quad.X))
         omega_history = np.vstack((omega_history, quad.omega))
 
@@ -193,11 +192,10 @@ if __name__ == "__main__":
 
     ######################################### PLOTS ###########################################
     fig, ax, norm, scalar_map = setup_plot(colormap="turbo")
-    ani = animation.FuncAnimation(fig, animate, frames=len(drone_state_history))
-    writer=animation.FFMpegFileWriter(fps=30)
-    ani.save('Fig8.mp4', writer=writer)
-    # plt.show()
-
+    ani = animation.FuncAnimation(fig, animate, frames=len(drone_state_history), interval=5)
+    # writer=animation.FFMpegFileWriter(fps=30)
+    # ani.save('Fig8.mp4', writer=writer)
+    plt.show()
 
     # plot_trajectory(ax, drone_state_history, desired)
     # plt.figure(2)
