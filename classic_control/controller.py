@@ -6,7 +6,6 @@ import numpy as np
 # And our controls (especially the moments that we command) have a more intuitive interpretation in the body frame.
 
 class Controller():
-    
     def __init__(self, config):
         self.g = config["DEFAULT"].getfloat("g")
 
@@ -27,7 +26,11 @@ class Controller():
         self.kp_r = controller.getfloat("kp_r")
 
         self.integral_error = 0
-    
+
+        # Info for gain tuning
+        print(f"x: Damping Ratio = {(self.kd_x/2/math.sqrt(self.kp_x))}, Natural Freq = {(math.sqrt(self.kp_x))}")
+        print(f"y: Damping Ratio = {(self.kd_y/2/math.sqrt(self.kp_y))}, Natural Freq = {(math.sqrt(self.kp_y))}")
+        print(f"z: Damping Ratio = {(self.kd_z/2/math.sqrt(self.kp_z))}, Natural Freq = {(math.sqrt(self.kp_z))}")
 
     ######### POSITION #########
     def altitude(self, quad, desired, dt, index):

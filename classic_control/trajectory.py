@@ -3,11 +3,10 @@ from collections import namedtuple
 import numpy as np
 
 
-def get_path_random():
+def get_path_random(total_time=20):
     Desired = namedtuple(
             "Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     
-    total_time = 20.0
     dt = 0.01
     t = np.linspace(0.0, total_time, int(total_time/dt))
 
@@ -37,7 +36,6 @@ def get_path_random():
 
     desired_trajectory = Desired(x, y, z, x_vel, y_vel, z_vel, x_acc, y_acc, z_acc, yaw)
     return t, dt, desired_trajectory
-
 
 def get_path(total_time=20):
     Desired = namedtuple(
@@ -71,33 +69,6 @@ def get_path(total_time=20):
     desired_trajectory = Desired(x, y, z, x_vel, y_vel, z_vel, x_acc, y_acc, z_acc, yaw)
 
     return t, dt, desired_trajectory
-
-
-def get_path_straight():
-    Desired = namedtuple(
-            "Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
-    
-    total_time = 20.0
-    dt = 0.01
-    t = np.linspace(0.0, total_time, int(total_time/dt))
-
-    x = np.zeros(t.shape)
-    x_vel = np.zeros(t.shape)
-    x_acc = np.zeros(t.shape)
-
-    y = np.zeros(t.shape)
-    y_vel = np.zeros(t.shape)
-    y_acc = np.zeros(t.shape)
-
-    z = np.ones(t.shape)
-    z_vel = np.zeros(t.shape)
-    z_acc = np.zeros(t.shape)
-
-    yaw = np.zeros(t.shape)
-
-    desired_trajectory = Desired(x, y, z, x_vel, y_vel, z_vel, x_acc, y_acc, z_acc, yaw)
-    return t, dt, desired_trajectory
-
 
 def get_path_helix(total_time=20, r=1, height=10, dt=0.01):
     Desired = namedtuple(
