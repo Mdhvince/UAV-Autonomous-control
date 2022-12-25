@@ -19,8 +19,7 @@ The algorithm is composed of
 - State update using euler integration method
 
 ### Result on the Figure 8 path
-https://user-images.githubusercontent.com/17160701/209479047-1a188f8f-c4be-4d44-9af6-defda06e495d.mp4
-
+https://user-images.githubusercontent.com/17160701/209479162-a6c44616-ee63-4361-8d10-558682a14795.mp4
 
 ![Result Fig 8](docs/results_fig8_classic_control.png "")
 
