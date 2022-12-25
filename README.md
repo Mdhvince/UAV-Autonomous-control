@@ -21,6 +21,10 @@ The algorithm is composed of
 ### Result on the Figure 8 path
 https://user-images.githubusercontent.com/17160701/209479162-a6c44616-ee63-4361-8d10-558682a14795.mp4
 
+### Result on the Helix path
+https://user-images.githubusercontent.com/17160701/209479519-78ff2b20-476a-42fe-bb60-d8cf54d24e68.mp4
+
+
 ![Result Fig 8](docs/results_fig8_classic_control.png "")
 
 ### To do
