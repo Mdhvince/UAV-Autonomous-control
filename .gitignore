@@ -2,3 +2,4 @@ __pycache__/
 rl/
 */app.py
 .vscode/
+raw*

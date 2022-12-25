@@ -13,9 +13,6 @@ from trajectory import *
 warnings.filterwarnings('ignore')
 
 
-
-
-
 if __name__ == "__main__":
 
     config = configparser.ConfigParser(inline_comment_prefixes="#")
@@ -23,9 +20,9 @@ if __name__ == "__main__":
     config.read(config_file)
     inner_loop_relative_to_outer_loop = 10
     
-    # t, dt, desired = get_path()
+    t, dt, desired = get_path()
     # t, dt, desired = get_path_helix(total_time=20, r=1.5, height=3, dt=0.01)
-    t, dt, desired = get_path_random()
+    # t, dt, desired = get_path_random()
 
     quad = Quadrotor(config, desired)
     control = Controller(config)

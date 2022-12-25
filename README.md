@@ -1,14 +1,14 @@
 ## 3D UAV simulation and autonomous control for path tracking
 
 ### 1. Classic autonomous control  
-  
+
+![Controller Arch](docs/Controller%20Arch.png "")  
+
 The algorithm is composed of  
 
 - Outer loop:
     - Altitude controller
     - Lateral controller  
-
-
 ---
 - Inner Loop x10 faster:
     - Roll-Pitch controller
