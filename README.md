@@ -19,6 +19,8 @@ The algorithm is composed of
 ### Result on the Figure 8 path
 https://user-images.githubusercontent.com/17160701/209437807-9458b60c-aa87-4924-9fe2-076876c0d746.mp4
 
+![Result Fig 8](docs/results_fig8_classic_control.png "")
+
 ### To do
 - [x] Simulation of 3D UAV Dynamics
     - [x] UAV Equation of motion
