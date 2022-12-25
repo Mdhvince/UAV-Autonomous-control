@@ -64,7 +64,7 @@ def get_path(total_time=20):
     z_vel = -a_z * omega_z * np.sin(omega_z * t)
     z_acc = - a_z * omega_z**2 * np.cos(omega_z * t)
 
-    yaw = np.arctan2(y_vel,x_vel)
+    yaw = np.arctan2(y_vel, x_vel)
 
     desired_trajectory = Desired(x, y, z, x_vel, y_vel, z_vel, x_acc, y_acc, z_acc, yaw)
 

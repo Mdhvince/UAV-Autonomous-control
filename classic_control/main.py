@@ -34,6 +34,7 @@ if __name__ == "__main__":
     n_waypoints = desired.z.shape[0]
     
     for i in range(0, n_waypoints):
+        
         thrust_cmd = control.altitude(quad, desired, dt, index=i)
         acc_cmd = control.lateral(quad, desired, index=i)
         
@@ -55,7 +56,5 @@ if __name__ == "__main__":
     fig, ax, norm, scalar_map = utils_plot.setup_plot(colormap="turbo")
     ani = utils_plot.run_animation(fig, n_waypoints, 5, ax, state_history, desired, scalar_map, norm)
     utils_plot.save_animation(ani, "fig8-dark.mp4")
-    
-    
     # utils_plot.plot_results(t, state_history, omega_history, desired)
 

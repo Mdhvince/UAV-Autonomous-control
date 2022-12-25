@@ -120,43 +120,51 @@ def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
     rot_mat = np.matmul(r_z, r_yx)
 
     current_position = drone_state_history[index, :3]
-    quad_plot_coordinates = quad_pos(current_position, rot_mat, L=.7, H=0.005)
-    a = quad_plot_coordinates[0, :]
-    b = quad_plot_coordinates[1, :]
-    c = quad_plot_coordinates[2, :]
+    quad_wf = quad_pos(current_position, rot_mat, L=.7, H=0.005)
+    x = quad_wf[0, :]
+    y = quad_wf[1, :]
+    z = quad_wf[2, :]
 
     px, py, pz = current_position
     color = scalar_map(norm(vel))
-    ax.plot(a[[0, 2]], b[[0, 2]], c[[0, 2]], 'black', lw=1, alpha=1)
-    ax.plot(a[[1, 3]], b[[1, 3]], c[[1, 3]], 'black', lw=1, alpha=1)
-    ax.scatter(a, b, c, color=color, alpha=1)
+    ax.scatter(x, y, z, color=color, alpha=1)
 
-    ax.plot(px, py, 0, color='black', alpha=0.5, markersize=5-pz, marker='o')  # shadow
+    center, front_left, front_right, rear_left, rear_right = 5, 0, 1, 3, 2
+
+    # Center to front left / rigth / back-left / back-right
+    ax.plot([x[center], x[front_left]], [y[center], y[front_left]], [z[center], z[front_left]], '-', color='k', label="Front")
+    ax.plot([x[front_right], x[center]], [y[front_right], y[center]], [z[front_right], z[center]], '-', color='k')
+    ax.plot([x[center], x[rear_left]], [y[center], y[rear_left]], [z[center], z[rear_left]], '-', color='w', label="Rear")
+    ax.plot([x[center], x[rear_right]], [y[center], y[rear_right]], [z[center], z[rear_right]], '-', color='w')
+
+    # contour of the quad
+    ax.plot([x[front_left], x[front_right], x[rear_right], x[rear_left], x[front_left]],
+            [y[front_left], y[front_right], y[rear_right], y[rear_left], y[front_left]],
+            [z[front_left], z[front_right], z[rear_right], z[rear_left], z[front_left]], '-')
+    
+    # shadow
+    ax.plot(px, py, 0, color='black', alpha=0.5, markersize=5-pz, marker='o')
 
     # Trajectory 
-    ax.plot(desired.x, desired.y, desired.z, marker='.',color='red', alpha=.2, markersize=1)
+    ax.plot(desired.x, desired.y, desired.z, marker='.',color='red', alpha=.2, markersize=1, label="Trajectory")
 
     # Axis Body frame 
-    scale = 0.5
+    scale = 0.3
     roll_axis = (rot_mat[:, 0] * scale) + current_position
     pitch_axis = (rot_mat[:, 1] * scale) + current_position
     yaw_axis = (rot_mat[:, 2] * scale) + current_position
-
     ax.plot([px, roll_axis[0]], [py, roll_axis[1]], [pz, roll_axis[2]], 'r', lw=3)
     ax.plot([px, pitch_axis[0]], [py, pitch_axis[1]], [pz, pitch_axis[2]], 'g', lw=3)
     ax.plot([px, yaw_axis[0]], [py, yaw_axis[1]], [pz, yaw_axis[2]], 'b', lw=3)
 
-    # Formatting
-    # ax.set_xlim(-2, 2)
-    # ax.set_ylim(-2, 3.5)
-    # ax.set_zlim(0, 3.5)
 
-    ax.w_xaxis.pane.set_color('w')
-    ax.w_yaxis.pane.set_color('w')
     ax.w_zaxis.pane.set_color('#2D3047')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_zticks([])
+    ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.legend(facecolor="gray")
+    ax.set_axis_off()
+
+
 
 def animate(index, ax, drone_state_history, desired, scalar_map, norm):
         plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index)
