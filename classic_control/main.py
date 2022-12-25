@@ -23,9 +23,9 @@ if __name__ == "__main__":
     config.read(config_file)
     inner_loop_relative_to_outer_loop = 10
     
-    t, dt, desired = get_path()
+    # t, dt, desired = get_path()
     # t, dt, desired = get_path_helix(total_time=20, r=1.5, height=3, dt=0.01)
-    # t, dt, desired = get_path_random()
+    t, dt, desired = get_path_random()
 
     quad = Quadrotor(config, desired)
     control = Controller(config)
@@ -55,6 +55,7 @@ if __name__ == "__main__":
     ###################################### PLOTS ######################################
     fig, ax, norm, scalar_map = utils_plot.setup_plot(colormap="turbo")
     ani = utils_plot.run_animation(fig, n_waypoints, 5, ax, state_history, desired, scalar_map, norm)
-    utils_plot.save_animation(ani, "fig8-dark.mp4")
+    plt.show()
+    # utils_plot.save_animation(ani, "docs/figHelix.mp4")
     # utils_plot.plot_results(t, state_history, omega_history, desired)
 
