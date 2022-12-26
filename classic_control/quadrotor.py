@@ -51,26 +51,25 @@ class Quadrotor():
         self.body_angular_acceleration()
         self.linear_acceleration()
         self.X = self.X + self.dX * dt  # intregrate using euler method
-
-
+    
     def set_propeller_speed(self, thrust_cmd, moment_cmd):
         c_bar = thrust_cmd
         p_bar = moment_cmd[0] / self.l
         q_bar = moment_cmd[1] / self.l
         r_bar = -moment_cmd[2] / self.kappa
-        
-        U = np.array([p_bar, q_bar, r_bar, c_bar])
-        self.omega = Quadrotor.propeller_coeffs() @ U / 4
 
-    
+        U = np.array([p_bar, q_bar, r_bar, c_bar])
+
+        self.omega = Quadrotor.propeller_coeffs() @ U / 4
+        
+ 
     def linear_acceleration(self):  # used for state update
         """
         Convert the thrust body frame to world frame , divide by the mass and add the gravity
         in order to have the linear acceleration x_acc, y_acc, z_acc in the world frame
         """
         R = self.R()
-        # g = np.array([0, 0, self.g]).T
-        g = np.array([0, 0, self.g * self.m]).T
+        g = np.array([0, 0, self.g]).T
         c = np.array([0, 0, -self.f_total]).T
 
         # linear accelerations along x, y, z
@@ -99,7 +98,7 @@ class Quadrotor():
         
     
     def R(self):
-        """XYZ"""
+        """ZYX"""
         r_x = np.array([[1, 0, 0],
                         [0, np.cos(self.phi), -np.sin(self.phi)],
                         [0, np.sin(self.phi), np.cos(self.phi)]])

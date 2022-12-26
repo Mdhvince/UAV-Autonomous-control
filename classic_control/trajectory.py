@@ -37,11 +37,10 @@ def get_path_random(total_time=20):
     desired_trajectory = Desired(x, y, z, x_vel, y_vel, z_vel, x_acc, y_acc, z_acc, yaw)
     return t, dt, desired_trajectory
 
-def get_path(total_time=20):
+def get_path(total_time=20, dt=0.01):
     Desired = namedtuple(
             "Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     
-    dt = 0.01
     t = np.linspace(0.0, total_time, int(total_time/dt))
 
     omega_x = 0.8

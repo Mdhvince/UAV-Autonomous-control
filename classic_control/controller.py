@@ -27,11 +27,6 @@ class Controller():
 
         self.integral_error = 0
 
-        # Info for gain tuning
-        print(f"x: Damping Ratio = {(self.kd_x/2/math.sqrt(self.kp_x))}, Natural Freq = {(math.sqrt(self.kp_x))}")
-        print(f"y: Damping Ratio = {(self.kd_y/2/math.sqrt(self.kp_y))}, Natural Freq = {(math.sqrt(self.kp_y))}")
-        print(f"z: Damping Ratio = {(self.kd_z/2/math.sqrt(self.kp_z))}, Natural Freq = {(math.sqrt(self.kp_z))}")
-
     ######### POSITION #########
     def altitude(self, quad, desired, dt, index):
         """
@@ -49,6 +44,7 @@ class Controller():
 
         # Project the acceleration along the z-vector of the body (Bz)
         rot_mat = quad.R()
+        
         b_z = rot_mat[2, 2]
         acc = (u_1_bar - self.g) / b_z
         acc = np.clip(acc, -quad.max_ascent_rate/dt, quad.max_descent_rate/dt)
@@ -57,7 +53,7 @@ class Controller():
         thrust_cmd = np.clip(thrust_cmd, quad.min_thrust, quad.max_thrust)
 
         # reserve some thrust margin for angle control
-        thrust_margin = 0.1 * (quad.max_thrust - quad.min_thrust)
+        thrust_margin = 0.2 * (quad.max_thrust - quad.min_thrust)
         thrust_cmd = np.clip(
             thrust_cmd, (quad.min_thrust + thrust_margin) * 4, (quad.max_thrust-thrust_margin) * 4)
 
@@ -121,7 +117,7 @@ class Controller():
                 [rot_mat[1, 1], -rot_mat[0, 1]]
             ]) / rot_mat[2, 2]
         
-        pq_cmd = np.matmul(rot_mat1, b_xy_cmd_dot.T)  # rotation rate [p_c, q_c]
+        pq_cmd = np.matmul(rot_mat1, b_xy_cmd_dot.T)
 
         return pq_cmd
     
@@ -137,6 +133,10 @@ class Controller():
         pqr_actual = np.array([quad.p, quad.q, quad.r])
 
         moment_cmd = MOI * kp_pqr * (pqr_cmd - pqr_actual)
+
+        moment_mag = np.linalg.norm(moment_cmd)
+        if moment_mag > quad.max_torque:
+            moment_cmd = moment_cmd * quad.max_torque / moment_mag
         return moment_cmd
     
     @property

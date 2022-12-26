@@ -90,21 +90,9 @@ def quad_pos(current_position, rot, L, H=.05) -> np.ndarray:
 
     return quad_wf
 
-def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
-    ax.clear()
-    # Text 
-    phi, theta, psi = drone_state_history[index, 3:6]
-    roll, pitch, yaw = math.degrees(phi), math.degrees(theta), math.degrees(psi)
-    vel = np.linalg.norm(drone_state_history[index, 6:9])
-    text = (
-        f"""
-        Velocity: {round(vel, 2)} m/s\n
-        R: {round(roll, 2)} deg        P: {round(pitch, 2)} deg        Y: {round(yaw, 2)} deg\n
-        """
-    )
-    ax.text2D(0.1, 0.98, text, transform=ax.transAxes, size=12)
 
-    # Quad 
+def euler2Rot(phi, theta, psi):
+
     r_x = np.array([[1, 0, 0],
                     [0, np.cos(phi), -np.sin(phi)],
                     [0, np.sin(phi), np.cos(phi)]])
@@ -118,6 +106,28 @@ def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
                     [0,0,1]])
     r_yx = np.matmul(r_y, r_x)
     rot_mat = np.matmul(r_z, r_yx)
+    return rot_mat
+
+def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
+    ax.clear()
+    # Text 
+    phi, theta, psi = -drone_state_history[index, 3:6]  # add negative for mirroring effect of matplotlib
+    roll, pitch, yaw = math.degrees(phi), math.degrees(theta), math.degrees(psi)
+    vel = np.linalg.norm(drone_state_history[index, 6:9])
+    text = (
+        f"""
+        Velocity   {round(vel, 2)} m/s
+
+        Roll       {round(roll, 2)}°
+        Pitch      {round(pitch, 2)}°
+        Yaw        {round(yaw, 2)}°
+        """
+    )
+    row, col = 0.8, -0.5
+    ax.text2D(col, row, text, transform=ax.transAxes, size=12)
+
+    # Quad 
+    rot_mat = euler2Rot(phi, theta, psi)
 
     current_position = drone_state_history[index, :3]
     quad_wf = quad_pos(current_position, rot_mat, L=.7, H=0.005)
@@ -129,24 +139,26 @@ def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
     color = scalar_map(norm(vel))
     ax.scatter(x, y, z, color=color, alpha=1)
 
-    center, front_left, front_right, rear_left, rear_right = 5, 0, 1, 3, 2
+    COM, FL, FR, RL, RR = 5, 0, 1, 3, 2
 
-    # Center to front left / rigth / back-left / back-right
-    ax.plot([x[center], x[front_left]], [y[center], y[front_left]], [z[center], z[front_left]], '-', color='k', label="Front")
-    ax.plot([x[front_right], x[center]], [y[front_right], y[center]], [z[front_right], z[center]], '-', color='k')
-    ax.plot([x[center], x[rear_left]], [y[center], y[rear_left]], [z[center], z[rear_left]], '-', color='w', label="Rear")
-    ax.plot([x[center], x[rear_right]], [y[center], y[rear_right]], [z[center], z[rear_right]], '-', color='w')
+    # COM to front left / rigth / rear-left / rear-right
+    ax.plot([x[COM], x[FL]], [y[COM], y[FL]], [z[COM], z[FL]], '-', color='y', label="Front")
+    ax.plot([x[FR], x[COM]], [y[FR], y[COM]], [z[FR], z[COM]], '-', color='y')
+    ax.plot([x[COM], x[RL]], [y[COM], y[RL]], [z[COM], z[RL]], '-', color='w', label="Rear")
+    ax.plot([x[COM], x[RR]], [y[COM], y[RR]], [z[COM], z[RR]], '-', color='w')
 
     # contour of the quad
-    ax.plot([x[front_left], x[front_right], x[rear_right], x[rear_left], x[front_left]],
-            [y[front_left], y[front_right], y[rear_right], y[rear_left], y[front_left]],
-            [z[front_left], z[front_right], z[rear_right], z[rear_left], z[front_left]], '-')
+    # ax.plot([x[FL], x[FR], x[RR], x[RL], x[FL]],
+    #         [y[FL], y[FR], y[RR], y[RL], y[FL]],
+    #         [z[FL], z[FR], z[RR], z[RL], z[FL]], '-')
     
     # shadow
     ax.plot(px, py, 0, color='black', alpha=0.5, markersize=5-pz, marker='o')
 
     # Trajectory 
-    ax.plot(desired.x, desired.y, desired.z, marker='.',color='red', alpha=.2, markersize=1, label="Trajectory")
+    ax.plot(desired.x,
+            desired.y,
+            desired.z, marker='.',color='red', alpha=.2, markersize=1, label="Trajectory")
 
     # Axis Body frame 
     scale = 0.3
@@ -157,11 +169,10 @@ def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
     ax.plot([px, pitch_axis[0]], [py, pitch_axis[1]], [pz, pitch_axis[2]], 'g', lw=3)
     ax.plot([px, yaw_axis[0]], [py, yaw_axis[1]], [pz, yaw_axis[2]], 'b', lw=3)
 
-
     ax.w_zaxis.pane.set_color('#2D3047')
     ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.legend(facecolor="gray")
+    ax.legend(facecolor="gray", bbox_to_anchor=(1, 1), loc='upper left')
     ax.set_axis_off()
 
 
@@ -174,9 +185,11 @@ def run_animation(fig, frames, interval, *args):
     return ani
 
 def setup_plot(colormap="coolwarm"):
-    fig = plt.figure()
+    fig = plt.figure(figsize=(20,20))
     ax = fig.add_subplot(111, projection='3d')
-    # fig.set_facecolor('#2D3047')
+    # ax.view_init(elev=0, azim=45)
+
+    fig.set_facecolor('#2D3047')
     norm = Normalize(vmin=0, vmax=1)
     scalar_map = get_cmap(colormap)
     sm = ScalarMappable(cmap=scalar_map, norm=norm)

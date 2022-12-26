@@ -20,18 +20,25 @@ if __name__ == "__main__":
     config.read(config_file)
     inner_loop_relative_to_outer_loop = 10
     
-    t, dt, desired = get_path()
-    # t, dt, desired = get_path_helix(total_time=20, r=1.5, height=3, dt=0.01)
+    t, dt, desired = get_path(total_time=20, dt=0.022)
+    t, dt, desired = get_path_helix(total_time=20, r=3, height=3, dt=0.022)
     # t, dt, desired = get_path_random()
+
 
     quad = Quadrotor(config, desired)
     control = Controller(config)
 
+
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
-    
+
     for i in range(0, n_waypoints):
-        
+        # disable acceleration
+        desired.x_acc[i] = 0
+        desired.y_acc[i] = 0
+        desired.z_acc[i] = 0
+        desired.yaw[i] = 0
+
         thrust_cmd = control.altitude(quad, desired, dt, index=i)
         acc_cmd = control.lateral(quad, desired, index=i)
         
@@ -40,13 +47,8 @@ if __name__ == "__main__":
             quad.set_propeller_speed(thrust_cmd, moment_cmd)
             quad.update_state(dt/inner_loop_relative_to_outer_loop)
 
-
         state_history = np.vstack((state_history, quad.X))
         omega_history = np.vstack((omega_history, quad.omega))
-
-
-
-
 
 
     ###################################### PLOTS ######################################

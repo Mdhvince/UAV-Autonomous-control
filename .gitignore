@@ -3,3 +3,7 @@ rl/
 */app.py
 .vscode/
 raw*
+*.sh
+AirSim/
+venv/
+*ipynb
