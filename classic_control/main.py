@@ -20,7 +20,7 @@ if __name__ == "__main__":
     config.read(config_file)
     inner_loop_relative_to_outer_loop = 10
     
-    t, dt, desired = get_path(total_time=20, dt=0.022)
+    # t, dt, desired = get_path(total_time=20, dt=0.022)
     t, dt, desired = get_path_helix(total_time=20, r=3, height=3, dt=0.022)
     # t, dt, desired = get_path_random()
 
@@ -55,6 +55,6 @@ if __name__ == "__main__":
     fig, ax, norm, scalar_map = utils_plot.setup_plot(colormap="turbo")
     ani = utils_plot.run_animation(fig, n_waypoints, 5, ax, state_history, desired, scalar_map, norm)
     plt.show()
-    # utils_plot.save_animation(ani, "docs/figHelix.mp4")
+    # utils_plot.save_animation(ani, "docs/fig8.mp4")
     # utils_plot.plot_results(t, state_history, omega_history, desired)
 
