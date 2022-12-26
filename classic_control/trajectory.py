@@ -1,6 +1,7 @@
 import random
 from collections import namedtuple
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def get_path_random(total_time=20):
@@ -103,5 +104,7 @@ def get_path_helix(total_time=20, r=1, height=10, dt=0.01):
 
 
 if __name__ == "__main__":
-    t, dt, desired = get_path_helix()
+    
+    pass
+  
     
