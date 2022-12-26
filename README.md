@@ -4,6 +4,7 @@ https://user-images.githubusercontent.com/17160701/209576543-1019a9b3-0973-407e-
 
 ### Result on the Figure 8 path
 https://user-images.githubusercontent.com/17160701/209576536-a56c9950-f2d9-4526-a8a3-7f5d370b8c37.mp4
+
 ![Result Fig 8](docs/results_fig8_classic_control.png "")
 
 
