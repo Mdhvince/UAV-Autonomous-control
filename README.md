@@ -1,8 +1,8 @@
 ## 3D UAV simulation and autonomous control for path tracking
-### Result on the Helix path
+### Result on the Helix path (Yaw fixed at 0)
 https://user-images.githubusercontent.com/17160701/209576543-1019a9b3-0973-407e-a4a9-37cd440d0987.mp4
 
-### Result on the Figure 8 path
+### Result on the Figure 8 path (Yaw fixed at 0)
 https://user-images.githubusercontent.com/17160701/209576536-a56c9950-f2d9-4526-a8a3-7f5d370b8c37.mp4
 
 ![Result Fig 8](docs/results_fig8_classic_control.png "")
