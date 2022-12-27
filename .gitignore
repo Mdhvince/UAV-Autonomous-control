@@ -7,3 +7,4 @@ raw*
 AirSim/
 venv/
 *ipynb
+estimation/
