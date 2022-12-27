@@ -2,9 +2,7 @@
 ### Result on the Helix path
 https://user-images.githubusercontent.com/17160701/209675444-38a1941d-f8d2-4477-b8ec-09222fa9c32d.mp4
 
-### Result on the Figure 8 path (Yaw fixed at 0)
-https://user-images.githubusercontent.com/17160701/209576536-a56c9950-f2d9-4526-a8a3-7f5d370b8c37.mp4
-
+### Result on the Figure 8 path
 ![Result Fig 8](docs/results_fig8_classic_control.png "")
 
 
