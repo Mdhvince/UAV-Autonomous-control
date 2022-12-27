@@ -90,7 +90,6 @@ def quad_pos(current_position, rot, L, H=.05) -> np.ndarray:
 
     return quad_wf
 
-
 def euler2Rot(phi, theta, psi):
 
     r_x = np.array([[1, 0, 0],
@@ -110,7 +109,6 @@ def euler2Rot(phi, theta, psi):
 
 def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
     ax.clear()
-    # Text 
     phi, theta, psi = -drone_state_history[index, 3:6]  # add negative for mirroring effect of matplotlib
     roll, pitch, yaw = math.degrees(phi), math.degrees(theta), math.degrees(psi)
     vel = np.linalg.norm(drone_state_history[index, 6:9])
@@ -131,11 +129,8 @@ def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
 
     current_position = drone_state_history[index, :3]
     quad_wf = quad_pos(current_position, rot_mat, L=.7, H=0.005)
-    x = quad_wf[0, :]
-    y = quad_wf[1, :]
-    z = quad_wf[2, :]
+    x, y, z = quad_wf[0, :], quad_wf[1, :], quad_wf[2, :]
 
-    px, py, pz = current_position
     color = scalar_map(norm(vel))
     ax.scatter(x, y, z, color=color, alpha=1)
 
@@ -153,6 +148,7 @@ def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
     #         [z[FL], z[FR], z[RR], z[RL], z[FL]], '-')
     
     # shadow
+    px, py, pz = current_position
     ax.plot(px, py, 0, color='black', alpha=0.5, markersize=5-pz, marker='o')
 
     # Trajectory 
@@ -198,10 +194,6 @@ def plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index):
     ax.yaxis.line.set_color('black')
     ax.zaxis.line.set_color('black')
 
-    # ax.set_axis_off()
-
-
-
 def animate(index, ax, drone_state_history, desired, scalar_map, norm):
         plot3d_quad(ax, drone_state_history, desired, scalar_map, norm, index)
 
@@ -230,7 +222,189 @@ def save_animation(ani, filepath):
     writer=animation.FFMpegFileWriter(fps=60)
     ani.save(filepath, writer=writer)
 
+def create_obstacle(ax, coordinates, shapes, limits):
+    # Define the dimensions of the voxel plot OVERALL size
+    x_size, y_size, z_size = limits
+    x, y, z = coordinates
+    width, length, height = shapes
 
+    # Create an empty 3D array of voxels
+    voxel_plot = np.zeros((x_size, y_size, z_size))
+
+    # Create an array of ones to represent the voxels inside the obstacle
+    obstacle = np.ones((width, length, height))
+
+    # Set the value of the voxels inside the obstacle to 1
+    voxel_plot[x:x+width, y:y+length, z:z+height] = obstacle
+    ax.voxels(voxel_plot)
+
+def create_waypoints(ax, waypoints, n_waypoints):
+    label = None
+    color = "black"
+    x, y, z = waypoints
+    if i == 0:
+        label = "start"; color = "blue"
+    elif i == 1:
+        label = "waypoints"
+    elif i == n_waypoints-1:
+        label = "goal"; color = "red"
+
+    ax.plot(x, y, z, alpha=.5, marker=".",  markersize=20, color=color, label=label)
 
 if __name__ == "__main__":
-    pass
+    fig = plt.figure(figsize=(20,20))
+    ax = fig.add_subplot(111, projection='3d')
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    limits = (10, 10, 10)
+
+    coordinates = np.array([
+        [8, 2, 0],
+        [4, 6, 0],
+        [7, 5, 0],
+        [4, 0, 0]
+    ])
+    shapes = np.array([
+        [1, 1, 5],
+        [2, 1, 5],
+        [1, 1, 5],
+        [1, 4, 5]
+    ])
+    waypoints = np.array([
+        [10, 0, 0],
+        [9, 4, 1],
+        [6, 5, 1.5],
+        [7, 8, 1.5],
+        [2, 7, 2],
+        [1, 0, 2]
+    ])
+    
+    for i in range(len(coordinates)):
+        create_obstacle(ax, coordinates[i], shapes[i], limits)
+    
+    n_wp = len(waypoints)
+    for i in range(n_wp):
+        create_waypoints(ax, waypoints[i], n_wp)
+    
+    # these waypoints are ok, but the quad controller is a 4th order system, so we need a
+    # differentiable path that connect the waypoints otherwise the controller wont't be able to
+    # minimize errors.
+    # So we need to specify trajectory that can be differentiated at least 4 times.
+    # And this motivates the use of Minimum Snap trajectory
+
+    # Here is what we need for Minimum Jerk trajectory first:
+    # 1. Design a trajectory x(t) such that :
+    #   - x(0) = pos_a and x(T) = pos_b
+    #   - x(0) = vel_a = 0 and x(T) = vel_b = 0
+    #   - x(0) = acc_a = 0 and x(T) = acc_b = 0
+
+    # in plain word: Generate a trajectory that start with pos_a, vel_a, acc_a and ends with pos_b,
+    # vel_b, acc_b. (6 constraints in total)
+
+    # so the trajectory at time t will look like this:
+    # x(t) = c5*t^5 + c4*t^4 + c3*t^3 + c2*t^2 + c1*t^1 + c0*t^0  => to respect position constraint
+
+    # what we are intersted in is to find the coefficient c0, c1, c2, c3, c4, c5 that satisfy all
+    # the constraints (boundary conditions) mentionned above
+    # note: that if I have another constraint to respect, I will have to find one more coeff c6*t^6.
+
+    # each of the conditions gives an equation, so we can represent them in a matrix.
+    # we can write the equation in terms of unknown constant and boundary conditions. Solving for
+    # these constants (coeffs) are a linear problem
+
+    # To respect the position constraint: 
+    # x(t) = c5*t^5 + c4*t^4 + c3*t^3 + c2*t^2 + c1*t^1 + c0*t^0
+
+    # So we must have 
+    #   x(0) = c0 = a
+    #   x(T) = c5*(T^5) + c4*(T^4) + c3*(T^3) + c2*(T^2) + c1*(T^1) + c0*(T^0) = b
+
+    # in matrix form, at t=0 we must have:
+    #               |c5|
+    #               |c4|
+    # [0 0 0 0 0 1] |c3| = a
+    #               |c2|
+    #               |c1|
+    #               |c0|
+
+    # in matrix form, at t=T we must have:
+    #                           |c5|
+    #                           |c4|
+    # [T^5 T^4 T^3 T^2 T^1 T^0] |c3| = b
+    #                           |c2|
+    #                           |c1|
+    #                           |c0|
+
+    # to find the equation for the velocity, we just have to defferentiate the position equation
+    # x_dot(t) = 5*c5*t^4 + 4*c4*t^3 + 3*c3*t^2 + 2*c2*t^1 + c1 + 0
+    # x_dot(0) = c1 = vel_a
+    # x_dot(T) = 5*c5*(T^4) + 4*c4*(T^3) + 3*c3*(T^2) + 2*c2*(T^1) + c1 + 0
+
+    # in matrix form, at t=0 we must have
+    #               |c5|
+    #               |c4|
+    # [0 0 0 0 1 0] |c3| = vel_a
+    #               |c2|
+    #               |c1|
+    #               |c0|
+
+    # in matrix form, at t=T we must have
+    #                               |c5|
+    #                               |c4|
+    # [5T^4 4T^3 3T^2 2T^1 T^0 0]   |c3| = vel_b
+    #                               |c2|
+    #                               |c1|
+    #                               |c0|
+
+    # same for accelerations ... we differentiate and we compute
+    # x_dot_dot = 20*c5*t^3 + 12*c4*t^2 + 6*c3*t^2 + 2*c2*t^0 + 0 + 0 
+
+    # all of the 6 constraint can be written as a 6x6 matrix in order to find the coefficient
+    T = 20  # total time
+    dt = 0.01
+    num_steps = T/dt
+    time_steps = np.linspace(0, T, num_steps)
+    trajectory = np.zeros((num_steps, 3)) # just for x pos, vel, acc
+
+
+
+    A = np.array([
+        [0, 0, 0, 0, 0, 1],                      # POSITION AT T=0 CONSTRAINT
+        [T**5, T**4, T**3, T**2, T, 1],          # POSITION AT T=T CONSTRAINT
+        [0, 0, 0, 0, 1, 0],                      # VELOCITY AT T=0 CONSTRAINT
+        [5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],     # VELOCITY AT T=T CONSTRAINT
+        [0, 0, 0, 2, 0, 0],                      # ACCELERATION AT T=0 CONSTRAINT
+        [20*T**3, 12*T**2, 6*T, 2, 0, 0]         # ACCELERATION AT T=T CONSTRAINT
+    ])
+    x_pos_start = waypoints[0][0]
+    x_pos_end = waypoints[-1][0]
+    conditions = np.array([[x_pos_start],   # POSITION X AT T=0 CONSTRAINT
+                           [x_pos_end],     # POSITION X AT T=T CONSTRAINT
+                           [0.0],           # VELOCITY X AT T=0 CONSTRAINT
+                           [0.0],           # VELOCITY X AT T=T CONSTRAINT
+                           [0.0],           # ACCELERATION X AT T=0 CONSTRAINT
+                           [0.0]])          # ACCELERATION X AT T=T CONSTRAINT
+    
+    # now we have a problem in the for Ax = conditions where x are the unknown coefficents we are
+    # looking for. So we can use the inverse of A to solve this:
+    # x = A^1 @ conditions
+    
+    # assuming det(A) is not 0
+    COEFFS = np.linalg.inv(A) @ conditions
+
+    # so the minimum jerk position at time T is:
+    position_x = COEFFS[0] * T**5 + COEFFS[1] * T**4 + COEFFS[2] * T**3 + COEFFS[3] * T**2 + COEFFS[4] * T**1 + COEFFS[5]
+    # for the velocity and acceleration, we differenciate
+    velocity_x = 5 * COEFFS[0] * T**4 + 4 * COEFFS[1] * T**3 + 3 * COEFFS[2] * T**2 + COEFFS[3] * T + COEFFS[4]
+
+    acceleration_x = 4*5 * COEFFS[0] * T**3 + 3*4 * COEFFS[1] * T**2 + 2*3 * COEFFS[2] * T + COEFFS[3]
+
+    print(position_x, velocity_x, acceleration_x)
+
+
+
+    # we will loop in order to do it for y_pos, z_pos
+
+
+    # ax.plot(waypoints[:,0], waypoints[:,1], waypoints[:,2])
+    # ax.legend(facecolor="gray")
+    # plt.show()
