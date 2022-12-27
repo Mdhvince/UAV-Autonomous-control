@@ -58,9 +58,9 @@ class Quadrotor():
         q_bar = moment_cmd[1] / self.l
         r_bar = -moment_cmd[2] / self.kappa
 
-        U = np.array([p_bar, q_bar, r_bar, c_bar])
+        u_bar = np.array([p_bar, q_bar, r_bar, c_bar])
 
-        self.omega = Quadrotor.propeller_coeffs() @ U / 4
+        self.omega = Quadrotor.propeller_coeffs() @ u_bar / 4
         
  
     def linear_acceleration(self):  # used for state update

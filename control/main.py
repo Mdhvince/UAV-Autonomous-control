@@ -49,7 +49,7 @@ if __name__ == "__main__":
         omega_history = np.vstack((omega_history, quad.omega))
 
 
-    # PLOTS
+
     fig, ax, norm, scalar_map = utils_plot.setup_plot(colormap="turbo")
     ani = utils_plot.run_animation(fig, n_waypoints, 5, ax, state_history, desired, scalar_map, norm)
     plt.show()

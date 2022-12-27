@@ -29,14 +29,12 @@ The algorithm is composed of
     - [x] UAV Equation of motion
     - [x] State update
     - [x] 3D Visual
-- [ ] Estimation
-    - [ ] Graph based SLAM
-- [x] Control - PID
+- [ ] Perception
+- [ ] Estimation / Localization / Mapping
+- [ ] Planning
+- [x] Motion Control
     - [x] Altitude controller
     - [x] Lateral controller
     - [x] Roll/Pitch controller
     - [x] Yaw controller
     - [x] Body Rate controller
-- [ ] Planning
-- [ ] RL for either Control/Planning/Estimation
-- [ ] C++ or Rust code for inner loop controller
