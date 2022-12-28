@@ -359,52 +359,54 @@ if __name__ == "__main__":
     # x_dot_dot = 20*c5*t^3 + 12*c4*t^2 + 6*c3*t^2 + 2*c2*t^0 + 0 + 0 
 
     # all of the 6 constraint can be written as a 6x6 matrix in order to find the coefficient
-    T = 20  # total time
-    dt = 0.01
-    num_steps = T/dt
-    time_steps = np.linspace(0, T, num_steps)
-    trajectory = np.zeros((num_steps, 3)) # just for x pos, vel, acc
+
+    positions = []
+    T = 20
+    num_steps = 1000
+
+    for i in range(waypoints.shape[0] - 1):
+        A = np.array([
+            [0, 0, 0, 0, 0, 1],                      # POSITION AT T=0 CONSTRAINT
+            [T**5, T**4, T**3, T**2, T, 1],          # POSITION AT T=T CONSTRAINT
+            [0, 0, 0, 0, 1, 0],                      # VELOCITY AT T=0 CONSTRAINT
+            [5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],     # VELOCITY AT T=T CONSTRAINT
+            [0, 0, 0, 2, 0, 0],                      # ACCELERATION AT T=0 CONSTRAINT
+            [20*T**3, 12*T**2, 6*T, 2, 0, 0]         # ACCELERATION AT T=T CONSTRAINT
+        ])
+        x_start, y_start, z_start = waypoints[i][0:3]
+        x_end, y_end, z_end = waypoints[i+1][0:3]
+        
+        conditions = np.array([[x_start, y_start, z_start],   # POSITION X AT T=0 CONSTRAINT
+                            [x_end, y_end, z_end],     # POSITION X AT T=T CONSTRAINT
+                            [0.0, 0.0, 0.0],           # VELOCITY X AT T=0 CONSTRAINT
+                            [0.0, 0.0, 0.0],           # VELOCITY X AT T=T CONSTRAINT
+                            [0.0, 0.0, 0.0],           # ACCELERATION X AT T=0 CONSTRAINT
+                            [0.0, 0.0, 0.0]])          # ACCELERATION X AT T=T CONSTRAINT
+        
+        # now we have a problem in the for Ax = conditions where x are the unknown coefficents we are
+        # looking for. So we can use the inverse of A to solve this:
+        # x = A^1 @ conditions
+        
+        # assuming det(A) is not 0
+        COEFFS = np.linalg.inv(A) @ conditions
+
+        # now we have the coeffs for the current start and current end, let find all the poses in between
+        time_steps = np.linspace(0, T, num_steps)
+        for n, T in enumerate(time_steps):
+            # so the minimum jerk position at time T is:
+            position = COEFFS[0] * T**5 + COEFFS[1] * T**4 + COEFFS[2] * T**3 + COEFFS[3] * T**2 + COEFFS[4] * T**1 + COEFFS[5]
+            # for the velocity and acceleration, we differenciate
+            velocity = 5 * COEFFS[0] * T**4 + 4 * COEFFS[1] * T**3 + 3 * COEFFS[2] * T**2 + COEFFS[3] * T + COEFFS[4]
+            acceleration = 4*5 * COEFFS[0] * T**3 + 3*4 * COEFFS[1] * T**2 + 2*3 * COEFFS[2] * T + COEFFS[3]
+
+            positions.append(position)
 
 
+    dt = T/num_steps
+    print(dt)
 
-    A = np.array([
-        [0, 0, 0, 0, 0, 1],                      # POSITION AT T=0 CONSTRAINT
-        [T**5, T**4, T**3, T**2, T, 1],          # POSITION AT T=T CONSTRAINT
-        [0, 0, 0, 0, 1, 0],                      # VELOCITY AT T=0 CONSTRAINT
-        [5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],     # VELOCITY AT T=T CONSTRAINT
-        [0, 0, 0, 2, 0, 0],                      # ACCELERATION AT T=0 CONSTRAINT
-        [20*T**3, 12*T**2, 6*T, 2, 0, 0]         # ACCELERATION AT T=T CONSTRAINT
-    ])
-    x_pos_start = waypoints[0][0]
-    x_pos_end = waypoints[-1][0]
-    conditions = np.array([[x_pos_start],   # POSITION X AT T=0 CONSTRAINT
-                           [x_pos_end],     # POSITION X AT T=T CONSTRAINT
-                           [0.0],           # VELOCITY X AT T=0 CONSTRAINT
-                           [0.0],           # VELOCITY X AT T=T CONSTRAINT
-                           [0.0],           # ACCELERATION X AT T=0 CONSTRAINT
-                           [0.0]])          # ACCELERATION X AT T=T CONSTRAINT
-    
-    # now we have a problem in the for Ax = conditions where x are the unknown coefficents we are
-    # looking for. So we can use the inverse of A to solve this:
-    # x = A^1 @ conditions
-    
-    # assuming det(A) is not 0
-    COEFFS = np.linalg.inv(A) @ conditions
+    positions = np.array(positions)
 
-    # so the minimum jerk position at time T is:
-    position_x = COEFFS[0] * T**5 + COEFFS[1] * T**4 + COEFFS[2] * T**3 + COEFFS[3] * T**2 + COEFFS[4] * T**1 + COEFFS[5]
-    # for the velocity and acceleration, we differenciate
-    velocity_x = 5 * COEFFS[0] * T**4 + 4 * COEFFS[1] * T**3 + 3 * COEFFS[2] * T**2 + COEFFS[3] * T + COEFFS[4]
-
-    acceleration_x = 4*5 * COEFFS[0] * T**3 + 3*4 * COEFFS[1] * T**2 + 2*3 * COEFFS[2] * T + COEFFS[3]
-
-    print(position_x, velocity_x, acceleration_x)
-
-
-
-    # we will loop in order to do it for y_pos, z_pos
-
-
-    # ax.plot(waypoints[:,0], waypoints[:,1], waypoints[:,2])
-    # ax.legend(facecolor="gray")
-    # plt.show()
+    ax.plot(positions[:, 0], positions[:, 1], positions[:, 2])
+    ax.legend(facecolor="gray")
+    plt.show()
