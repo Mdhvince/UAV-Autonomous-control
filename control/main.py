@@ -32,9 +32,6 @@ if __name__ == "__main__":
 
     
     desired = minimum_jerk_trajectory(waypoints, T=30, speed=1.2, dt=dt)
-
-
-
     quad = Quadrotor(config, desired)
     control = Controller(config)
 
