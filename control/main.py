@@ -20,9 +20,20 @@ if __name__ == "__main__":
     config_file = "/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini"
     config.read(config_file)
     inner_loop_relative_to_outer_loop = 10
+    dt=0.024
     
-    # t, dt, desired = get_path(dt=0.024)
-    t, dt, desired = get_path_helix(total_time=20, r=3, height=3, dt=0.024)
+    obstacle_boundary = (10, 10, 10)
+    # x_center, y_center, z_center
+    obstacle_coords = np.array([[8, 2, 0], [4, 6, 0], [7, 5, 0], [4, 0, 0]])
+    # w, l, h
+    obstacle_shapes = np.array([[1, 1, 5], [2, 1, 5], [1, 1, 5], [1, 4, 5]])
+    # intermediate WPs
+    waypoints = np.array([[10, 0, 0], [9, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
+
+    
+    desired = minimum_jerk_trajectory(waypoints, T=30, speed=1.2, dt=dt)
+
+
 
     quad = Quadrotor(config, desired)
     control = Controller(config)
@@ -32,9 +43,9 @@ if __name__ == "__main__":
 
     for i in range(0, n_waypoints):
         # disable acceleration
-        desired.x_acc[i] = 0
-        desired.y_acc[i] = 0
-        desired.z_acc[i] = 0
+        # desired.x_acc[i] = 0
+        # desired.y_acc[i] = 0
+        # desired.z_acc[i] = 0
         # desired.yaw[i] = 0
 
         thrust_cmd = control.altitude(quad, desired, dt, index=i)
@@ -51,7 +62,7 @@ if __name__ == "__main__":
 
 
     fig, ax, norm, scalar_map = utils_plot.setup_plot(colormap="turbo")
-    ani = utils_plot.run_animation(fig, n_waypoints, 5, ax, state_history, desired, scalar_map, norm)
+    ani = utils_plot.run_animation(fig, n_waypoints, 5, ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoints, state_history, desired, scalar_map, norm)
     plt.show()
     # utils_plot.save_animation(ani, "docs/figHelix.mp4")
     # utils_plot.plot_results(t, state_history, omega_history, desired)

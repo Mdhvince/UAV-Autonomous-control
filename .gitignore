@@ -8,3 +8,4 @@ AirSim/
 venv/
 *ipynb
 estimation/
+planning/
