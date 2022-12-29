@@ -6,7 +6,7 @@ from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.animation as animation
 
-from trajectory import optimal_trajectory
+from trajectory import optimal_trajectory, getwp
 
 plt.style.use('dark_background')
 
@@ -200,12 +200,12 @@ def plot3d_quad(ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoin
     ax.set_xlim(0, 11)
     ax.set_ylim(0, 11)
     ax.set_zlim(0, 11)
-    # ax.set_xticks([])
-    # ax.set_yticks([])
-    # ax.set_zticks([])
-    # ax.xaxis.line.set_color('black')
-    # ax.yaxis.line.set_color('black')
-    # ax.zaxis.line.set_color('black')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    ax.xaxis.line.set_color('black')
+    ax.yaxis.line.set_color('black')
+    ax.zaxis.line.set_color('black')
 
 def animate(index, ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoints, drone_state_history, desired, scalar_map, norm):
         plot3d_quad(ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoints, drone_state_history, desired, scalar_map, norm, index)
@@ -277,25 +277,15 @@ if __name__ == "__main__":
     limits = (10, 10, 10)
 
     coordinates = np.array([
-        [8, 2, 0], # x, y, z
-        [4, 6, 0],
-        [7, 5, 0],
-        [4, 0, 0]
+        [8, 2, 0],  [4, 6, 0], [7, 5, 0], [4, 0, 0]
     ])
     shapes = np.array([
-        [1, 1, 5], # w, l, h
-        [2, 1, 5],
-        [1, 1, 5],
-        [1, 4, 5]
+        [1, 1, 5],  [2, 1, 5], [1, 1, 5], [1, 4, 5]
     ])
-    waypoints = np.array([
-        [10, 0, 0],
-        [9, 4, 1],
-        [6, 5, 1.5],
-        [7, 8, 1.5],
-        [2, 7, 2],
-        [1, 0, 2]
-    ])
+    # waypoints = np.array([
+    #     [10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
+    # ])
+    waypoints = getwp("helix").T
     
     for i in range(len(coordinates)):
         obstacle = get_obstacle(coordinates[i], shapes[i], limits)
@@ -306,20 +296,12 @@ if __name__ == "__main__":
         plot_intermediate_waypoints(ax, waypoints[i], n_wp, i)
     
 
-    trajectory, jerks = optimal_trajectory(waypoints, speed=1.2, speed_at_wp=1.2*0.22, dt=0.024, mode="snap")
-    jerks = np.array(jerks)
 
-    fig = plt.figure()
 
-    plt.plot(jerks[:, 0])
 
-    print(trajectory.x.shape)
+    speed = 1.2
+    trajectory, _ = optimal_trajectory(waypoints, speed=speed, speed_at_wp=speed*0.2, dt=0.024, mode="snap")
+
     ax.scatter(trajectory.x, trajectory.y, trajectory.z, marker='s', alpha=.5, s=2)
     ax.legend(facecolor="gray")
     plt.show()
-
-    
-
-
-
-# find the z that gives the best jerk ?

@@ -79,6 +79,54 @@ def get_time_between_segments(waypoints, speed):
 
     return times
 
+def get_polynomial_matrix(T, mode):
+    if mode == "jerk":
+        A = np.array([
+            [0, 0, 0, 0, 0, 1],                                 # POSITION AT T=0 CONSTRAINT
+            [T**5, T**4, T**3, T**2, T, 1],                     # POSITION AT T=T CONSTRAINT
+            [0, 0, 0, 0, 1, 0],                                 # VELOCITY AT T=0 CONSTRAINT
+            [5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],                # VELOCITY AT T=T CONSTRAINT
+            [0, 0, 0, 2, 0, 0],                                 # ACCELERATION AT T=0 CONSTRAINT
+            [20*T**3, 12*T**2, 6*T, 2, 0, 0]                    # ACCELERATION AT T=T CONSTRAINT
+        ])
+    else: # snap
+        A = np.array([
+            [0, 0, 0, 0, 0, 0, 0, 1],
+            [T**7, T**6, T**5, T**4, T**3, T**2, T, 1],
+            [0, 0, 0, 0, 0, 0, 1, 0],
+            [7*T**6, 6*T**5, 5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],
+            [0, 0, 0, 0, 0, 2, 0, 0],
+            [42*T**5, 30*T**4, 20*T**3, 12*T**2, 6*T, 2, 0, 0],
+            [0, 0, 0, 0, 6, 0, 0, 0],                                   # JERK AT T=0 CONSTRAINT
+            [210*T**4, 120*T**3, 60*T**2, 24*T, 6, 0, 0, 0]             # JERK AT T=T CONSTRAINT
+        ])
+    
+    return A
+
+def get_boundary_conditions_matrix(mode, start_conditions, end_conditions):
+    if mode == "jerk":
+        x0, y0, z0, vx0, vy0, vz0, ax0, ay0, az0 = start_conditions
+        xT, yT, zT, vxT, vyT, vzT, axT, ayT, azT = end_conditions
+        conditions = np.array([[x0, y0, z0],                  # POSITION X AT T=0 CONSTRAINT
+                               [xT, yT, zT],                  # POSITION X AT T=T CONSTRAINT
+                                [vx0, vy0, vz0],               # VELOCITY X AT T=0 CONSTRAINT
+                                [vxT, vyT, vzT],               # VELOCITY X AT T=T CONSTRAINT
+                                [ax0, ay0, az0],               # ACCELERATION X AT T=0 CONSTRAINT
+                                [axT, ayT, azT]])              # ACCELERATION X AT T=T CONSTRAINT
+    else:
+        x0, y0, z0, vx0, vy0, vz0, ax0, ay0, az0, jx0, jy0, jz0 = start_conditions
+        xT, yT, zT, vxT, vyT, vzT, axT, ayT, azT, jxT, jyT, jzT = end_conditions
+        conditions = np.array([[x0, y0, z0],                      
+                                [xT, yT, zT],                      
+                                [vx0, vy0, vz0],                   
+                                [vxT, vyT, vzT],                  
+                                [ax0, ay0, az0],              
+                                [axT, ayT, azT],
+                                [jx0, jy0, jz0],               # START WITH THIS JERK         
+                                [jxT, jyT, jzT]])              # END WITH THIS JERK
+    return conditions
+
+
 def optimal_trajectory(waypoints, speed=1.2, speed_at_wp=.1, dt=.1, mode="jerk"):
     """
     Inputs:
@@ -86,96 +134,83 @@ def optimal_trajectory(waypoints, speed=1.2, speed_at_wp=.1, dt=.1, mode="jerk")
         - speed: desired speed between a segment of WP
         - dt: time steps
     """
-    positions = []
-    velocities = []
-    accelerations = []
-    jerks = []
+    if mode != "jerk" and mode != "snap":
+        raise ValueError(f"Invalid mode argument, expected 'jerk' or 'snap', got {mode}")
+    
+    positions, velocities, accelerations, jerks, snaps = [], [], [], [], []
     Desired = namedtuple(
             "Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
+    
 
-    times = get_time_between_segments(waypoints, speed)
+    times = get_time_between_segments(waypoints, speed)   # 1D array of time to complete a particular segement
+    S = np.array([0] + np.cumsum(times).tolist())         # 1D array of time it takes to reach a waypoint from the very first waypoint to the current waypoint
     
     for i in range(waypoints.shape[0] - 1):
+        Ti = times[i]   # time to complete the segment
+        Si = S[i]       # time to reach the waypoint cummulated from the very first wp
+
         T = times[i]
 
-        if mode == "jerk":
-            A = np.array([
-                [0, 0, 0, 0, 0, 1],                                 # POSITION AT T=0 CONSTRAINT
-                [T**5, T**4, T**3, T**2, T, 1],                     # POSITION AT T=T CONSTRAINT
-                [0, 0, 0, 0, 1, 0],                                 # VELOCITY AT T=0 CONSTRAINT
-                [5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],                # VELOCITY AT T=T CONSTRAINT
-                [0, 0, 0, 2, 0, 0],                                 # ACCELERATION AT T=0 CONSTRAINT
-                [20*T**3, 12*T**2, 6*T, 2, 0, 0]                    # ACCELERATION AT T=T CONSTRAINT
-            ])
-        else: # snap
-            A = np.array([
-                [0, 0, 0, 0, 0, 0, 0, 1],
-                [T**7, T**6, T**5, T**4, T**3, T**2, T, 1],
-                [0, 0, 0, 0, 0, 0, 1, 0],
-                [7*T**6, 6*T**5, 5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],
-                [0, 0, 0, 0, 0, 2, 0, 0],
-                [42*T**5, 30*T**4, 20*T**3, 12*T**2, 6*T, 2, 0, 0],
-                [0, 0, 0, 0, 6, 0, 0, 0],                                   # JERK AT T=0 CONSTRAINT
-                [210*T**4, 120*T**3, 60*T**2, 24*T, 6, 0, 0, 0]             # JERK AT T=T CONSTRAINT
-            ])
+        # if t > S[-1]:
+        #     t = S[-1] - 0.01
+        # scale = (t - Si) / Ti
 
-        x0, y0, z0 = waypoints[i]                  # initial positions
-        xT, yT, zT = waypoints[i+1]                # end positions
+        # T = scale
+        # raise
 
-        # conditions for velocities: 
-        # if start: intial velocity is 0 and end velocity is the speed of travel (constant)
-        # for any other intermadiate waypoints: start vel = end vel = speed*0.1
-        # for the final waypoint, I set velocity to 0        
-        is_first_wp = (i == 0)
-        is_last_wp = (i+1 == waypoints.shape[0] - 1)
 
-        vx0, vy0, vz0 = [0.0, 0.0, 0.0] if is_first_wp else [speed_at_wp, speed_at_wp, 0.0]
-        vxT, vyT, vzT = [0.0, 0.0, 0.0] if is_last_wp else [speed_at_wp, speed_at_wp, 0.0]
 
-        if mode == "jerk":
-            conditions = np.array([[x0, y0, z0],                  # POSITION X AT T=0 CONSTRAINT
-                                   [xT, yT, zT],                  # POSITION X AT T=T CONSTRAINT
-                                   [vx0, vy0, vz0],               # VELOCITY X AT T=0 CONSTRAINT
-                                   [vxT, vyT, vzT],               # VELOCITY X AT T=T CONSTRAINT
-                                   [0.0, 0.0, 0.0],               # ACCELERATION X AT T=0 CONSTRAINT
-                                   [0.0, 0.0, 0.0]])              # ACCELERATION X AT T=T CONSTRAINT
-        else:
-            conditions = np.array([[x0, y0, z0],                      
-                                   [xT, yT, zT],                      
-                                   [vx0, vy0, vz0],                   
-                                   [vxT, vyT, vzT],                  
-                                   [0.0, 0.0, 0.0],              
-                                   [0.0, 0.0, 0.0],
-                                   [0.0, 0.0, 0.0],               # START WITH THIS JERK         
-                                   [0.0, 0.0, 0.0]])              # END WITH THIS JERK
+        # Get boundary conditions
+        is_first_seg = (i == 0)
+        is_last_seg = (i+1 == waypoints.shape[0] - 1)
+
+
+        x0, y0, z0 = waypoints[i]
+        xT, yT, zT = waypoints[i+1]
+        vx0, vy0, vz0 = [0.0, 0.0, 0.0] if is_first_seg else [speed_at_wp, speed_at_wp, 0.0]
+        vxT, vyT, vzT = [0.0, 0.0, 0.0] if is_last_seg else [speed_at_wp, speed_at_wp, 0.0]
         
-        # now we have a problem in the for Ax = conditions where x are the unknown coefficents we are
-        # looking for. So we can use the inverse of A to solve this:
-        # x = A^1 @ conditions
+        ax0, ay0, az0, axT, ayT, azT = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        jx0, jy0, jz0, jxT, jyT, jzT = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+        start_conditions = [x0, y0, z0, vx0, vy0, vz0, ax0, ay0, az0]
+        end_conditions = [xT, yT, zT, vxT, vyT, vzT, axT, ayT, azT]
+
+        if mode == "snap":
+            start_conditions.extend([jx0, jy0, jz0])
+            end_conditions.extend([jxT, jyT, jzT])
+
+        b = get_boundary_conditions_matrix(mode, start_conditions, end_conditions)
+        A = get_polynomial_matrix(T, mode)
         
-        # assuming det(A) is not 0
-        COEFFS = np.linalg.solve(A, conditions)
+        # now we have a problem in the for Ac = conditions where c are the unknown coefficents
+        # (spline parameters) we are looking for. So we can use the inverse of A to solve this:
+        # c = A^1 @ conditions, assuming det(A) is not 0
+        
+        c = np.linalg.solve(A, b)  # spline parameters
+
 
         # now we have the coeffs for the current start and current end, let find all the poses in between
         if mode == "jerk":
+            c5, c4, c3, c2, c1, c0 = c[0], c[1], c[2], c[3], c[4], c[5]
             for t in np.arange(0.0, T, dt):
-                # so the minimum jerk position is:
-                position = COEFFS[0] * t**5 + COEFFS[1] * t**4 + COEFFS[2] * t**3 + COEFFS[3] * t**2 + COEFFS[4] * t**1 + COEFFS[5]
-                # for the velocity and acceleration, we differenciate
-                velocity = 5 * COEFFS[0] * t**4 + 4 * COEFFS[1] * t**3 + 3 * COEFFS[2] * t**2 + COEFFS[3] * t + COEFFS[4]
-                acceleration = 20 * COEFFS[0] * t**3 + 12 * COEFFS[1] * t**2 + 6 * COEFFS[2] * t + COEFFS[3]
-                jerk = 60 * COEFFS[0] * t**2 + 24 * COEFFS[1] * t + 6 * COEFFS[2]
+                position = c5 * t**5 + c4 * t**4 + c3 * t**3 + c2 * t**2 + c1 * t**1 + c0
+                velocity = 5 * c5 * t**4 + 4 * c4 * t**3 + 3 * c3 * t**2 + c2 * t + c1       # dp/dt
+                acceleration = 20 * c5 * t**3 + 12 * c4 * t**2 + 6 * c3 * t + c2             # dv/dt
+                jerk = 60 * c5 * t**2 + 24 * c4 * t + 6 * c3                                 # da/dt
 
                 positions.append(position)
                 velocities.append(velocity)
                 accelerations.append(acceleration)
                 jerks.append(jerk)
         else:
+            c7, c6, c5, c4, c3, c2, c1, c0 = c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]
             for t in np.arange(0.0, T, dt):
-                position = COEFFS[0]*t**7 + COEFFS[1]*t**6 + COEFFS[2]*t**5 + COEFFS[3]*t**4 + COEFFS[4]*t**3 + COEFFS[5]*t**2 + COEFFS[6]*t**1 + COEFFS[7]
-                velocity = 7*COEFFS[0]*t**6 + 6*COEFFS[1]*t**5 + 5*COEFFS[2]*t**4 + 4*COEFFS[3]*t**3 + 3*COEFFS[4]*t**2 + 2*COEFFS[5]*t + COEFFS[6]
-                acceleration = 42*COEFFS[0]*t**5 + 30*COEFFS[1]*t**4 + 20*COEFFS[2]*t**3 + 12*COEFFS[3]*t**2 + 6*COEFFS[4]*t + 2*COEFFS[5]
-                jerk = 210*COEFFS[0]*t**4 + 120*COEFFS[1]*t**3 + 60*COEFFS[2]*t**2 + 24*COEFFS[3]*t + 6*COEFFS[4]
+                position = c7 * t**7 + c6 * t**6 + c5 * t**5 + c4 * t**4 + c3 * t**3 + c2 * t**2 + c1 * t**1 + c0
+                velocity = 7 * c7 * t**6 + 6 * c6 * t**5 + 5 * c5 * t**4 + 4 * c4 * t**3 + 3 * c3 * t**2 + 2 * c2 * t + c1
+                acceleration = 42 * c7 * t**5 + 30 * c6 * t**4 + 20 * c5 * t**3 + 12 * c4 * t**2 + 6 * c3 * t + 2 * c2
+                jerk = 210 * c7  *t**4 + 120 * c6 * t**3 + 60 * c5 * t**2 + 24 * c4 * t + 6  *c3
+                snap = 840 * c7 * t**3 + 360 * c6 * t**2 + 180 * c5 * t + 24 * c4
 
                 positions.append(position)
                 velocities.append(velocity)
@@ -191,9 +226,30 @@ def optimal_trajectory(waypoints, speed=1.2, speed_at_wp=.1, dt=.1, mode="jerk")
     
     return desired_trajectory, jerks
 
+# WP
+def getwp(form, a=None, phi=None):
+    if form == 'angle' and a is None and phi is None:
+        w = np.array([[0, 0, 0],
+                      [0, 0, 2],
+                      [0, 4, 2],
+                      [0, 0, 1.1]]).T
+    elif form == 'helix' and a is None and phi is None:
+        r = 5
+        h_max = 16.5
+        t = np.pi * np.arange(0, h_max + 0.4, 0.4)
+        x = r * np.cos(t)
+        y = r * np.sin(t)
+        z = t / np.pi
+        w = np.array([x, y, z])
+    elif form == 'maneuvre' and a is not None and phi is not None:
+        w = np.array([[0, 0, 2],
+                      [0, a, 2],
+                      [a * np.sin(phi), a * (1 - np.cos(phi)), 2]]).T
+    return w
+
 
 if __name__ == "__main__":
     
-    pass
+    print(getwp("helix").T)
   
     

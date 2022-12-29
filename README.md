@@ -32,8 +32,8 @@ The algorithm is composed of
 - [ ] Perception
 - [ ] Estimation / Localization / Mapping
 - [ ] Planning
-    - [x] Minimum jerk trajectory
-    - [x] Minimum snap trajectory
+    - [ ] Minimum jerk trajectory
+    - [ ] Minimum snap trajectory
     - [ ] Coliision avoidance
 - [x] Motion Control
     - [x] Altitude controller
