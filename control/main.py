@@ -20,7 +20,10 @@ if __name__ == "__main__":
     config_file = "/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini"
     config.read(config_file)
     inner_loop_relative_to_outer_loop = 10
+
     dt=0.024
+    speed = 1.2                # the speed between waypoints (in the segment)
+    speed_at_wp = speed * .2   # the speed at waypoint
     
     obstacle_boundary = (10, 10, 10)
     # x_center, y_center, z_center
@@ -31,20 +34,16 @@ if __name__ == "__main__":
     waypoints = np.array([[10, 0, 0], [9, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
 
     
-    desired = minimum_jerk_trajectory(waypoints, T=30, speed=1.2, dt=dt)
+    desired, _ = optimal_trajectory(waypoints, speed, speed_at_wp, dt, mode="snap")
     quad = Quadrotor(config, desired)
     control = Controller(config)
 
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
 
-    for i in range(0, n_waypoints):
-        # disable acceleration
-        # desired.x_acc[i] = 0
-        # desired.y_acc[i] = 0
-        # desired.z_acc[i] = 0
-        # desired.yaw[i] = 0
+    
 
+    for i in range(0, n_waypoints):
         thrust_cmd = control.altitude(quad, desired, dt, index=i)
         acc_cmd = control.lateral(quad, desired, index=i)
         

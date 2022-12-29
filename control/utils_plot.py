@@ -6,7 +6,7 @@ from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.animation as animation
 
-from trajectory import minimum_jerk_trajectory
+from trajectory import optimal_trajectory
 
 plt.style.use('dark_background')
 
@@ -186,19 +186,10 @@ def plot3d_quad(ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoin
     #     obstacle = get_obstacle(obstacle_coords[i], obstacle_shapes[i], obstacle_boundary)
     #     ax.voxels(obstacle)
     
-    # n_wp = len(waypoints)
-    # for i in range(n_wp):
-    #     label = None
-    #     color = "black"
-    #     x, y, z = waypoints[i]
-    #     if i == 0:
-    #         label = "start"; color = "blue"
-    #     elif i == 1:
-    #         label = "waypoints"
-    #     elif i == n_wp-1:
-    #         label = "goal"; color = "red"
-
-    #     ax.plot(x, y, z, alpha=.5, marker=".",  markersize=20, color=color, label=label)
+    n_wp = len(waypoints)
+    for i in range(n_wp):
+        x, y, z = waypoints[i]
+        ax.plot(x, y, z, alpha=.5, marker=".",  markersize=60)
 
 
     ax.w_zaxis.pane.set_color('#2D3047')
@@ -206,15 +197,15 @@ def plot3d_quad(ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoin
     ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.grid(False)
     ax.legend(facecolor="gray", bbox_to_anchor=(1, 1), loc='upper left')
-    # ax.set_xlim(-3, 3)
-    # ax.set_ylim(-3, 3)
-    # ax.set_zlim(-3, 3.5)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_zticks([])
-    ax.xaxis.line.set_color('black')
-    ax.yaxis.line.set_color('black')
-    ax.zaxis.line.set_color('black')
+    ax.set_xlim(0, 11)
+    ax.set_ylim(0, 11)
+    ax.set_zlim(0, 11)
+    # ax.set_xticks([])
+    # ax.set_yticks([])
+    # ax.set_zticks([])
+    # ax.xaxis.line.set_color('black')
+    # ax.yaxis.line.set_color('black')
+    # ax.zaxis.line.set_color('black')
 
 def animate(index, ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoints, drone_state_history, desired, scalar_map, norm):
         plot3d_quad(ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoints, drone_state_history, desired, scalar_map, norm, index)
@@ -254,18 +245,18 @@ def get_obstacle(coordinates, shapes, limits):
     voxel[x:x+width, y:y+length, z:z+height] = obstacle
     return voxel
 
-# def plot_intermediate_waypoints(ax, waypoints, n_waypoints):
-#     label = None
-#     color = "black"
-#     x, y, z = waypoints
-#     if i == 0:
-#         label = "start"; color = "blue"
-#     elif i == 1:
-#         label = "waypoints"
-#     elif i == n_waypoints-1:
-#         label = "goal"; color = "red"
+def plot_intermediate_waypoints(ax, waypoints, n_waypoints, index):
+    label = None
+    color = "black"
+    x, y, z = waypoints
+    if index == 0:
+        label = "start"; color = "blue"
+    elif index == 1:
+        label = "waypoints"
+    elif index == n_waypoints-1:
+        label = "goal"; color = "red"
 
-#     ax.plot(x, y, z, alpha=.5, marker=".",  markersize=20, color=color, label=label)
+    ax.plot(x, y, z, alpha=.5, marker=".",  markersize=20, color=color, label=label)
 
 def calculate_time_between_waypoints(wp1, wp2, speed=1.0):
   x1, y1, z1 = wp1
@@ -281,6 +272,7 @@ if __name__ == "__main__":
     fig = plt.figure(figsize=(20,20))
     ax = fig.add_subplot(111, projection='3d')
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+
     
     limits = (10, 10, 10)
 
@@ -311,21 +303,23 @@ if __name__ == "__main__":
     
     n_wp = len(waypoints)
     for i in range(n_wp):
-        plot_intermediate_waypoints(ax, waypoints[i], n_wp)
+        plot_intermediate_waypoints(ax, waypoints[i], n_wp, i)
     
 
-    trajectory = minimum_jerk_trajectory(waypoints, T=30, speed=1.2, dt=0.1)
+    trajectory, jerks = optimal_trajectory(waypoints, speed=1.2, speed_at_wp=1.2*0.22, dt=0.024, mode="snap")
+    jerks = np.array(jerks)
 
-    ax.scatter(trajectory.x, trajectory.y, trajectory.z, color="red", marker='s', alpha=.5, s=2)
+    fig = plt.figure()
+
+    plt.plot(jerks[:, 0])
+
+    print(trajectory.x.shape)
+    ax.scatter(trajectory.x, trajectory.y, trajectory.z, marker='s', alpha=.5, s=2)
     ax.legend(facecolor="gray")
-
-    # fig = plt.figure()
-    # norm = np.linalg.norm(velocities, axis=1)
-    # plt.plot(norm)
     plt.show()
 
-
-    print(trajectory)
-
+    
 
 
+
+# find the z that gives the best jerk ?

@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-
+# Toy trajectories
 def get_path(total_time=20, dt=0.01):
     Desired = namedtuple(
             "Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
@@ -68,39 +68,56 @@ def get_path_helix(total_time=20, r=1, height=10, dt=0.01):
 
     return t, dt, desired_trajectory
 
-def minimum_jerk_trajectory(waypoints, T=30, speed=1.2, dt=0.1):
-    """
-    Inputs:
-        - waypoints: 2D array of start, intermediate and goal 3d waypoints
-        - T: Total time of the trajectory
-        - speed: desired speed between a segment of WP
-        - dt: time steps
-    """
-    positions = []
-    velocities = []
-    accelerations = []
+# Optimal trajectories
+def get_time_between_segments(waypoints, speed):
     times = []
-
-    Desired = namedtuple(
-            "Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
-
     for i in range(waypoints.shape[0] - 1):
         # the time required to travel between each pair of waypoints
         distance = np.linalg.norm(waypoints[i+1] - waypoints[i])
         time = distance / speed
         times.append(time)
 
-    for i in range(waypoints.shape[0] - 1):
-        T = times[i]                               # Total time for the motion between the waypoints
+    return times
 
-        A = np.array([
-            [0, 0, 0, 0, 0, 1],                    # POSITION AT T=0 CONSTRAINT
-            [T**5, T**4, T**3, T**2, T, 1],        # POSITION AT T=T CONSTRAINT
-            [0, 0, 0, 0, 1, 0],                    # VELOCITY AT T=0 CONSTRAINT
-            [5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],   # VELOCITY AT T=T CONSTRAINT
-            [0, 0, 0, 2, 0, 0],                    # ACCELERATION AT T=0 CONSTRAINT
-            [20*T**3, 12*T**2, 6*T, 2, 0, 0]       # ACCELERATION AT T=T CONSTRAINT
-        ])
+def optimal_trajectory(waypoints, speed=1.2, speed_at_wp=.1, dt=.1, mode="jerk"):
+    """
+    Inputs:
+        - waypoints: 2D array of start, intermediate and goal 3d waypoints
+        - speed: desired speed between a segment of WP
+        - dt: time steps
+    """
+    positions = []
+    velocities = []
+    accelerations = []
+    jerks = []
+    Desired = namedtuple(
+            "Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
+
+    times = get_time_between_segments(waypoints, speed)
+    
+    for i in range(waypoints.shape[0] - 1):
+        T = times[i]
+
+        if mode == "jerk":
+            A = np.array([
+                [0, 0, 0, 0, 0, 1],                                 # POSITION AT T=0 CONSTRAINT
+                [T**5, T**4, T**3, T**2, T, 1],                     # POSITION AT T=T CONSTRAINT
+                [0, 0, 0, 0, 1, 0],                                 # VELOCITY AT T=0 CONSTRAINT
+                [5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],                # VELOCITY AT T=T CONSTRAINT
+                [0, 0, 0, 2, 0, 0],                                 # ACCELERATION AT T=0 CONSTRAINT
+                [20*T**3, 12*T**2, 6*T, 2, 0, 0]                    # ACCELERATION AT T=T CONSTRAINT
+            ])
+        else: # snap
+            A = np.array([
+                [0, 0, 0, 0, 0, 0, 0, 1],
+                [T**7, T**6, T**5, T**4, T**3, T**2, T, 1],
+                [0, 0, 0, 0, 0, 0, 1, 0],
+                [7*T**6, 6*T**5, 5*T**4, 4*T**3, 3*T**2, 2*T, 1, 0],
+                [0, 0, 0, 0, 0, 2, 0, 0],
+                [42*T**5, 30*T**4, 20*T**3, 12*T**2, 6*T, 2, 0, 0],
+                [0, 0, 0, 0, 6, 0, 0, 0],                                   # JERK AT T=0 CONSTRAINT
+                [210*T**4, 120*T**3, 60*T**2, 24*T, 6, 0, 0, 0]             # JERK AT T=T CONSTRAINT
+            ])
 
         x0, y0, z0 = waypoints[i]                  # initial positions
         xT, yT, zT = waypoints[i+1]                # end positions
@@ -112,16 +129,25 @@ def minimum_jerk_trajectory(waypoints, T=30, speed=1.2, dt=0.1):
         is_first_wp = (i == 0)
         is_last_wp = (i+1 == waypoints.shape[0] - 1)
 
-        vx0, vy0, vz0 = [0.0, 0.0, 0.0] if is_first_wp else [speed*0.1, speed*0.1, speed*0.1]
-        vxT, vyT, vzT = [0.0, 0.0, 0.0] if is_last_wp else [speed*0.1, speed*0.1, speed*0.1]
+        vx0, vy0, vz0 = [0.0, 0.0, 0.0] if is_first_wp else [speed_at_wp, speed_at_wp, 0.0]
+        vxT, vyT, vzT = [0.0, 0.0, 0.0] if is_last_wp else [speed_at_wp, speed_at_wp, 0.0]
 
-        
-        conditions = np.array([[x0, y0, z0],   # POSITION X AT T=0 CONSTRAINT
-                            [xT, yT, zT],     # POSITION X AT T=T CONSTRAINT
-                            [vx0, vy0, vz0],           # VELOCITY X AT T=0 CONSTRAINT
-                            [vxT, vyT, vzT],           # VELOCITY X AT T=T CONSTRAINT
-                            [0.0, 0.0, 0.0],           # ACCELERATION X AT T=0 CONSTRAINT
-                            [0.0, 0.0, 0.0]])          # ACCELERATION X AT T=T CONSTRAINT
+        if mode == "jerk":
+            conditions = np.array([[x0, y0, z0],                  # POSITION X AT T=0 CONSTRAINT
+                                   [xT, yT, zT],                  # POSITION X AT T=T CONSTRAINT
+                                   [vx0, vy0, vz0],               # VELOCITY X AT T=0 CONSTRAINT
+                                   [vxT, vyT, vzT],               # VELOCITY X AT T=T CONSTRAINT
+                                   [0.0, 0.0, 0.0],               # ACCELERATION X AT T=0 CONSTRAINT
+                                   [0.0, 0.0, 0.0]])              # ACCELERATION X AT T=T CONSTRAINT
+        else:
+            conditions = np.array([[x0, y0, z0],                      
+                                   [xT, yT, zT],                      
+                                   [vx0, vy0, vz0],                   
+                                   [vxT, vyT, vzT],                  
+                                   [0.0, 0.0, 0.0],              
+                                   [0.0, 0.0, 0.0],
+                                   [0.0, 0.0, 0.0],               # START WITH THIS JERK         
+                                   [0.0, 0.0, 0.0]])              # END WITH THIS JERK
         
         # now we have a problem in the for Ax = conditions where x are the unknown coefficents we are
         # looking for. So we can use the inverse of A to solve this:
@@ -131,23 +157,39 @@ def minimum_jerk_trajectory(waypoints, T=30, speed=1.2, dt=0.1):
         COEFFS = np.linalg.solve(A, conditions)
 
         # now we have the coeffs for the current start and current end, let find all the poses in between
-        for t in range(int(T/dt)):
-            t = t*dt
-            # so the minimum jerk position is:
-            position = COEFFS[0] * t**5 + COEFFS[1] * t**4 + COEFFS[2] * t**3 + COEFFS[3] * t**2 + COEFFS[4] * t**1 + COEFFS[5]
-            # for the velocity and acceleration, we differenciate
-            velocity = 5 * COEFFS[0] * t**4 + 4 * COEFFS[1] * t**3 + 3 * COEFFS[2] * t**2 + COEFFS[3] * t + COEFFS[4]
-            acceleration = 4*5 * COEFFS[0] * t**3 + 3*4 * COEFFS[1] * t**2 + 2*3 * COEFFS[2] * t + COEFFS[3]
+        if mode == "jerk":
+            for t in np.arange(0.0, T, dt):
+                # so the minimum jerk position is:
+                position = COEFFS[0] * t**5 + COEFFS[1] * t**4 + COEFFS[2] * t**3 + COEFFS[3] * t**2 + COEFFS[4] * t**1 + COEFFS[5]
+                # for the velocity and acceleration, we differenciate
+                velocity = 5 * COEFFS[0] * t**4 + 4 * COEFFS[1] * t**3 + 3 * COEFFS[2] * t**2 + COEFFS[3] * t + COEFFS[4]
+                acceleration = 20 * COEFFS[0] * t**3 + 12 * COEFFS[1] * t**2 + 6 * COEFFS[2] * t + COEFFS[3]
+                jerk = 60 * COEFFS[0] * t**2 + 24 * COEFFS[1] * t + 6 * COEFFS[2]
 
-            positions.append(position)
-            velocities.append(velocity)
-            accelerations.append(acceleration)
+                positions.append(position)
+                velocities.append(velocity)
+                accelerations.append(acceleration)
+                jerks.append(jerk)
+        else:
+            for t in np.arange(0.0, T, dt):
+                position = COEFFS[0]*t**7 + COEFFS[1]*t**6 + COEFFS[2]*t**5 + COEFFS[3]*t**4 + COEFFS[4]*t**3 + COEFFS[5]*t**2 + COEFFS[6]*t**1 + COEFFS[7]
+                velocity = 7*COEFFS[0]*t**6 + 6*COEFFS[1]*t**5 + 5*COEFFS[2]*t**4 + 4*COEFFS[3]*t**3 + 3*COEFFS[4]*t**2 + 2*COEFFS[5]*t + COEFFS[6]
+                acceleration = 42*COEFFS[0]*t**5 + 30*COEFFS[1]*t**4 + 20*COEFFS[2]*t**3 + 12*COEFFS[3]*t**2 + 6*COEFFS[4]*t + 2*COEFFS[5]
+                jerk = 210*COEFFS[0]*t**4 + 120*COEFFS[1]*t**3 + 60*COEFFS[2]*t**2 + 24*COEFFS[3]*t + 6*COEFFS[4]
+
+                positions.append(position)
+                velocities.append(velocity)
+                accelerations.append(acceleration)
+                jerks.append(jerk)
 
     traj = np.hstack((positions, velocities, accelerations))
     yaw = np.full(len(traj), 0.0)
     desired_trajectory = Desired(
-            traj[:, 0], traj[:, 1], traj[:, 2], traj[:, 3], traj[:, 4], traj[:, 5], traj[:, 6], traj[:, 7], traj[:, 8], yaw)
-    return desired_trajectory
+            traj[:, 0], traj[:, 1], traj[:, 2],
+            traj[:, 3], traj[:, 4], traj[:, 5],
+            traj[:, 6], traj[:, 7], traj[:, 8], yaw)
+    
+    return desired_trajectory, jerks
 
 
 if __name__ == "__main__":
