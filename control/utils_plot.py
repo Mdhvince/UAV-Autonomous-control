@@ -8,7 +8,7 @@ import matplotlib.animation as animation
 
 from trajectory import optimal_trajectory, getwp
 
-plt.style.use('dark_background')
+plt.style.use('seaborn-paper')
 
 
 def plot_results(t, state_history, omega_history, desired):
@@ -285,23 +285,24 @@ if __name__ == "__main__":
     # waypoints = np.array([
     #     [10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
     # ])
+    
+    # for i in range(len(coordinates)):
+    #     obstacle = get_obstacle(coordinates[i], shapes[i], limits)
+    #     ax.voxels(obstacle)
+    
+
     waypoints = getwp("helix").T
-    
-    for i in range(len(coordinates)):
-        obstacle = get_obstacle(coordinates[i], shapes[i], limits)
-        ax.voxels(obstacle)
-    
     n_wp = len(waypoints)
     for i in range(n_wp):
         plot_intermediate_waypoints(ax, waypoints[i], n_wp, i)
     
 
+    speed = 1.0
+    trajectory = optimal_trajectory(waypoints, speed=speed, dt=0.024, mode="snap")
 
-
-
-    speed = 1.2
-    trajectory, _ = optimal_trajectory(waypoints, speed=speed, speed_at_wp=speed*0.2, dt=0.024, mode="snap")
-
-    ax.scatter(trajectory.x, trajectory.y, trajectory.z, marker='s', alpha=.5, s=2)
+    ax.scatter(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], marker='s', alpha=.5, s=2)
     ax.legend(facecolor="gray")
     plt.show()
+    
+
+    
