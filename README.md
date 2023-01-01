@@ -24,7 +24,7 @@ The algorithm is composed of
 - UAV Equation of motion
 - State update using euler integration method
 
-### 2. Trajectory Planner
+### 2. Trajectory Planner with minimum snap
 
 Minimum Snap trajectory has been implemented for this project. Here are one a result for an arbritary trajectory, we can find the comparison between a naive trajectory (just connecting waypoints with a straight line) and the optimal one (Minimum snap)
 
