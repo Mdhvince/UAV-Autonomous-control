@@ -1,14 +1,14 @@
 import warnings
 import configparser
+from collections import namedtuple
 
 import numpy as np
 import matplotlib.pyplot as plt
-import utils_plot
 
-
-from quadrotor import Quadrotor
-from controller import Controller
-from trajectory import *
+from control import utils_plot
+from control.quadrotor import Quadrotor
+from control.controller import Controller
+from planning.trajectory import TrajectoryPlanner
 
 warnings.filterwarnings('ignore')
 
@@ -21,14 +21,13 @@ if __name__ == "__main__":
 
     inner_loop_relative_to_outer_loop = 10
     dt = 0.02
-    velocity = 1.2
+    velocity = 5
     # waypoints = np.array([
     #     [10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
     # ])
     waypoints = np.array([
-        [0, 0, 0], [10, 0, 20]
+        [0, 0, 0], [0, 0, 20]
     ])
-    
     
     tp = TrajectoryPlanner(waypoints, velocity, dt)
     traj = tp.get_min_snap_trajectory()
@@ -45,8 +44,8 @@ if __name__ == "__main__":
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
 
-    
     for i in range(0, n_waypoints):
+
         thrust_cmd = control.altitude(quad, desired, dt, index=i)
         acc_cmd = control.lateral(quad, desired, index=i)
         
@@ -57,12 +56,6 @@ if __name__ == "__main__":
 
         state_history = np.vstack((state_history, quad.X))
         omega_history = np.vstack((omega_history, quad.omega))
-
-
-
-
-
-
 
 
 

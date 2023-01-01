@@ -6,7 +6,7 @@ from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.animation as animation
 
-plt.style.use('seaborn-paper')
+plt.style.use('dark_background')
 
 
 def plot_results(t, state_history, omega_history, desired):

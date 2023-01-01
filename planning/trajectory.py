@@ -8,6 +8,8 @@ from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 
 warnings.filterwarnings('ignore')
+plt.style.use('dark_background')
+
 
 
 def get_path(total_time=20, dt=0.01):
@@ -328,8 +330,8 @@ if __name__ == "__main__":
                 marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
 
     # plot normal
-    x, y, z = waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]
-    ax.plot(x, y, z, alpha=.5, color="black", label="Naive trajectory")
+    # x, y, z = waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]
+    # ax.plot(x, y, z, alpha=.5, color="black", label="Naive trajectory")
 
     ax.legend()
     plt.show()
