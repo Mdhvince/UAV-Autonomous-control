@@ -13,28 +13,32 @@ from trajectory import *
 warnings.filterwarnings('ignore')
 
 
-
 if __name__ == "__main__":
 
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = "/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini"
     config.read(config_file)
+
     inner_loop_relative_to_outer_loop = 10
-
-    dt=0.024
-    speed = 1.2                # the speed between waypoints (in the segment)
-    speed_at_wp = speed * .2   # the speed at waypoint
+    dt = 0.02
+    velocity = 1.2
+    # waypoints = np.array([
+    #     [10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
+    # ])
+    waypoints = np.array([
+        [0, 0, 0], [10, 0, 20]
+    ])
     
-    obstacle_boundary = (10, 10, 10)
-    # x_center, y_center, z_center
-    obstacle_coords = np.array([[8, 2, 0], [4, 6, 0], [7, 5, 0], [4, 0, 0]])
-    # w, l, h
-    obstacle_shapes = np.array([[1, 1, 5], [2, 1, 5], [1, 1, 5], [1, 4, 5]])
-    # intermediate WPs
-    waypoints = np.array([[10, 0, 0], [9, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
-
     
-    desired, _ = optimal_trajectory(waypoints, speed, speed_at_wp, dt, mode="snap")
+    tp = TrajectoryPlanner(waypoints, velocity, dt)
+    traj = tp.get_min_snap_trajectory()
+
+    Desired = namedtuple("Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
+    desired = Desired(
+        traj[:, 0], traj[:, 1], traj[:, 2],     # position
+        traj[:, 3], traj[:, 4], traj[:, 5],     # velocity
+        traj[:, 6], traj[:, 7], traj[:, 8], 0)  # acc and yaw
+    
     quad = Quadrotor(config, desired)
     control = Controller(config)
 
@@ -42,13 +46,12 @@ if __name__ == "__main__":
     n_waypoints = desired.z.shape[0]
 
     
-
     for i in range(0, n_waypoints):
         thrust_cmd = control.altitude(quad, desired, dt, index=i)
         acc_cmd = control.lateral(quad, desired, index=i)
         
         for _ in range(inner_loop_relative_to_outer_loop):
-            moment_cmd = control.attitude(quad, thrust_cmd, acc_cmd, desired.yaw[i])
+            moment_cmd = control.attitude(quad, thrust_cmd, acc_cmd, 0.0)
             quad.set_propeller_speed(thrust_cmd, moment_cmd)
             quad.update_state(dt/inner_loop_relative_to_outer_loop)
 
@@ -57,6 +60,17 @@ if __name__ == "__main__":
 
 
 
+
+
+
+
+
+
+
+
+    obstacle_boundary = (10, 10, 10)
+    obstacle_coords = np.array([[8, 2, 0], [4, 6, 0], [7, 5, 0], [4, 0, 0]])
+    obstacle_shapes = np.array([[1, 1, 5], [2, 1, 5], [1, 1, 5], [1, 4, 5]])
     fig, ax, norm, scalar_map = utils_plot.setup_plot(colormap="turbo")
     ani = utils_plot.run_animation(fig, n_waypoints, 5, ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoints, state_history, desired, scalar_map, norm)
     plt.show()

@@ -26,9 +26,9 @@ class Quadrotor():
 
         # State
         self.X = np.array([
-            0.0, 0.0, 0.0,                                 # positions
+            des.x[0], des.y[0], des.z[0],                                 # positions
             0.0, 0.0, 0.0,                                 # euler angles (world)
-            0.0, 0.0, 0.0,                                 # velocities
+            des.x_vel[0], des.y_vel[0], des.z_vel[0],                                 # velocities
             0.0, 0.0, 0.0                                  # p, q, r: angular velocities (body)
         ])
         # Derivative of state

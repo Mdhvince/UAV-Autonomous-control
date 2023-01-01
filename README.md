@@ -6,7 +6,7 @@ https://user-images.githubusercontent.com/17160701/209675444-38a1941d-f8d2-4477-
 ![Result Fig 8](docs/results_fig8_classic_control.png "")
 
 
-### 1. Classic autonomous control  
+### 1. Control  
 
 ![Controller Arch](docs/Controller%20Arch.png "")  
 
@@ -23,6 +23,12 @@ The algorithm is composed of
 ---
 - UAV Equation of motion
 - State update using euler integration method
+
+### 2. Trajectory Planner
+
+Minimum Snap trajectory has been implemented for this project. Here are one a result for an arbritary trajectory, we can find the comparison between a naive trajectory (just connecting waypoints with a straight line) and the optimal one (Minimum snap)
+
+![Controller Arch](docs/min_snap.png "")
 
 ### To do
 - [x] Simulation of 3D UAV Dynamics

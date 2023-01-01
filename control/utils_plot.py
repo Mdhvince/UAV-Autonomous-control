@@ -6,8 +6,6 @@ from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.animation as animation
 
-from trajectory import optimal_trajectory, getwp
-
 plt.style.use('seaborn-paper')
 
 
@@ -152,7 +150,7 @@ def plot3d_quad(ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoin
     # shadow
     px, py, pz = current_position
     ax.plot(px, py, 0, color='black', alpha=0.5, markersize=5-pz, marker='o')
-
+    
     # Trajectory 
     ax.plot(desired.x,
             desired.y,
@@ -189,7 +187,7 @@ def plot3d_quad(ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoin
     n_wp = len(waypoints)
     for i in range(n_wp):
         x, y, z = waypoints[i]
-        ax.plot(x, y, z, alpha=.5, marker=".",  markersize=60)
+        ax.plot(x, y, z, alpha=.5, marker=".",  markersize=40)
 
 
     ax.w_zaxis.pane.set_color('#2D3047')
@@ -197,9 +195,9 @@ def plot3d_quad(ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoin
     ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.grid(False)
     ax.legend(facecolor="gray", bbox_to_anchor=(1, 1), loc='upper left')
-    ax.set_xlim(0, 11)
-    ax.set_ylim(0, 11)
-    ax.set_zlim(0, 11)
+    # ax.set_xlim(0, 11)
+    # ax.set_ylim(0, 11)
+    # ax.set_zlim(0, 11)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_zticks([])
@@ -269,40 +267,7 @@ def calculate_time_between_waypoints(wp1, wp2, speed=1.0):
   return time
 
 if __name__ == "__main__":
-    fig = plt.figure(figsize=(20,20))
-    ax = fig.add_subplot(111, projection='3d')
-    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
-
-    
-    limits = (10, 10, 10)
-
-    coordinates = np.array([
-        [8, 2, 0],  [4, 6, 0], [7, 5, 0], [4, 0, 0]
-    ])
-    shapes = np.array([
-        [1, 1, 5],  [2, 1, 5], [1, 1, 5], [1, 4, 5]
-    ])
-    # waypoints = np.array([
-    #     [10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
-    # ])
-    
-    # for i in range(len(coordinates)):
-    #     obstacle = get_obstacle(coordinates[i], shapes[i], limits)
-    #     ax.voxels(obstacle)
-    
-
-    waypoints = getwp("helix").T
-    n_wp = len(waypoints)
-    for i in range(n_wp):
-        plot_intermediate_waypoints(ax, waypoints[i], n_wp, i)
-    
-
-    speed = 1.0
-    trajectory = optimal_trajectory(waypoints, speed=speed, dt=0.024, mode="snap")
-
-    ax.scatter(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], marker='s', alpha=.5, s=2)
-    ax.legend(facecolor="gray")
-    plt.show()
+    pass
     
 
     
