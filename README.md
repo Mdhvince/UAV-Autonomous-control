@@ -38,8 +38,8 @@ Minimum Snap trajectory has been implemented for this project. Here are one a re
 - [ ] Perception
 - [ ] Estimation / Localization / Mapping
 - [ ] Planning
-    - [ ] Minimum snap trajectory
-    - [ ] Coliision avoidance
+    - [x] Minimum snap trajectory
+    - [ ] Colision free waypoints generation
 - [x] Motion Control
     - [x] Altitude controller
     - [x] Lateral controller
