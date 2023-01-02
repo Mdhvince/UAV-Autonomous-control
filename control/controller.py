@@ -27,6 +27,7 @@ class Controller():
 
         self.integral_error = 0
 
+
     ######### POSITION #########
     def altitude(self, quad, desired, dt, index):
         """

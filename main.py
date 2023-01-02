@@ -5,7 +5,7 @@ from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-from control import utils_plot
+from control.simulation_3d import Sim3d
 from control.quadrotor import Quadrotor
 from control.controller import Controller
 from planning.trajectory import TrajectoryPlanner
@@ -25,9 +25,6 @@ if __name__ == "__main__":
     waypoints = np.array([
         [10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
     ])
-    # waypoints = np.array([
-    #     [0, 0, 0], [0, 0, 10]
-    # ])
     
     tp = TrajectoryPlanner(waypoints, velocity, dt)
     traj = tp.get_min_snap_trajectory()
@@ -60,13 +57,7 @@ if __name__ == "__main__":
 
 
 
-
-    obstacle_boundary = (10, 10, 10)
-    obstacle_coords = np.array([[8, 2, 0], [4, 6, 0], [7, 5, 0], [4, 0, 0]])
-    obstacle_shapes = np.array([[1, 1, 5], [2, 1, 5], [1, 1, 5], [1, 4, 5]])
-    fig, ax, norm, scalar_map = utils_plot.setup_plot(colormap="turbo")
-    ani = utils_plot.run_animation(fig, n_waypoints, 5, ax, obstacle_coords, obstacle_shapes, obstacle_boundary, waypoints, state_history, desired, scalar_map, norm)
+    sim = Sim3d(traj, state_history)
+    _ = sim.run_sim(frames=n_waypoints, interval=5)
     plt.show()
-    # utils_plot.save_animation(ani, "docs/figHelix.mp4")
-    # utils_plot.plot_results(t, state_history, omega_history, desired)
 

@@ -112,9 +112,9 @@ class TrajectoryPlanner():
         self.snap = []
         self.full_trajectory = None
         self.row_counter = 0
-        self.constraint_poly = None    # A
-        self.constraint_values = None  # b
-        self.coeffs = None             # c
+        self.A = None
+        self.b = None
+        self.coeffs = None
     
     def get_min_snap_trajectory(self, method="lstsq"):
         self._compute_spline_parameters(method)
@@ -143,9 +143,9 @@ class TrajectoryPlanner():
     def _compute_spline_parameters(self, method):
         self._create_polynom_matrices()
         if method == "lstsq":
-            self.coeffs, residuals, rank, s = np.linalg.lstsq(self.constraint_poly, self.constraint_values, rcond=None)
+            self.coeffs, residuals, rank, s = np.linalg.lstsq(self.A, self.b, rcond=None)
         else:
-            self.coeffs = np.linalg.solve(self.constraint_poly, self.constraint_values)
+            self.coeffs = np.linalg.solve(self.A, self.b)
             
     def _create_polynom_matrices(self):
         """Populate matrices A and b with the constraints/boundary conditions"""
@@ -174,7 +174,7 @@ class TrajectoryPlanner():
                 poly0 = -1 * TrajectoryPlanner.polynom(n=N_BC, k=k, t=0)
                 polyT = TrajectoryPlanner.polynom(n=N_BC, k=k, t=timeT)
                 poly = np.hstack((polyT, poly0))  # end of seg - start of seg must be 0. so no change of velocity/acc/jerk/snap...
-                self.constraint_poly[self.row_counter, (s-1)*N_BC:N_BC*(s+1)] = poly
+                self.A[self.row_counter, (s-1)*N_BC:N_BC*(s+1)] = poly
                 self.row_counter += 1
 
     def _generate_start_and_goal_constraints(self):
@@ -194,13 +194,13 @@ class TrajectoryPlanner():
         # CONSTRAINTS FOR THE VERY FIRST SEGMENT at t=0
         for k in [1, 2, 3]:
             poly = TrajectoryPlanner.polynom(n=N_BC, k=k, t=0)
-            self.constraint_poly[self.row_counter, 0:N_BC] = poly
+            self.A[self.row_counter, 0:N_BC] = poly
             self.row_counter += 1
         
         # CONSTRAINTS FOR THE VERY LAST SEGMENT at t=T
         for k in [1, 2, 3]:
             poly = TrajectoryPlanner.polynom(n=N_BC, k=k, t=self.times[-1])
-            self.constraint_poly[self.row_counter, (N_SPLINES-1)*N_BC:N_BC*N_SPLINES] = poly
+            self.A[self.row_counter, (N_SPLINES-1)*N_BC:N_BC*N_SPLINES] = poly
             self.row_counter += 1
 
     def _generate_position_constraints(self):
@@ -223,8 +223,8 @@ class TrajectoryPlanner():
         poly = TrajectoryPlanner.polynom(n=N_BC, k=0, t=0)
         for i in range(N_SPLINES):
             wp0 = self.waypoints[i]
-            self.constraint_poly[self.row_counter, i*N_BC : N_BC*(i+1)] = poly
-            self.constraint_values[self.row_counter, :] = wp0
+            self.A[self.row_counter, i*N_BC : N_BC*(i+1)] = poly
+            self.b[self.row_counter, :] = wp0
             self.row_counter += 1
         
         # at t=T - FOR ALL END OF SEGMENTS                                                     
@@ -232,8 +232,8 @@ class TrajectoryPlanner():
             wpT = self.waypoints[i+1]
             timeT = self.times[i]
             poly = TrajectoryPlanner.polynom(n=N_BC, k=0, t=timeT)
-            self.constraint_poly[self.row_counter, i*N_BC:N_BC*(i+1)] = poly
-            self.constraint_values[self.row_counter, :] = wpT
+            self.A[self.row_counter, i*N_BC:N_BC*(i+1)] = poly
+            self.b[self.row_counter, :] = wpT
             self.row_counter += 1
 
     @staticmethod
@@ -265,8 +265,8 @@ class TrajectoryPlanner():
         self._init_matrices()
 
     def _init_matrices(self):
-        self.constraint_poly = np.zeros((self.nb_constraint*self.nb_splines, self.nb_constraint*self.nb_splines))
-        self.constraint_values = np.zeros((self.nb_constraint*self.nb_splines, 3))
+        self.A = np.zeros((self.nb_constraint*self.nb_splines, self.nb_constraint*self.nb_splines))
+        self.b = np.zeros((self.nb_constraint*self.nb_splines, len(self.waypoints[0])))
 
     def _generate_time_per_spline(self):
         for i in range(self.nb_splines):
@@ -274,7 +274,7 @@ class TrajectoryPlanner():
             distance = np.linalg.norm(self.waypoints[i+1] - self.waypoints[i])
             time = distance / self.velocity
             self.times.append(time)
-
+        
     def _generate_waypoints(self):
         # while waiting for the algorithm to generate them
         self.nb_splines = self.waypoints.shape[0] - 1
@@ -285,11 +285,6 @@ if __name__ == "__main__":
     waypoints = np.array([
         [10, 0, 0], [10, 4, 1], [6, 3, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
     ])
-    # waypoints = getwp("angle").T
-
-    # waypoints = np.array([
-    #     [0, 0, 0], [0, 0, 20]
-    # ])
 
     tp = TrajectoryPlanner(waypoints, velocity=1.0)
     traj = tp.get_min_snap_trajectory("inv")
@@ -307,9 +302,10 @@ if __name__ == "__main__":
 
     # only plot some of the rows
     n = 2
-    mask = np.ones(traj.shape[0], dtype=bool)
-    mask[::n] = False
-    traj = traj[mask]
+    for _ in range(3):
+        mask = np.ones(traj.shape[0], dtype=bool)
+        mask[::n] = False
+        traj = traj[mask]
     
     # map color to velocity
     vel = np.linalg.norm(traj[:, 3:6], axis=1)
@@ -330,9 +326,9 @@ if __name__ == "__main__":
                 marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
 
 
-    # # plot normal
-    # x, y, z = waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]
-    # ax.plot(x, y, z, alpha=.5, color="black", label="Naive trajectory")
+    # plot normal
+    x, y, z = waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]
+    ax.plot(x, y, z, alpha=.5, color="black", label="Naive trajectory")
 
     ax.legend()
     plt.show()
