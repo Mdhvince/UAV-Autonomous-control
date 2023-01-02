@@ -169,11 +169,11 @@ class TrajectoryPlanner():
         N_SPLINES = self.nb_splines
 
         for s in range(1, N_SPLINES):
-            timeT = self.times[s]
+            timeT = self.times[s-1]
             for k in [1, 2, 3, 4, 5, 6]:
                 poly0 = -1 * TrajectoryPlanner.polynom(n=N_BC, k=k, t=0)
                 polyT = TrajectoryPlanner.polynom(n=N_BC, k=k, t=timeT)
-                poly = np.hstack((polyT, poly0))
+                poly = np.hstack((polyT, poly0))  # end of seg - start of seg must be 0. so no change of velocity/acc/jerk/snap...
                 self.constraint_poly[self.row_counter, (s-1)*N_BC:N_BC*(s+1)] = poly
                 self.row_counter += 1
 
@@ -194,13 +194,13 @@ class TrajectoryPlanner():
         # CONSTRAINTS FOR THE VERY FIRST SEGMENT at t=0
         for k in [1, 2, 3]:
             poly = TrajectoryPlanner.polynom(n=N_BC, k=k, t=0)
-            self.constraint_poly[self.row_counter, 0:N_BC] = poly                                                          # for only the first one so from 0:self.nb_constraint
+            self.constraint_poly[self.row_counter, 0:N_BC] = poly
             self.row_counter += 1
         
         # CONSTRAINTS FOR THE VERY LAST SEGMENT at t=T
         for k in [1, 2, 3]:
             poly = TrajectoryPlanner.polynom(n=N_BC, k=k, t=self.times[-1])
-            self.constraint_poly[self.row_counter, (N_SPLINES-1)*N_BC:N_BC*N_SPLINES] = poly                               # only for the last one
+            self.constraint_poly[self.row_counter, (N_SPLINES-1)*N_BC:N_BC*N_SPLINES] = poly
             self.row_counter += 1
 
     def _generate_position_constraints(self):
@@ -283,7 +283,7 @@ class TrajectoryPlanner():
 if __name__ == "__main__":
 
     waypoints = np.array([
-        [10, 0, 0], [10, 4, 1], [6, 3, 2], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
+        [10, 0, 0], [10, 4, 1], [6, 3, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
     ])
     # waypoints = getwp("angle").T
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     traj = tp.get_min_snap_trajectory("inv")
 
 
-    fig = plt.figure(figsize=(20,20))
+    fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
@@ -329,7 +329,8 @@ if __name__ == "__main__":
         ax.plot(traj[i, 0], traj[i, 1], traj[i, 2],
                 marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
 
-    # plot normal
+
+    # # plot normal
     # x, y, z = waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]
     # ax.plot(x, y, z, alpha=.5, color="black", label="Naive trajectory")
 

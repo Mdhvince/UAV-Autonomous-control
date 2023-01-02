@@ -21,16 +21,17 @@ if __name__ == "__main__":
 
     inner_loop_relative_to_outer_loop = 10
     dt = 0.02
-    velocity = 5
-    # waypoints = np.array([
-    #     [10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
-    # ])
+    velocity = 1.0
     waypoints = np.array([
-        [0, 0, 0], [0, 0, 20]
+        [10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
     ])
+    # waypoints = np.array([
+    #     [0, 0, 0], [0, 0, 10]
+    # ])
     
     tp = TrajectoryPlanner(waypoints, velocity, dt)
     traj = tp.get_min_snap_trajectory()
+
 
     Desired = namedtuple("Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     desired = Desired(
@@ -56,7 +57,6 @@ if __name__ == "__main__":
 
         state_history = np.vstack((state_history, quad.X))
         omega_history = np.vstack((omega_history, quad.omega))
-
 
 
 
