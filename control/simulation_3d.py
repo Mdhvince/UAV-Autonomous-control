@@ -139,7 +139,7 @@ class Sim3d():
         quad_wf = self.quad_pos(current_position, rot_mat, L=.7, H=0.005)
         x, y, z = quad_wf[0, :], quad_wf[1, :], quad_wf[2, :]
 
-        self.ax.scatter(x, y, z, alpha=1)
+        self.ax.scatter(x, y, z, alpha=1, color="red")
 
         COM, FL, FR, RL, RR = 5, 0, 1, 3, 2
         # COM to front left / rigth / rear-left / rear-right
@@ -179,12 +179,6 @@ class Sim3d():
             self.ax.quiver(x0, y0, z0, yaw_axis[0], yaw_axis[1], yaw_axis[2], color='b', lw=2)
 
     def draw_trajectory(self):
-        # only plot some of the rows
-        # n = 2
-        # for _ in range(3):
-        #     mask = np.ones(traj.shape[0], dtype=bool)
-        #     mask[::n] = False
-        #     traj = traj[mask]
     
         # plot min snap
         # for i in range(len(self.colors)):

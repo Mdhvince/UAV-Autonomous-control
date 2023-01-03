@@ -2,10 +2,14 @@ import math
 
 import numpy as np
 
-# We want to control the drone in the world frame BUT we get some sensore measurement from the IMU that are in the body frame.
+# We want to control the drone in the world frame BUT we get some sensors measurement from the IMU that are in the body frame.
 # And our controls (especially the moments that we command) have a more intuitive interpretation in the body frame.
 
 class Controller():
+    """
+    implementing the controller architecture from the paper: Feed-Forward Parameter Identification for Precise Periodic
+    Quadrocopter Motions, Angela P. Schoellig, Clemens Wiltsche and Raffaello D'Andrea.
+    """
     def __init__(self, config):
         self.g = config["DEFAULT"].getfloat("g")
 
@@ -31,37 +35,36 @@ class Controller():
     ######### POSITION #########
     def altitude(self, quad, desired, dt, index):
         """
+        Output:
+            - c: collective thrust
         """
-        z_des = desired.z[index]
-        z_dot_des = desired.z_vel[index]
-        z_dot_dot_des = desired.z_acc[index]
-
-        error = z_des - quad.z
-        error_dot = z_dot_des - quad.z_vel
+        
+        error = desired.z[index] - quad.z
+        error_dot = desired.z_vel[index] - quad.z_vel
         self.integral_error += error * dt;
 
-        u_1_bar = Controller._pid(
-                self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error,  z_dot_dot_des)
+        acc_z = Controller._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error,  desired.z_acc[index]) - self.g
 
         # Project the acceleration along the z-vector of the body (Bz)
         rot_mat = quad.R()
-        
         b_z = rot_mat[2, 2]
-        acc = (u_1_bar - self.g) / b_z
-        acc = np.clip(acc, -quad.max_ascent_rate/dt, quad.max_descent_rate/dt)
+        acc_z = acc_z / b_z
+        acc_z = np.clip(acc_z, -quad.max_ascent_rate/dt, quad.max_descent_rate/dt)
 
-        thrust_cmd = -quad.m * acc
-        thrust_cmd = np.clip(thrust_cmd, quad.min_thrust, quad.max_thrust)
+        c = -quad.m * acc_z
 
         # reserve some thrust margin for angle control
         thrust_margin = 0.2 * (quad.max_thrust - quad.min_thrust)
-        thrust_cmd = np.clip(
-            thrust_cmd, (quad.min_thrust + thrust_margin) * 4, (quad.max_thrust-thrust_margin) * 4)
+        c = np.clip(c, (quad.min_thrust + thrust_margin) * 4, (quad.max_thrust-thrust_margin) * 4)
 
-        return thrust_cmd
+        return c
     
-    def lateral(self, quad, desired, index):
+    def lateral(self, quad, thrust_cmd, desired, index):
         """
+        Input:
+            -
+        Output:
+            - Commanded rotation matrix [bx_c, by_c]
         """
         x_des, y_des = desired.x[index], desired.y[index]
         x_dot_des, y_dot_des = desired.x_vel[index], desired.y_vel[index]
@@ -85,26 +88,25 @@ class Controller():
         acc_mag = np.linalg.norm(acc_cmd)
         acc_is_too_high = acc_mag > quad.max_horiz_accel
         acc_cmd = (acc_cmd / acc_mag) * quad.max_horiz_accel if acc_is_too_high else acc_cmd
-            
-        return acc_cmd
+
+        # Scale acc_cmd to a value appropriate for the current thrust being applied
+        acc_z = -thrust_cmd / quad.m
+        scaled_acc_cmd = acc_cmd / acc_z
+        bxy_cmd = np.clip(scaled_acc_cmd, -quad.max_tilt_angle, quad.max_tilt_angle)
+        return bxy_cmd
     
 
     ######### ATTITUDE #########
-    def attitude(self, quad, thrust_cmd, acc_cmd, desired_yaw):
+    def attitude(self, quad, thrust_cmd, bxy_cmd, desired_yaw):
         rot_mat = quad.R()
-        pq_cmd = self.roll_pitch_controller(acc_cmd, thrust_cmd, rot_mat, quad)
+        pq_cmd = self.roll_pitch_controller(thrust_cmd, bxy_cmd, rot_mat, quad)
         r_cmd = self.yaw_controller(desired_yaw, quad)
         pqr_cmd = np.append(pq_cmd, r_cmd)
         moment_cmd = self.body_rate_controller(pqr_cmd, quad)
         return moment_cmd
         
-    def roll_pitch_controller(self, acc_cmd, thrust_cmd, rot_mat, quad):
+    def roll_pitch_controller(self, thrust_cmd, bxy_cmd, rot_mat, quad):
 
-        # Scale acc_cmd to a value appropriate for the current thrust being applied
-        c = -thrust_cmd / quad.m
-        scaled_acc_cmd = acc_cmd / c
-
-        bxy_cmd = np.clip(scaled_acc_cmd, -quad.max_tilt_angle, quad.max_tilt_angle)
         b_xy = np.array([rot_mat[0, 2], rot_mat[1, 2]])
         errors = bxy_cmd - b_xy
 
@@ -113,10 +115,8 @@ class Controller():
 
         # transform the desired angular velocities component of R: b_xy_cmd_dot (body frame)
         # to the roll and pitch rates p_c and q_c in the (body frame)
-        rot_mat1 = np.array([
-                [rot_mat[1, 0], -rot_mat[0, 0]],
-                [rot_mat[1, 1], -rot_mat[0, 1]]
-            ]) / rot_mat[2, 2]
+        rot_mat1 = np.array([[rot_mat[1, 0], -rot_mat[0, 0]],
+                             [rot_mat[1, 1], -rot_mat[0, 1]]]) / rot_mat[2, 2]
         
         pq_cmd = np.matmul(rot_mat1, b_xy_cmd_dot.T)
 

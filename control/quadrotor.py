@@ -69,11 +69,11 @@ class Quadrotor():
         in order to have the linear acceleration x_acc, y_acc, z_acc in the world frame
         """
         R = self.R()
-        g = np.array([0, 0, self.g]).T
-        c = np.array([0, 0, -self.f_total]).T
+        G = np.array([0, 0, self.g]).T
+        F = np.array([0, 0, -self.f_total]).T
 
         # linear accelerations along x, y, z
-        self.dX[6:9] = g + np.matmul(R, c) / self.m
+        self.dX[6:9] = G + np.matmul(R, F) / self.m
     
     def body_angular_acceleration(self):  # used for state update
         """Angular aceeleration in the body frame"""
