@@ -139,7 +139,7 @@ class Sim3d():
         quad_wf = self.quad_pos(current_position, rot_mat, L=.7, H=0.005)
         x, y, z = quad_wf[0, :], quad_wf[1, :], quad_wf[2, :]
 
-        self.ax.scatter(x, y, z, alpha=1, color="red")
+        self.ax.scatter(x, y, z, alpha=.2, color="red")
 
         COM, FL, FR, RL, RR = 5, 0, 1, 3, 2
         # COM to front left / rigth / rear-left / rear-right
@@ -180,9 +180,6 @@ class Sim3d():
 
     def draw_trajectory(self):
     
-        # plot min snap
-        # for i in range(len(self.colors)):
-        #     label = "Desired trajectory" if i == 0 else None
         self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2],
                 marker='.', alpha=.2, markersize=20)
 

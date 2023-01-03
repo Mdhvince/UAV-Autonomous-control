@@ -5,9 +5,10 @@ import numpy as np
 # We want to control the drone in the world frame BUT we get some sensors measurement from the IMU that are in the body frame.
 # And our controls (especially the moments that we command) have a more intuitive interpretation in the body frame.
 
-class Controller():
+
+class TFC():
     """
-    implementing the controller architecture from the paper: Feed-Forward Parameter Identification for Precise Periodic
+    implementing the Trajectory-Following TFC (TFC) architecture from the paper: Feed-Forward Parameter Identification for Precise Periodic
     Quadrocopter Motions, Angela P. Schoellig, Clemens Wiltsche and Raffaello D'Andrea.
     """
     def __init__(self, config):
@@ -32,8 +33,7 @@ class Controller():
         self.integral_error = 0
 
 
-    ######### POSITION #########
-    def altitude(self, quad, desired, dt, index):
+    def altitude(self, quad, desired, rot_mat, dt, index):
         """
         Output:
             - c: collective thrust
@@ -43,10 +43,9 @@ class Controller():
         error_dot = desired.z_vel[index] - quad.z_vel
         self.integral_error += error * dt;
 
-        acc_z = Controller._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error,  desired.z_acc[index]) - self.g
+        acc_z = TFC._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error,  desired.z_acc[index]) - self.g
 
         # Project the acceleration along the z-vector of the body (Bz)
-        rot_mat = quad.R()
         b_z = rot_mat[2, 2]
         acc_z = acc_z / b_z
         acc_z = np.clip(acc_z, -quad.max_ascent_rate/dt, quad.max_descent_rate/dt)
@@ -61,8 +60,6 @@ class Controller():
     
     def lateral(self, quad, thrust_cmd, desired, index):
         """
-        Input:
-            -
         Output:
             - Commanded rotation matrix [bx_c, by_c]
         """
@@ -82,7 +79,7 @@ class Controller():
         # Get required acceleration
         vel_err = vel_des - quad.velocity[:2]
         pos_err = pos_des - quad.position[:2]
-        acc_cmd = Controller._pd(self.lateral_Pgain, self.lateral_Dgain, pos_err, vel_err, ff_acc)
+        acc_cmd = TFC._pd(self.lateral_Pgain, self.lateral_Dgain, pos_err, vel_err, ff_acc)
 
         # Scaling down the magnitude acceleration vector
         acc_mag = np.linalg.norm(acc_cmd)
@@ -96,16 +93,13 @@ class Controller():
         return bxy_cmd
     
 
-    ######### ATTITUDE #########
-    def attitude(self, quad, thrust_cmd, bxy_cmd, desired_yaw):
-        rot_mat = quad.R()
-        pq_cmd = self.roll_pitch_controller(thrust_cmd, bxy_cmd, rot_mat, quad)
-        r_cmd = self.yaw_controller(desired_yaw, quad)
-        pqr_cmd = np.append(pq_cmd, r_cmd)
-        moment_cmd = self.body_rate_controller(pqr_cmd, quad)
-        return moment_cmd
+    def reduced_attitude(self, quad, bxy_cmd, psi_des, rot_mat):
+        pq_c = self.roll_pitch_controller(bxy_cmd, rot_mat)
+        r_c = self.yaw_controller(quad, psi_des)
+        pqr_cmd = np.append(pq_c, r_c)
+        return pqr_cmd
         
-    def roll_pitch_controller(self, thrust_cmd, bxy_cmd, rot_mat, quad):
+    def roll_pitch_controller(self, bxy_cmd, rot_mat):
 
         b_xy = np.array([rot_mat[0, 2], rot_mat[1, 2]])
         errors = bxy_cmd - b_xy
@@ -122,18 +116,18 @@ class Controller():
 
         return pq_cmd
     
-    def yaw_controller(self, psi_des, quad):
-        psi_des = Controller.wrap_to_2pi(psi_des)
-        yaw_err = Controller.wrap_to_pi(psi_des - quad.psi)
+    def yaw_controller(self, quad, psi_des):
+        psi_des = TFC.wrap_to_2pi(psi_des)
+        yaw_err = TFC.wrap_to_pi(psi_des - quad.psi)
         r_c = self.kp_yaw * yaw_err
         return r_c
     
-    def body_rate_controller(self, pqr_cmd, quad):
-        MOI = np.array([quad.i_x, quad.i_y, quad.i_z])  # moment of inertia
+    def body_rate_controller(self, quad, pqr_cmd):
+        I = np.array([quad.i_x, quad.i_y, quad.i_z])  # moment of inertia
         kp_pqr = np.array([self.kp_p, self.kp_q, self.kp_r])
         pqr_actual = np.array([quad.p, quad.q, quad.r])
 
-        moment_cmd = MOI * kp_pqr * (pqr_cmd - pqr_actual)
+        moment_cmd = I * kp_pqr * (pqr_cmd - pqr_actual)
 
         moment_mag = np.linalg.norm(moment_cmd)
         if moment_mag > quad.max_torque:

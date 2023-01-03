@@ -85,6 +85,7 @@ class Quadrotor():
     
     def get_euler_derivatives(self):  # used for state update
         """Angular velocity in the world frame"""
+
         euler_rot_mat = np.array([
                 [1, math.sin(self.phi) * math.tan(self.theta), math.cos(self.phi) * math.tan(self.theta)],
                 [0, math.cos(self.phi), -math.sin(self.phi)],
