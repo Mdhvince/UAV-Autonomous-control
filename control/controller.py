@@ -92,13 +92,24 @@ class TFC():
         bxy_cmd = np.clip(scaled_acc_cmd, -quad.max_tilt_angle, quad.max_tilt_angle)
         return bxy_cmd
     
-
     def reduced_attitude(self, quad, bxy_cmd, psi_des, rot_mat):
         pq_c = self.roll_pitch_controller(bxy_cmd, rot_mat)
         r_c = self.yaw_controller(quad, psi_des)
         pqr_cmd = np.append(pq_c, r_c)
         return pqr_cmd
-        
+
+    def body_rate_controller(self, quad, pqr_cmd):
+        I = np.array([quad.i_x, quad.i_y, quad.i_z])  # moment of inertia
+        kp_pqr = np.array([self.kp_p, self.kp_q, self.kp_r])
+        pqr_actual = np.array([quad.p, quad.q, quad.r])
+
+        moment_cmd = I * kp_pqr * (pqr_cmd - pqr_actual)
+
+        moment_mag = np.linalg.norm(moment_cmd)
+        if moment_mag > quad.max_torque:
+            moment_cmd = moment_cmd * quad.max_torque / moment_mag
+        return moment_cmd    
+    
     def roll_pitch_controller(self, bxy_cmd, rot_mat):
 
         b_xy = np.array([rot_mat[0, 2], rot_mat[1, 2]])
@@ -121,19 +132,7 @@ class TFC():
         yaw_err = TFC.wrap_to_pi(psi_des - quad.psi)
         r_c = self.kp_yaw * yaw_err
         return r_c
-    
-    def body_rate_controller(self, quad, pqr_cmd):
-        I = np.array([quad.i_x, quad.i_y, quad.i_z])  # moment of inertia
-        kp_pqr = np.array([self.kp_p, self.kp_q, self.kp_r])
-        pqr_actual = np.array([quad.p, quad.q, quad.r])
-
-        moment_cmd = I * kp_pqr * (pqr_cmd - pqr_actual)
-
-        moment_mag = np.linalg.norm(moment_cmd)
-        if moment_mag > quad.max_torque:
-            moment_cmd = moment_cmd * quad.max_torque / moment_mag
-        return moment_cmd
-    
+     
     @property
     def lateral_Pgain(self):
         return np.array([self.kp_x, self.kp_y])
@@ -145,7 +144,6 @@ class TFC():
     @property
     def roll_pitch_Pgain(self):
         return np.array([self.kp_roll, self.kp_pitch])
-    
 
     @staticmethod
     def wrap_to_pi(angle):

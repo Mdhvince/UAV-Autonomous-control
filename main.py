@@ -15,11 +15,12 @@ warnings.filterwarnings('ignore')
 
 if __name__ == "__main__":
 
+    Desired = namedtuple("Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = "/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini"
     config.read(config_file)
 
-    inner_loop_relative_to_outer_loop = 10
+    FREQ = 10  # inner loop speed relative to outer loop
     dt = 0.01
     velocity = 2.0
 
@@ -30,12 +31,11 @@ if __name__ == "__main__":
     planner = TrajectoryPlanner(waypoints, velocity, dt)
     r_des = planner.get_min_snap_trajectory()
 
-
-    Desired = namedtuple("Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     desired = Desired(
         r_des[:, 0], r_des[:, 1], r_des[:, 2],     # position
         r_des[:, 3], r_des[:, 4], r_des[:, 5],     # velocity
-        r_des[:, 6], r_des[:, 7], r_des[:, 8], 0)  # acc and yaw
+        r_des[:, 6], r_des[:, 7], r_des[:, 8],     # acc
+        np.arctan2(r_des[:, 3], r_des[:, 4]))      # yaw
     
     quad = Quadrotor(config, desired)
     controller = TFC(config)
@@ -48,13 +48,13 @@ if __name__ == "__main__":
         R = quad.R()
         F_cmd = controller.altitude(quad, desired, R, dt, index=i)
         bxy_cmd = controller.lateral(quad, F_cmd, desired, index=i)
-        pqr_cmd = controller.reduced_attitude(quad, bxy_cmd, desired.yaw, R)
+        pqr_cmd = controller.reduced_attitude(quad, bxy_cmd, desired.yaw[i], R)
         
-        for _ in range(inner_loop_relative_to_outer_loop):
+        for _ in range(FREQ):
             # flight controller
             moment_cmd = controller.body_rate_controller(quad, pqr_cmd)
             quad.set_propeller_speed(F_cmd, moment_cmd)
-            quad.update_state(dt/inner_loop_relative_to_outer_loop)
+            quad.update_state(dt/FREQ)
 
 
         state_history = np.vstack((state_history, quad.X))

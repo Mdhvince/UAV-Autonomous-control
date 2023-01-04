@@ -302,7 +302,7 @@ if __name__ == "__main__":
 
     # only plot some of the rows
     n = 2
-    for _ in range(3):
+    for _ in range(2):
         mask = np.ones(traj.shape[0], dtype=bool)
         mask[::n] = False
         traj = traj[mask]
@@ -327,8 +327,8 @@ if __name__ == "__main__":
 
 
     # plot normal
-    x, y, z = waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]
-    ax.plot(x, y, z, alpha=.5, color="black", label="Naive trajectory")
+    # x, y, z = waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]
+    # ax.plot(x, y, z, alpha=.5, color="black", label="Naive trajectory")
 
     ax.legend()
     plt.show()
