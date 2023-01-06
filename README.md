@@ -10,19 +10,8 @@ https://user-images.githubusercontent.com/17160701/209675444-38a1941d-f8d2-4477-
 
 ![Controller Arch](docs/Controller%20Arch.png "")  
 
-The algorithm is composed of  
-
-- Outer loop:
-    - Altitude controller
-    - Lateral controller  
----
-- Inner Loop x10 faster:
-    - Roll-Pitch controller
-    - Yaw controller
-    - Body Rate controller  
----
-- UAV Equation of motion
-- State update using euler integration method
+source: A platform for aerial robotics research and demonstration: The Flying Machine Arena  
+Sergei Lupashin, Markus Hehn, Mark W. Mueller, Angela P. Schoellig, Michael Sherback, Raffaello D’Andrea
 
 ### 2. Trajectory Planner with minimum snap
 
