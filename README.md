@@ -31,7 +31,7 @@ Minimum Snap trajectory has been implemented for this project. Here are one a re
 - [ ] Planning
     - [x] Minimum snap trajectory
     - [x] Colision free min snap trajectory (static obstacle in known environment)
-    - [ ] Colision free min snap trajectory (in unknown environment or moving)
+    - [ ] Colision free min snap trajectory (in unknown environment/moving obstacles)
     - [ ] Colision free waypoints generation
 - [x] Motion Control
     - [x] Altitude controller
