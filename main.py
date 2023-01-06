@@ -62,6 +62,6 @@ if __name__ == "__main__":
 
 
     sim = Sim3d(r_des, state_history, obstacle_edges)
-    _ = sim.run_sim(frames=n_waypoints, interval=5)
+    ani = sim.run_sim(frames=n_waypoints, interval=5)
     plt.show()
 
