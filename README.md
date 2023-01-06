@@ -28,7 +28,13 @@ The algorithm is composed of
 
 Minimum Snap trajectory has been implemented for this project. Here are one a result for an arbritary trajectory, we can find the comparison between a naive trajectory (just connecting waypoints with a straight line) and the optimal one (Minimum snap)
 
-![Controller Arch](docs/min_snap.png "")
+![Min Snap](docs/min_snap.png "")
+
+#### Without collision check
+![Min Snap](docs/no_collision_check.png "")
+
+#### With collision check (upper right waypoint is mandadory)
+![Min Snap](docs/collision_check.png "")
 
 ### To do
 - [x] Simulation of 3D UAV Dynamics
@@ -39,6 +45,8 @@ Minimum Snap trajectory has been implemented for this project. Here are one a re
 - [ ] Estimation / Localization / Mapping
 - [ ] Planning
     - [x] Minimum snap trajectory
+    - [x] Colision free min snap trajectory (static obstacle in known environment)
+    - [ ] Colision free min snap trajectory (in unknown environment or moving)
     - [ ] Colision free waypoints generation
 - [x] Motion Control
     - [x] Altitude controller

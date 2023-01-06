@@ -3,6 +3,8 @@ import warnings
 from collections import namedtuple
 
 import numpy as np
+import matplotlib.path
+
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
@@ -103,6 +105,7 @@ class TrajectoryPlanner():
         self.waypoints = waypoints
         self.velocity = velocity       # mean velocity of travel         
         self.times = []                # will hold the time between segment based on the velocity
+        self.spline_id = []            # identify on which spline the newly generated point belongs to
         self.nb_splines = None
         self.nb_constraint = 8
         self.positions = []
@@ -134,10 +137,11 @@ class TrajectoryPlanner():
                 self.positions.append(position)
                 self.velocities.append(velocity)
                 self.accelerations.append(acceleration)
+                self.spline_id.append(np.array([it, it]))
                 # self.jerks.append(jerk)
                 # self.snap.append(snap)
         
-        self.full_trajectory = np.hstack((self.positions, self.velocities, self.accelerations))
+        self.full_trajectory = np.hstack((self.positions, self.velocities, self.accelerations, self.spline_id))
         return self.full_trajectory
     
     def _compute_spline_parameters(self, method):
@@ -280,26 +284,93 @@ class TrajectoryPlanner():
         self.nb_splines = self.waypoints.shape[0] - 1
     
 
+
+class Cube:
+  def __init__(self, ax, center, side_length, height):
+    self.vertices = [
+        (center[0] - side_length/2, center[1] - side_length/2, height),  # vertex 1
+        (center[0] + side_length/2, center[1] - side_length/2, height),  # vertex 2
+        (center[0] + side_length/2, center[1] + side_length/2, height),  # vertex 3
+        (center[0] - side_length/2, center[1] + side_length/2, height),  # vertex 4
+        (center[0] - side_length/2, center[1] - side_length/2, 0),  # vertex 5
+        (center[0] + side_length/2, center[1] - side_length/2, 0),  # vertex 6
+        (center[0] + side_length/2, center[1] + side_length/2, 0),  # vertex 7
+        (center[0] - side_length/2, center[1] + side_length/2, 0)   # vertex 8
+    ]
+    self.edges = [
+      (self.vertices[0], self.vertices[1]),  # edge 1
+      (self.vertices[1], self.vertices[2]),  # edge 2
+      (self.vertices[2], self.vertices[3]),  # edge 3
+      (self.vertices[3], self.vertices[0]),  # edge 4
+      (self.vertices[4], self.vertices[5]),  # edge 5
+      (self.vertices[5], self.vertices[6]),  # edge 6
+      (self.vertices[6], self.vertices[7]),  # edge 7
+      (self.vertices[7], self.vertices[4]),  # edge 8
+      (self.vertices[0], self.vertices[4]),  # edge 9
+      (self.vertices[1], self.vertices[5]),  # edge 10
+      (self.vertices[2], self.vertices[6]),  # edge 11
+      (self.vertices[3], self.vertices[7])   # edge 12
+  ]
+
+    for edge in self.edges:
+        ax.plot(*zip(edge[0], edge[1]), color="k")
+
+
+def insert_midpoints_at_indexes(points, indexes):
+    result = []
+    i = 0
+    while i < len(points):
+        if i in indexes:
+            p1 = points[i-1]
+            p2 = points[i]
+            midpoint = (p1 + p2) / 2
+            result.extend([midpoint])
+        result.append(points[i])
+        i += 1
+    return np.array(result)
+
+def is_point_inside_cube(point, vertices):
+  x, y, z = point
+  xs, ys, zs = zip(*vertices)
+  return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys) and min(zs) <= z <= max(zs)
+
+
+
 if __name__ == "__main__":
-
-    waypoints = np.array([
-        [10, 0, 0], [10, 4, 1], [6, 3, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]
-    ])
-
-    tp = TrajectoryPlanner(waypoints, velocity=1.0)
-    traj = tp.get_min_snap_trajectory("inv")
-
-
     fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(90, -90)
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
-    n_wp = len(waypoints)
-    for i in range(n_wp):
-        x, y, z = waypoints[i]
-        ax.plot(x, y, z, alpha=.5, marker=".",  markersize=20)
+    waypoints = np.array([[10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
+    coord_obstacles = np.array([[8, 6, 1.5, 5], [4, 9, 1.5, 5]])
 
 
+    # create a collision free minimal snap path
+    for coord in coord_obstacles:
+        O = Cube(ax, center=coord[:2], side_length=coord[2], height=coord[3])        
+
+        # Generate a minimum snap trajectory
+        tp = TrajectoryPlanner(waypoints, velocity=1.0)
+        traj = tp.get_min_snap_trajectory("inv")
+
+        # create mid point in splines that goes through an obstacle
+        id_spline_to_correct = set([1])
+        while len(id_spline_to_correct) > 0:
+            
+            id_spline_to_correct = set([])
+            for n, point in enumerate(traj[:, :3]):
+                if is_point_inside_cube(point, O.vertices):
+                    spline_id = traj[n, -1]
+                    id_spline_to_correct.add(spline_id+1)
+            
+            if len(id_spline_to_correct) > 0:
+                waypoints = insert_midpoints_at_indexes(waypoints, id_spline_to_correct)
+                tp = TrajectoryPlanner(waypoints, velocity=1.0)
+                traj = tp.get_min_snap_trajectory("inv")
+
+    
+        
     # only plot some of the rows
     n = 2
     for _ in range(2):
@@ -320,16 +391,16 @@ if __name__ == "__main__":
 
 
     # plot min snap
-    for i in range(len(colors)):
+    for i in range(len(traj)):
         label = "Minimum snap trajectory" if i == 0 else None
-        ax.plot(traj[i, 0], traj[i, 1], traj[i, 2],
-                marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
+        ax.plot(traj[i, 0], traj[i, 1], traj[i, 2], marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
+    
 
+    # draw waypoints
+    for i in range(len(waypoints)):
+        x, y, z = waypoints[i]
+        ax.plot(x, y, z, marker=".",  markersize=20, alpha=.2)
 
-    # plot normal
-    # x, y, z = waypoints[:, 0], waypoints[:, 1], waypoints[:, 2]
-    # ax.plot(x, y, z, alpha=.5, color="black", label="Naive trajectory")
-
+        
     ax.legend()
     plt.show()
-
