@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from control.simulation_3d import Sim3d
 from control.quadrotor import Quadrotor
 from control.controller import TFC
-from planning.trajectory import TrajectoryPlanner, getwp
+from planning.trajectory import TrajectoryPlanner, getwp, collision_free_min_snap
 
 warnings.filterwarnings('ignore')
 
@@ -25,17 +25,16 @@ if __name__ == "__main__":
     velocity = 2.0
 
     waypoints = np.array([[10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
-    # waypoints = np.array([[0, 0, 10], [0, 10, 10], [10, 10, 10], [10, 0, 10], [5, 5, 20]])
-    # waypoints = getwp("angle").T
+    coord_obstacles = np.array([[8, 6, 1.5, 5, 0], [4, 9, 1.5, 5, 0], [4, 1, 2, 5, 0], [3, 5, 1, 5, 0], [4, 3.5, 2.5, 5, 0], [5, 5, 10, .5, 5]])
 
-    planner = TrajectoryPlanner(waypoints, velocity, dt)
-    r_des = planner.get_min_snap_trajectory()
+    planner, waypoints, r_des, obstacle_edges = collision_free_min_snap(waypoints, coord_obstacles, velocity, dt)
 
     desired = Desired(
         r_des[:, 0], r_des[:, 1], r_des[:, 2],     # position
         r_des[:, 3], r_des[:, 4], r_des[:, 5],     # velocity
         r_des[:, 6], r_des[:, 7], r_des[:, 8],     # acc
-        np.arctan2(r_des[:, 3], r_des[:, 4]))      # yaw
+        np.arctan2(r_des[:, 3], r_des[:, 4])*0       # yaw
+    )      
     
     quad = Quadrotor(config, desired)
     controller = TFC(config)
@@ -62,7 +61,7 @@ if __name__ == "__main__":
 
 
 
-    sim = Sim3d(r_des, state_history)
+    sim = Sim3d(r_des, state_history, obstacle_edges)
     _ = sim.run_sim(frames=n_waypoints, interval=5)
     plt.show()
 

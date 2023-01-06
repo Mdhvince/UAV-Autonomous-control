@@ -73,7 +73,7 @@ def plot_position_error(t, drone_state_history, desired):
 
 class Sim3d():
 
-    def __init__(self, desired_trajectory, quad_pos_history, colormap="jet"):
+    def __init__(self, desired_trajectory, quad_pos_history, obstacles_edges=None, colormap="jet"):
         
         self.desired = desired_trajectory
         # only keep some of the rows
@@ -84,6 +84,7 @@ class Sim3d():
             self.desired = self.desired[mask]
 
         self.quad_pos_history = quad_pos_history
+        self.obstacles_edges = obstacles_edges
         self.colormap = colormap
 
         self.fig = plt.figure(figsize=(20,20))
@@ -115,6 +116,8 @@ class Sim3d():
         rot_mat = Sim3d.euler2Rot(phi, theta, psi)
         current_position = self.quad_pos_history[index, :3]
         
+        if self.obstacles_edges is not None:
+            self.draw_obstacles()
         self.draw_quad(current_position, rot_mat)
         self.draw_trajectory()
         self.draw_axis(rot_mat, current_position)
@@ -235,23 +238,12 @@ class Sim3d():
         """
         pass
 
-    def obstacles_voxels():
-        # plot intermediate waypoints and obstacles
-        # for i in range(len(obstacle_coords)):
-        #     obstacle = get_obstacle(obstacle_coords[i], obstacle_shapes[i], obstacle_boundary)
-        #     ax.voxels(obstacle)
-        pass
+    def draw_obstacles(self):
+        for edges in self.obstacles_edges:
+            for edge in edges:
+                x, y, z = zip(*edge)
+                self.ax.plot(x, y, z, color="red", alpha=.2)
 
-    def get_obstacle(coordinates, shapes, limits):
-        # x_size, y_size, z_size = limits
-        # x, y, z = coordinates
-        # width, length, height = shapes
-
-        # voxel = np.zeros((x_size, y_size, z_size))
-        # obstacle = np.ones((width, length, height))
-        # voxel[x:x+width, y:y+length, z:z+height] = obstacle
-        # return voxel
-        pass
         
 
 

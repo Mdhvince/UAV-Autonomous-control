@@ -2,10 +2,6 @@
 ### Result on the Helix path
 https://user-images.githubusercontent.com/17160701/209675444-38a1941d-f8d2-4477-b8ec-09222fa9c32d.mp4
 
-### Result on the Figure 8 path
-![Result Fig 8](docs/results_fig8_classic_control.png "")
-
-
 ### 1. Control  
 
 ![Controller Arch](docs/Controller%20Arch.png "")  

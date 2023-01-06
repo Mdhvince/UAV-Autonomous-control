@@ -285,35 +285,39 @@ class TrajectoryPlanner():
     
 
 
-class Cube:
-  def __init__(self, ax, center, side_length, height):
+class Obstacle:
+  def __init__(self, center, side_length, height, altitude_start=0):
+    """
+    """
     self.vertices = [
-        (center[0] - side_length/2, center[1] - side_length/2, height),  # vertex 1
-        (center[0] + side_length/2, center[1] - side_length/2, height),  # vertex 2
-        (center[0] + side_length/2, center[1] + side_length/2, height),  # vertex 3
-        (center[0] - side_length/2, center[1] + side_length/2, height),  # vertex 4
-        (center[0] - side_length/2, center[1] - side_length/2, 0),  # vertex 5
-        (center[0] + side_length/2, center[1] - side_length/2, 0),  # vertex 6
-        (center[0] + side_length/2, center[1] + side_length/2, 0),  # vertex 7
-        (center[0] - side_length/2, center[1] + side_length/2, 0)   # vertex 8
+        (center[0] - side_length/2, center[1] - side_length/2, altitude_start+height),
+        (center[0] + side_length/2, center[1] - side_length/2, altitude_start+height),
+        (center[0] + side_length/2, center[1] + side_length/2, altitude_start+height),
+        (center[0] - side_length/2, center[1] + side_length/2, altitude_start+height),
+        (center[0] - side_length/2, center[1] - side_length/2, altitude_start),
+        (center[0] + side_length/2, center[1] - side_length/2, altitude_start),
+        (center[0] + side_length/2, center[1] + side_length/2, altitude_start),
+        (center[0] - side_length/2, center[1] + side_length/2, altitude_start)
     ]
     self.edges = [
-      (self.vertices[0], self.vertices[1]),  # edge 1
-      (self.vertices[1], self.vertices[2]),  # edge 2
-      (self.vertices[2], self.vertices[3]),  # edge 3
-      (self.vertices[3], self.vertices[0]),  # edge 4
-      (self.vertices[4], self.vertices[5]),  # edge 5
-      (self.vertices[5], self.vertices[6]),  # edge 6
-      (self.vertices[6], self.vertices[7]),  # edge 7
-      (self.vertices[7], self.vertices[4]),  # edge 8
-      (self.vertices[0], self.vertices[4]),  # edge 9
-      (self.vertices[1], self.vertices[5]),  # edge 10
-      (self.vertices[2], self.vertices[6]),  # edge 11
-      (self.vertices[3], self.vertices[7])   # edge 12
+      (self.vertices[0], self.vertices[1]),
+      (self.vertices[1], self.vertices[2]),
+      (self.vertices[2], self.vertices[3]),
+      (self.vertices[3], self.vertices[0]),
+      (self.vertices[4], self.vertices[5]),
+      (self.vertices[5], self.vertices[6]),
+      (self.vertices[6], self.vertices[7]),
+      (self.vertices[7], self.vertices[4]),
+      (self.vertices[0], self.vertices[4]),
+      (self.vertices[1], self.vertices[5]),
+      (self.vertices[2], self.vertices[6]),
+      (self.vertices[3], self.vertices[7])
   ]
 
-    for edge in self.edges:
-        ax.plot(*zip(edge[0], edge[1]), color="k")
+    # self.edges = []
+    # for i, vertex1 in enumerate(self.vertices):
+    #     for vertex2 in self.vertices[i+1:]:
+    #         self.edges.append((vertex1, vertex2))
 
 
 def insert_midpoints_at_indexes(points, indexes):
@@ -334,25 +338,17 @@ def is_point_inside_cube(point, vertices):
   xs, ys, zs = zip(*vertices)
   return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys) and min(zs) <= z <= max(zs)
 
-
-
-if __name__ == "__main__":
-    fig = plt.figure(figsize=(20, 20))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.view_init(90, -90)
-    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
-
-    waypoints = np.array([[10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
-    coord_obstacles = np.array([[8, 6, 1.5, 5], [4, 9, 1.5, 5]])
-
+def collision_free_min_snap(waypoints, coord_obstacles, velocity=1.0, dt=.02):
+    obstacle_edges = []
 
     # create a collision free minimal snap path
     for coord in coord_obstacles:
-        O = Cube(ax, center=coord[:2], side_length=coord[2], height=coord[3])        
+        O = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
+        obstacle_edges.append(O.edges)      
 
         # Generate a minimum snap trajectory
-        tp = TrajectoryPlanner(waypoints, velocity=1.0)
-        traj = tp.get_min_snap_trajectory("inv")
+        planner_object = TrajectoryPlanner(waypoints, velocity=velocity, dt=dt)
+        traj = planner_object.get_min_snap_trajectory("inv")
 
         # create mid point in splines that goes through an obstacle
         id_spline_to_correct = set([1])
@@ -366,8 +362,23 @@ if __name__ == "__main__":
             
             if len(id_spline_to_correct) > 0:
                 waypoints = insert_midpoints_at_indexes(waypoints, id_spline_to_correct)
-                tp = TrajectoryPlanner(waypoints, velocity=1.0)
-                traj = tp.get_min_snap_trajectory("inv")
+                planner_object = TrajectoryPlanner(waypoints, velocity=velocity, dt=dt)
+                traj = planner_object.get_min_snap_trajectory("inv")
+    
+    return planner_object, waypoints, traj, obstacle_edges
+
+if __name__ == "__main__":
+    fig = plt.figure(figsize=(20, 20))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(90, -90)
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+
+    
+    waypoints = np.array([[10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
+    coord_obstacles = np.array([ # x, y, side_length, height, altitude_start
+        [8, 6, 1.5, 3, 0], [4, 9, 1.5, 4, 0], [4, 1, 2, 5, 0], [3, 5, 1, 1, 0], [4, 3.5, 2.5, 3, 0], [5, 5, 10, .5, 5]
+    ])
+    tp, waypoints, traj, obstacle_edges = collision_free_min_snap(waypoints, coord_obstacles, velocity=1.0, dt=.02)
 
     
         
@@ -396,11 +407,19 @@ if __name__ == "__main__":
         ax.plot(traj[i, 0], traj[i, 1], traj[i, 2], marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
     
 
-    # draw waypoints
+    # plot waypoints
     for i in range(len(waypoints)):
         x, y, z = waypoints[i]
         ax.plot(x, y, z, marker=".",  markersize=20, alpha=.2)
+    
+
+    # plot obstacles
+    for edges in obstacle_edges:
+        for edge in edges:
+            x, y, z = zip(*edge)
+            ax.plot(x, y, z, color="red", alpha=.2)
 
         
     ax.legend()
+    ax.grid(False)
     plt.show()
