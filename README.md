@@ -21,6 +21,11 @@ Minimum Snap trajectory has been implemented for this project. Here are one a re
 #### With collision check (upper right waypoint is mandadory)
 ![Min Snap](docs/collision_check.png "")
 
+
+https://user-images.githubusercontent.com/17160701/211073314-78f419ca-e53b-4a88-a63e-565018963ce7.mp4
+
+
+
 ### To do
 - [x] Simulation of 3D UAV Dynamics
     - [x] UAV Equation of motion
