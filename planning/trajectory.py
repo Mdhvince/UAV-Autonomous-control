@@ -99,7 +99,26 @@ def getwp(form, a=None, phi=None):
     return w
 
 
-class TrajectoryPlanner():
+def insert_midpoints_at_indexes(points, indexes):
+    result = []
+    i = 0
+    while i < len(points):
+        if i in indexes:
+            p1 = points[i-1]
+            p2 = points[i]
+            midpoint = (p1 + p2) / 2
+            result.extend([midpoint])
+        result.append(points[i])
+        i += 1
+    return np.array(result)
+
+def is_collision(point, vertices):
+  x, y, z = point
+  xs, ys, zs = zip(*vertices)
+  return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys) and min(zs) <= z <= max(zs)
+
+
+class MinimumSnap():
     def __init__(self, waypoints, velocity=1.0, dt=0.02):
         self.dt = dt 
         self.waypoints = waypoints
@@ -119,7 +138,50 @@ class TrajectoryPlanner():
         self.b = None
         self.coeffs = None
     
-    def get_min_snap_trajectory(self, method="lstsq"):
+    def reset(self):
+        self.times = []
+        self.spline_id = []
+        self.nb_splines = None
+        self.positions = []
+        self.velocities = []
+        self.accelerations = []
+        self.jerks = []
+        self.snap = []
+        self.full_trajectory = None
+        self.row_counter = 0
+        self.A = None
+        self.b = None
+        self.coeffs = None
+
+    def generate_collision_free_trajectory(self, coord_obstacles):
+        self.obstacle_edges = []
+
+        # create a collision free minimal snap path
+        for coord in coord_obstacles:
+            self.reset()
+            O = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
+            self.obstacle_edges.append(O.edges)      
+
+            # Generate a minimum snap trajectory and check if there is collision with the current obstacle
+            traj = self.generate_trajectory()
+
+            # create mid point in splines that goes through an obstacle
+            id_spline_to_correct = set([1])
+            while len(id_spline_to_correct) > 0:
+                
+                id_spline_to_correct = set([])
+                for n, point in enumerate(traj[:, :3]):
+                    if is_collision(point, O.vertices):
+                        spline_id = traj[n, -1]
+                        id_spline_to_correct.add(spline_id+1)
+                
+                if len(id_spline_to_correct) > 0:
+                    self.reset()
+                    new_waypoints = insert_midpoints_at_indexes(self.waypoints, id_spline_to_correct)
+                    self.waypoints = new_waypoints
+                    traj = self.generate_trajectory()
+            
+    def generate_trajectory(self, method="lstsq"):
         self._compute_spline_parameters(method)
 
         NB_C = self.nb_constraint
@@ -175,9 +237,9 @@ class TrajectoryPlanner():
         for s in range(1, N_SPLINES):
             timeT = self.times[s-1]
             for k in [1, 2, 3, 4, 5, 6]:
-                poly0 = -1 * TrajectoryPlanner.polynom(n=N_BC, k=k, t=0)
-                polyT = TrajectoryPlanner.polynom(n=N_BC, k=k, t=timeT)
-                poly = np.hstack((polyT, poly0))  # end of seg - start of seg must be 0. so no change of velocity/acc/jerk/snap...
+                poly0 = -1 * MinimumSnap.polynom(n=N_BC, k=k, t=0)
+                polyT = MinimumSnap.polynom(n=N_BC, k=k, t=timeT)
+                poly = np.hstack((polyT, poly0))  # (end of seg) - (start of seg) must be 0. so no change of velocity/acc/jerk/snap...
                 self.A[self.row_counter, (s-1)*N_BC:N_BC*(s+1)] = poly
                 self.row_counter += 1
 
@@ -197,13 +259,13 @@ class TrajectoryPlanner():
 
         # CONSTRAINTS FOR THE VERY FIRST SEGMENT at t=0
         for k in [1, 2, 3]:
-            poly = TrajectoryPlanner.polynom(n=N_BC, k=k, t=0)
+            poly = MinimumSnap.polynom(n=N_BC, k=k, t=0)
             self.A[self.row_counter, 0:N_BC] = poly
             self.row_counter += 1
         
         # CONSTRAINTS FOR THE VERY LAST SEGMENT at t=T
         for k in [1, 2, 3]:
-            poly = TrajectoryPlanner.polynom(n=N_BC, k=k, t=self.times[-1])
+            poly = MinimumSnap.polynom(n=N_BC, k=k, t=self.times[-1])
             self.A[self.row_counter, (N_SPLINES-1)*N_BC:N_BC*N_SPLINES] = poly
             self.row_counter += 1
 
@@ -224,7 +286,7 @@ class TrajectoryPlanner():
         N_SPLINES = self.nb_splines
 
         # at t=0 - FOR ALL START OF SEGMENTS
-        poly = TrajectoryPlanner.polynom(n=N_BC, k=0, t=0)
+        poly = MinimumSnap.polynom(n=N_BC, k=0, t=0)
         for i in range(N_SPLINES):
             wp0 = self.waypoints[i]
             self.A[self.row_counter, i*N_BC : N_BC*(i+1)] = poly
@@ -235,7 +297,7 @@ class TrajectoryPlanner():
         for i in range(N_SPLINES):
             wpT = self.waypoints[i+1]
             timeT = self.times[i]
-            poly = TrajectoryPlanner.polynom(n=N_BC, k=0, t=timeT)
+            poly = MinimumSnap.polynom(n=N_BC, k=0, t=timeT)
             self.A[self.row_counter, i*N_BC:N_BC*(i+1)] = poly
             self.b[self.row_counter, :] = wpT
             self.row_counter += 1
@@ -282,7 +344,6 @@ class TrajectoryPlanner():
     def _generate_waypoints(self):
         # while waiting for the algorithm to generate them
         self.nb_splines = self.waypoints.shape[0] - 1
-    
 
 
 class Obstacle:
@@ -299,6 +360,12 @@ class Obstacle:
         (center[0] + side_length/2, center[1] + side_length/2, altitude_start),
         (center[0] - side_length/2, center[1] + side_length/2, altitude_start)
     ]
+
+    # self.edges = []
+    # for i, vertex1 in enumerate(self.vertices):
+    #     for vertex2 in self.vertices[i+1:]:
+    #         self.edges.append((vertex1, vertex2))
+
     self.edges = [
       (self.vertices[0], self.vertices[1]),
       (self.vertices[1], self.vertices[2]),
@@ -314,80 +381,45 @@ class Obstacle:
       (self.vertices[3], self.vertices[7])
   ]
 
-    # self.edges = []
-    # for i, vertex1 in enumerate(self.vertices):
-    #     for vertex2 in self.vertices[i+1:]:
-    #         self.edges.append((vertex1, vertex2))
-
-
-def insert_midpoints_at_indexes(points, indexes):
-    result = []
-    i = 0
-    while i < len(points):
-        if i in indexes:
-            p1 = points[i-1]
-            p2 = points[i]
-            midpoint = (p1 + p2) / 2
-            result.extend([midpoint])
-        result.append(points[i])
-        i += 1
-    return np.array(result)
-
-def is_point_inside_cube(point, vertices):
-  x, y, z = point
-  xs, ys, zs = zip(*vertices)
-  return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys) and min(zs) <= z <= max(zs)
-
-def collision_free_min_snap(waypoints, coord_obstacles, velocity=1.0, dt=.02):
-    obstacle_edges = []
-
-    # create a collision free minimal snap path
-    for coord in coord_obstacles:
-        O = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
-        obstacle_edges.append(O.edges)      
-
-        # Generate a minimum snap trajectory
-        planner_object = TrajectoryPlanner(waypoints, velocity=velocity, dt=dt)
-        traj = planner_object.get_min_snap_trajectory("inv")
-
-        # create mid point in splines that goes through an obstacle
-        id_spline_to_correct = set([1])
-        while len(id_spline_to_correct) > 0:
-            
-            id_spline_to_correct = set([])
-            for n, point in enumerate(traj[:, :3]):
-                if is_point_inside_cube(point, O.vertices):
-                    spline_id = traj[n, -1]
-                    id_spline_to_correct.add(spline_id+1)
-            
-            if len(id_spline_to_correct) > 0:
-                waypoints = insert_midpoints_at_indexes(waypoints, id_spline_to_correct)
-                planner_object = TrajectoryPlanner(waypoints, velocity=velocity, dt=dt)
-                traj = planner_object.get_min_snap_trajectory("inv")
-    
-    return planner_object, waypoints, traj, obstacle_edges
 
 if __name__ == "__main__":
-    fig = plt.figure(figsize=(20, 20))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.view_init(90, -90)
-    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
-    
-    waypoints = np.array([[10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
-    coord_obstacles = np.array([ # x, y, side_length, height, altitude_start
-        [8, 6, 1.5, 3, 0], [4, 9, 1.5, 4, 0], [4, 1, 2, 5, 0], [3, 5, 1, 1, 0], [4, 3.5, 2.5, 3, 0], [5, 5, 10, .5, 5]
-    ])
-    tp, waypoints, traj, obstacle_edges = collision_free_min_snap(waypoints, coord_obstacles, velocity=1.0, dt=.02)
+    waypoints = np.array([[10., 0.0, 0.0],
+                          [10., 4.0, 1.0],
+                          [6.0, 5.0, 1.5],
+                          [7.0, 8.0, 1.5],
+                          [2.0, 7.0, 2.0],
+                          [1.0, 0.0, 2.0],])
 
-    
-        
-    # only plot some of the rows
+    coord_obstacles = np.array([[8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
+                                [4.0, 9.0, 1.5, 5.0, 0.0],
+                                [4.0, 1.0, 2.0, 5.0, 0.0],
+                                [3.0, 5.0, 1.0, 5.0, 0.0],
+                                [4.0, 3.5, 2.5, 5.0, 0.0], 
+                                [5.0, 5.0, 10., 0.5, 5.0]])
+
+    T = MinimumSnap(waypoints, velocity=1.0, dt=0.02)
+    T.generate_collision_free_trajectory(coord_obstacles)
+    traj = T.full_trajectory
+
+
+
+
+
+    ############################################################## PLOTTING ##############################################################
+
+    # filter-out some rows for plotting
     n = 2
     for _ in range(2):
         mask = np.ones(traj.shape[0], dtype=bool)
         mask[::n] = False
         traj = traj[mask]
+
+    fig = plt.figure(figsize=(20, 20))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(90, -90)
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    
     
     # map color to velocity
     vel = np.linalg.norm(traj[:, 3:6], axis=1)
@@ -414,12 +446,11 @@ if __name__ == "__main__":
     
 
     # plot obstacles
-    for edges in obstacle_edges:
+    for edges in T.obstacle_edges:
         for edge in edges:
             x, y, z = zip(*edge)
             ax.plot(x, y, z, color="red", alpha=.2)
 
-        
     ax.legend()
     ax.grid(False)
     plt.show()

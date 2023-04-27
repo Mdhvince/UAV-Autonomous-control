@@ -23,24 +23,3 @@ Minimum Snap trajectory has been implemented for this project. Here are one a re
 
 
 https://user-images.githubusercontent.com/17160701/211073314-78f419ca-e53b-4a88-a63e-565018963ce7.mp4
-
-
-
-### To do
-- [x] Simulation of 3D UAV Dynamics
-    - [x] UAV Equation of motion
-    - [x] State update
-    - [x] 3D Visual
-- [ ] Perception
-- [ ] Estimation / Localization / Mapping
-- [ ] Planning
-    - [x] Minimum snap trajectory
-    - [x] Colision free min snap trajectory (static obstacle in known environment)
-    - [ ] Colision free min snap trajectory (in unknown environment/moving obstacles)
-    - [ ] Colision free waypoints generation
-- [x] Motion Control
-    - [x] Altitude controller
-    - [x] Lateral controller
-    - [x] Roll/Pitch controller
-    - [x] Yaw controller
-    - [x] Body Rate controller

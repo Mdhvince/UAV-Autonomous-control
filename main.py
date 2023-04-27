@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from control.simulation_3d import Sim3d
 from control.quadrotor import Quadrotor
 from control.controller import TFC
-from planning.trajectory import TrajectoryPlanner, getwp, collision_free_min_snap
+from planning.trajectory import MinimumSnap, getwp
 
 warnings.filterwarnings('ignore')
 
@@ -24,20 +24,34 @@ if __name__ == "__main__":
     dt = 0.01
     velocity = 2.0
 
-    waypoints = np.array([[10, 0, 0], [10, 4, 1], [6, 5, 1.5], [7, 8, 1.5], [2, 7, 2], [1, 0, 2]])
-    coord_obstacles = np.array([[8, 6, 1.5, 5, 0], [4, 9, 1.5, 5, 0], [4, 1, 2, 5, 0], [3, 5, 1, 5, 0], [4, 3.5, 2.5, 5, 0], [5, 5, 10, .5, 5]])
+    waypoints = np.array([[10., 0.0, 1.0],
+                          [10., 4.0, 1.0],
+                          [6.0, 5.0, 1.5],
+                          [7.0, 8.0, 1.5],
+                          [2.0, 7.0, 2.0],
+                          [1.0, 0.0, 2.0]])
 
-    planner, waypoints, r_des, obstacle_edges = collision_free_min_snap(waypoints, coord_obstacles, velocity, dt)
+    coord_obstacles = np.array([[8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
+                                [4.0, 9.0, 1.5, 5.0, 0.0],
+                                [4.0, 1.0, 2.0, 5.0, 0.0],
+                                [3.0, 5.0, 1.0, 5.0, 0.0],
+                                [4.0, 3.5, 2.5, 5.0, 0.0], 
+                                [5.0, 5.0, 10., 0.5, 5.0]])
+
+    T = MinimumSnap(waypoints, velocity=velocity, dt=dt)
+    T.generate_collision_free_trajectory(coord_obstacles)
+    r_des = T.full_trajectory
+
 
     desired = Desired(
         r_des[:, 0], r_des[:, 1], r_des[:, 2],     # position
         r_des[:, 3], r_des[:, 4], r_des[:, 5],     # velocity
         r_des[:, 6], r_des[:, 7], r_des[:, 8],     # acc
-        np.arctan2(r_des[:, 3], r_des[:, 4])*0       # yaw
+        np.arctan2(r_des[:, 3], r_des[:, 4])*0     # yaw
     )      
     
-    quad = Quadrotor(config, desired)
     controller = TFC(config)
+    quad = Quadrotor(config, desired)
 
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
@@ -61,7 +75,7 @@ if __name__ == "__main__":
 
 
 
-    sim = Sim3d(r_des, state_history, obstacle_edges)
+    sim = Sim3d(r_des, state_history, T.obstacle_edges)
     ani = sim.run_sim(frames=n_waypoints, interval=5)
     plt.show()
 
