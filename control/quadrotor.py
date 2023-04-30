@@ -6,38 +6,39 @@ class Quadrotor():
     def __init__(self, config, des):
         self.g = config["DEFAULT"].getfloat("g")
         quad_params = config["VEHICLE"]
+
         L = quad_params.getfloat("distance_rotor_to_rotor")
+        self.l = L / math.sqrt(2)                                                      # distance from center to rotor
+        self.m = quad_params.getfloat("mass")
+
         self.kf = quad_params.getfloat("kf")
         self.km = quad_params.getfloat("km")
-        self.m = quad_params.getfloat("mass")
+
         self.i_x = quad_params.getfloat("Ix")
         self.i_y = quad_params.getfloat("Iy")
         self.i_z = quad_params.getfloat("Iz")
+
         self.max_thrust = quad_params.getfloat("max_thrust")
         self.min_thrust = quad_params.getfloat("min_thrust")
         self.max_torque = quad_params.getfloat("max_torque")
-        self.kappa = quad_params.getfloat("kappa")
+
+        self.kappa = quad_params.getfloat("kappa")                                      # drag-thrust ratio
+
         self.max_ascent_rate = quad_params.getfloat("max_ascent_rate")
         self.max_descent_rate = quad_params.getfloat("max_descent_rate")
         self.max_speed_xy = quad_params.getfloat("max_speed_xy")
         self.max_horiz_accel = quad_params.getfloat("max_horiz_accel")
         self.max_tilt_angle = quad_params.getfloat("max_tilt_angle")
-        self.l = L / math.sqrt(2)
 
-        # State
-        self.X = np.array([
-            des.x[0], des.y[0], des.z[0],                                 # positions
-            0.0, 0.0, des.yaw[0],                                 # euler angles (world)
-            des.x_vel[0], des.y_vel[0], des.z_vel[0],                                 # velocities
-            0.0, 0.0, 0.0                                  # p, q, r: angular velocities (body)
-        ])
-        # Derivative of state
-        self.dX = np.array([
-            0.0, 0.0, 0.0,                                  # velocities
-            0.0, 0.0, 0.0,                                  # euler angular velocities (world)
-            0.0, 0.0, 0.0,                                  # accelerations
-            0.0, 0.0, 0.0                                   # angular accelerations (body)
-        ])
+
+        # State (position, euler angles world, velocity, angular velocity body)
+        # x = [x, y, z, phi, theta, psi, x_dot, y_dot, z_dot, p, q, r]
+        self.X = np.zeros(12)
+
+        # Derivative of state (velocity, euler ang vel, acceleration, angular acceleration body)
+        # x_dot = [x_dot, y_dot, z_dot, phi_dot, theta_dot, psi_dot, x_ddot, y_ddot, z_ddot, p_dot, q_dot, r_dot]
+        self.dX = np.zeros(12)
+
         # Propeller speed
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
 
@@ -50,7 +51,7 @@ class Quadrotor():
         self.get_euler_derivatives()
         self.body_angular_acceleration()
         self.linear_acceleration()
-        self.X = self.X + self.dX * dt  # intregrate using euler method
+        self.X = self.X + self.dX * dt  # integrate using euler method
     
     def set_propeller_speed(self, thrust_cmd, moment_cmd):
         c_bar = thrust_cmd

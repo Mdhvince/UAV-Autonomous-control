@@ -25,41 +25,45 @@ def plot_results(t, state_history, omega_history, desired):
     plot_position_error(t, state_history, desired)
     plt.show()
 
+
 def plot_trajectory(ax, drone_state_history, desired):
-    ax.plot(desired.x, desired.y, desired.z,linestyle='-',marker='.',color='red')
-    ax.plot(drone_state_history[:,0],
-            drone_state_history[:,1],
-            drone_state_history[:,2],
-            linestyle='-',color='blue')
+    ax.plot(desired.x, desired.y, desired.z, linestyle='-', marker='.', color='red')
+    ax.plot(drone_state_history[:, 0],
+            drone_state_history[:, 1],
+            drone_state_history[:, 2],
+            linestyle='-', color='blue')
 
     plt.title('Flight path')
     ax.set_xlabel('$x$ [$m$]')
     ax.set_ylabel('$y$ [$m$]')
     ax.set_zlabel('$z$ [$m$]')
-    plt.legend(['Planned path','Executed path'])
+    plt.legend(['Planned path', 'Executed path'])
+
 
 def plot_yaw_angle(t, desired, drone_state_history):
-    plt.plot(t,desired.yaw,marker='.')
-    plt.plot(t,drone_state_history[:-1,5])
+    plt.plot(t, desired.yaw, marker='.')
+    plt.plot(t, drone_state_history[:-1, 5])
     plt.title('Yaw angle')
     plt.xlabel('$t$ [$s$]')
     plt.ylabel('$\psi$ [$rad$]')
-    plt.legend(['Planned yaw','Executed yaw'])
+    plt.legend(['Planned yaw', 'Executed yaw'])
+
 
 def plot_props_speed(t, omega_history):
-    plt.plot(t, -omega_history[:-1,0],color='blue')
-    plt.plot(t, omega_history[:-1,1],color='red')
-    plt.plot(t, -omega_history[:-1,2],color='green')
-    plt.plot(t, omega_history[:-1,3],color='black')
+    plt.plot(t, -omega_history[:-1, 0], color='blue')
+    plt.plot(t, omega_history[:-1, 1], color='red')
+    plt.plot(t, -omega_history[:-1, 2], color='green')
+    plt.plot(t, omega_history[:-1, 3], color='black')
     plt.title('Angular velocities')
     plt.xlabel('$t$ [$s$]')
     plt.ylabel('$\omega$ [$rad/s$]')
-    plt.legend(['P 1','P 2','P 3','P 4' ])
+    plt.legend(['P 1', 'P 2', 'P 3', 'P 4'])
+
 
 def plot_position_error(t, drone_state_history, desired):
-    err_x = np.sqrt((desired.x-drone_state_history[:-1,0])**2)
-    err_y = np.sqrt((desired.y-drone_state_history[:-1,1])**2)
-    err_z = np.sqrt((desired.z-drone_state_history[:-1,2])**2)
+    err_x = np.sqrt((desired.x - drone_state_history[:-1, 0]) ** 2)
+    err_y = np.sqrt((desired.y - drone_state_history[:-1, 1]) ** 2)
+    err_z = np.sqrt((desired.z - drone_state_history[:-1, 2]) ** 2)
 
     plt.plot(t, err_x)
     plt.plot(t, err_y)
@@ -71,10 +75,10 @@ def plot_position_error(t, drone_state_history, desired):
     plt.legend(['x', 'y', 'z'])
 
 
-class Sim3d():
+class Sim3d:
 
     def __init__(self, desired_trajectory, quad_pos_history, obstacles_edges=None, colormap="jet"):
-        
+
         self.desired = desired_trajectory
         # only keep some of the rows
         n = 2
@@ -87,7 +91,7 @@ class Sim3d():
         self.obstacles_edges = obstacles_edges
         self.colormap = colormap
 
-        self.fig = plt.figure(figsize=(20,20))
+        self.fig = plt.figure(figsize=(20, 20))
         self.ax = self.fig.add_subplot(111, projection='3d')
         self.fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
@@ -115,14 +119,13 @@ class Sim3d():
         phi, theta, psi = -self.quad_pos_history[index, 3:6]  # add negative for mirroring effect of matplotlib
         rot_mat = Sim3d.euler2Rot(phi, theta, psi)
         current_position = self.quad_pos_history[index, :3]
-        
+
         if self.obstacles_edges is not None:
             self.draw_obstacles()
         self.draw_quad(current_position, rot_mat)
         self.draw_trajectory()
         self.draw_axis(rot_mat, current_position)
-        
-        
+
         self.ax.w_zaxis.pane.set_color('#2D3047')
         self.ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
         self.ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
@@ -156,7 +159,7 @@ class Sim3d():
         #         [z[FL], z[FR], z[RR], z[RL], z[FL]], '-')
         # shadow
         px, py, pz = current_position
-        self.ax.plot(px, py, 0, color='black', alpha=0.5, markersize=5-pz, marker='o')
+        self.ax.plot(px, py, 0, color='black', alpha=0.5, markersize=5 - pz, marker='o')
 
     def draw_axis(self, rot_mat, current_position, onboard_axis=False):
         # Axis Body frame
@@ -182,9 +185,9 @@ class Sim3d():
             self.ax.quiver(x0, y0, z0, yaw_axis[0], yaw_axis[1], yaw_axis[2], color='b', lw=2)
 
     def draw_trajectory(self):
-    
+
         self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2],
-                marker='.', alpha=.2, markersize=20)
+                     marker='.', alpha=.2, markersize=20)
 
     @staticmethod
     def quad_pos(current_position, rot_mat, L, H=.05):
@@ -203,7 +206,7 @@ class Sim3d():
                                     [0, 0, H, 1]]).T
 
         quad_world_frame = np.dot(wHb, quad_body_frame)  # Transform points to world frame
-        quad_wf = quad_world_frame[:3, :]                # Points of the quadrotor in world frame
+        quad_wf = quad_world_frame[:3, :]  # Points of the quadrotor in world frame
 
         return quad_wf
 
@@ -220,17 +223,17 @@ class Sim3d():
 
         r_z = np.array([[np.cos(psi), -np.sin(psi), 0],
                         [np.sin(psi), np.cos(psi), 0],
-                        [0,0,1]])
+                        [0, 0, 1]])
         r_yx = np.matmul(r_y, r_x)
         rot_mat = np.matmul(r_z, r_yx)
         return rot_mat
 
     @staticmethod
     def save_sim(ani, filepath):
-        writer=animation.FFMpegFileWriter(fps=60)
+        writer = animation.FFMpegFileWriter(fps=60)
         ani.save(filepath, writer=writer)
 
-    def min_snap_plots():
+    def min_snap_plots(self):
         """
         - independently plot X, Y, Z
         - magnitude of Vel, Acc, Jerk, Snap over steps
@@ -244,11 +247,6 @@ class Sim3d():
                 x, y, z = zip(*edge)
                 self.ax.plot(x, y, z, color="red", alpha=.2)
 
-        
-
 
 if __name__ == "__main__":
     pass
-    
-
-    

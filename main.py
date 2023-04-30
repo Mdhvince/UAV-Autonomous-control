@@ -18,12 +18,12 @@ def draw_controller_response(history, target_history, dim):
     """Draw the controller response given a history of 1d position"""
     plt.plot(history, label="history", color="blue", linewidth=2)
     plt.plot(target_history, "--", label="target", color="red", linewidth=4, alpha=0.5)
-    plt.xlabel("Timesteps")
+    plt.xlabel("Ts")
     plt.ylabel(f"{dim.upper()} [m]")
 
-    # leg = plt.legend(loc='upper right', fancybox=True)
-    # for text in leg.get_texts():
-    #     text.set_color("black")
+    leg = plt.legend(loc='upper right', fancybox=True)
+    for text in leg.get_texts():
+        text.set_color("black")
 
 
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     waypoints = np.array([[10., 0.0, 1.0],
                           [10., 4.0, 1.0],
                           [6.0, 5.0, 1.5],
-                          [7.0, 8.0, 1.5],
+                          [4.0, 7.0, 1.5],
                           [2.0, 7.0, 2.0],
                           [1.0, 0.0, 2.0]])
 
@@ -96,8 +96,6 @@ if __name__ == "__main__":
     draw_controller_response(state_history[:, 1], desired.y, "y")
     plt.subplot(2, 2, 3)
     draw_controller_response(state_history[:, 2], desired.z, "z")
-    # plt.subplot(2, 2, 4)
-    # draw_controller_response(state_history[:, 9], desired.yaw, "yaw")
 
     plt.show()
 
