@@ -49,7 +49,7 @@ Let's denote k as the order of derivative:
 
 So a good trajectory for this system can be thought as minimum snap trajectory, hence a trajectory that minimize the snap criterion. So we need to find the optimal path  
 
-$$x^{*}(t) = argmin_{x(t)} = \int_{0}^{T} \mathcal{L}(x^{....}, x^{...}, \ddot{x}, \dot{x}, x, t) dt =  \int_{0}^{T} x^{....2} dt$$  
+$$x^{*}(t) = argmin_{x(t)} = \int_{0}^{T} \mathcal{L}(x^{....}, x^{...}, \ddot{x}, \dot{x}, x, t) dt =  \int_{0}^{T} x^{....2} dt$$
 
 where $$\mathcal{L}$$ is the Lagrangian of the system and $$x^{....}$$ is the snap of the trajectory.
 
@@ -70,9 +70,8 @@ To respect the position constraint:
 
 $$x(t) = c_{7}t^7 + c_{6}t^6 + c_{5}t^5 + c_{4}t^4 + c_{3}t^3 + c_{2}t^2 + c_{1}t + c_{0}$$  
 
-So we have:  
-
 $$x(0) = c_{0} = a$$  
+
 $$x(T) = c_{7}T^7 + c_{6}T^6 + c_{5}T^5 + c_{4}T^4 + c_{3}T^3 + c_{2}T^2 + c_{1}T + c_{0} = b$$
 
 in matrix form, at t=0 we must have:  
