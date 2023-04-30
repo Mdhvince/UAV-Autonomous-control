@@ -209,6 +209,7 @@ $$\begin{bmatrix} 0 & 0 & 0 & 24 & 0 & 0 & 0 & 0 \end{bmatrix} \cdot  \begin{bma
                                                                         \end{bmatrix} = s_{a}$$
 
 in matrix form, at t=T we must have:  
+
 $$\begin{bmatrix} 840T^3 & 360T^2 & 120T^1 & 24T^0 & 0 & 0 & 0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                                         c_{7} \\
                                                                                         c_{6} \\
