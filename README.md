@@ -191,12 +191,14 @@ $$\begin{bmatrix} 210T^4 & 120T^3 & 60T^2 & 24T^1 & 6T^0 & 0 & 0 & 0 \end{bmatri
                                                                                         c_{0}
                                                                                         \end{bmatrix} = j_{b}$$
 
-same for snap ... we differentiate and we compute:
+same for snap ... we differentiate and we compute:  
+
 $$\ddddot{x}(t) = 840c_{7}t^3 + 360c_{6}t^2 + 120c_{5}t + 24c_{4}$$
 $$\ddddot{x}(0) = 24c_{4} = s_{a}$$
 $$\ddddot{x}(T) = 840c_{7}T^3 + 360c_{6}T^2 + 120c_{5}T + 24c_{4} = s_{b}$$
 
 in matrix form, at t=0 we must have:  
+
 $$\begin{bmatrix} 0 & 0 & 0 & 24 & 0 & 0 & 0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                         c_{7} \\
                                                                         c_{6} \\
