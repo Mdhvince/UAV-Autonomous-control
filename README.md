@@ -103,7 +103,9 @@ $$\begin{bmatrix} T^7 & T^6 & T^5 & T^4 & T^3 & T^2 & T^1 & T^0 \end{bmatrix} \c
 To find the equation for the velocity, we just have to differentiate the position equation:  
 
 $$\dot{x}(t) = 7c_{7}t^6 +6 c_{6}t^5 + 5c_{5}t^4 + 4c_{4}t^3 + 3c_{3}t^2 + 2c_{2}t + c_{1}$$  
+
 $$\dot{x}(0) = c_{1} = v_{a}$$  
+
 $$\dot{x}(T) = 7c_{7}T^6 +6 c_{6}T^5 + 5c_{5}T^4 + 4c_{4}T^3 + 3c_{3}T^2 + 2c_{2}T + c_{1} = v_{b}$$  
 
 in matrix form, at t=0 we must have:  
@@ -136,7 +138,9 @@ $$\begin{bmatrix} 7T^6 & 6T^5 & 5T^4 & 4T^3 & 3T^2 & 2T^1 & T^0 & 0 \end{bmatrix
 same for accelerations ... we differentiate and we compute:  
 
 $$\ddot{x}(t) = 42c_{7}t^5 + 30c_{6}t^4 + 20c_{5}t^3 + 12c_{4}t^2 + 6c_{3}t + 2c_{2}$$  
+
 $$\ddot{x}(0) = 2c_{2} = a_{a}$$  
+
 $$\ddot{x}(T) = 42c_{7}T^5 + 30c_{6}T^4 + 20c_{5}T^3 + 12c_{4}T^2 + 6c_{3}T + 2c_{2} = a_{b}$$  
 
 in matrix form, at t=0 we must have:  
@@ -169,7 +173,9 @@ $$\begin{bmatrix} 42T^5 & 30T^4 & 20T^3 & 12T^2 & 6T^1 & 2T^0 & 0 & 0 \end{bmatr
 same for jerk ... we differentiate and we compute:  
 
 $$\dddot{x}(t) = 210c_{7}t^4 + 120c_{6}t^3 + 60c_{5}t^2 + 24c_{4}t + 6c_{3}$$  
+
 $$\dddot{x}(0) = 6c_{3} = j_{a}$$  
+
 $$\dddot{x}(T) = 210c_{7}T^4 + 120c_{6}T^3 + 60c_{5}T^2 + 24c_{4}T + 6c_{3} = j_{b}$$  
 
 in matrix form, at t=0 we must have:  
@@ -201,7 +207,9 @@ $$\begin{bmatrix} 210T^4 & 120T^3 & 60T^2 & 24T^1 & 6T^0 & 0 & 0 & 0 \end{bmatri
 same for snap ... we differentiate and we compute:  
 
 $$\ddddot{x}(t) = 840c_{7}t^3 + 360c_{6}t^2 + 120c_{5}t + 24c_{4}$$  
+
 $$\ddddot{x}(0) = 24c_{4} = s_{a}$$  
+
 $$\ddddot{x}(T) = 840c_{7}T^3 + 360c_{6}T^2 + 120c_{5}T + 24c_{4} = s_{b}$$  
 
 in matrix form, at t=0 we must have:  
