@@ -223,7 +223,7 @@ $ \begin{bmatrix} 840T^3 & 360T^2 & 120T^1 & 24T^0 & 0 & 0 & 0 & 0 \end{bmatrix}
 All the 8 constraints can be written as a 8x8 matrix in order to find the coefficients of the polynomial (coefficients of the trajectory).
 The full matrix is the following:
 
-$ A = \begin{bmatrix}
+$A = \begin{bmatrix}
         0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
         T^7 & T^6 & T^5 & T^4 & T^3 & T^2 & T & 1 \\
         0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\
@@ -234,4 +234,4 @@ $ A = \begin{bmatrix}
         210T^4 & 120T^3 & 60T^2 & 24T & 6 & 0 & 0 & 0 \\
         0 & 0 & 0 & 24 & 0 & 0 & 0 & 0 \\
         840T^3 & 360T^2 & 120T & 24 & 0 & 0 & 0 & 0
-        \end{bmatrix} $
+        \end{bmatrix}$
