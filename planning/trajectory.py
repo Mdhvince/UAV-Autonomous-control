@@ -312,6 +312,10 @@ class MinimumSnap:
     def polynom(n, k, t):
         """
         This function returns a polynom of degree n and order k evaluated at t.
+        :param n: degree of the polynom or number of boundary conditions
+        :param k: order of the polynom (k=1: velocity; k=2: acceleration; k=3: jerk; k=4: snap)
+        :param t: time at which the polynom is evaluated
+        :return: the polynom evaluated at t
         """
         T = np.zeros(n)  # T is the polynom
         D = np.zeros(n)  # D is the derivative of the polynom
@@ -360,8 +364,7 @@ class MinimumSnap:
 
 class Obstacle:
     def __init__(self, center, side_length, height, altitude_start=0):
-        """
-    """
+
         self.vertices = [
             (center[0] - side_length / 2, center[1] - side_length / 2, altitude_start + height),
             (center[0] + side_length / 2, center[1] - side_length / 2, altitude_start + height),
