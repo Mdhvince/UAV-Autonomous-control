@@ -10,7 +10,7 @@ from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 
 warnings.filterwarnings('ignore')
-plt.style.use('dark_background')
+# plt.style.use('dark_background')
 
 
 
@@ -219,7 +219,8 @@ class MinimumSnap():
         self._generate_position_constraints()
         self._generate_start_and_goal_constraints()
         self._generate_continuity_constraints()
-    
+
+
     def _generate_continuity_constraints(self):
         """
         This function populate the A and b matrices with constraints on intermediate splines in order to ensure

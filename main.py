@@ -11,6 +11,20 @@ from control.controller import TFC
 from planning.trajectory import MinimumSnap, getwp
 
 warnings.filterwarnings('ignore')
+plt.style.use('ggplot')
+
+
+def draw_controller_response(history, target_history, dim):
+    """Draw the controller response given a history of 1d position"""
+    plt.plot(history, label="history", color="blue", linewidth=2)
+    plt.plot(target_history, "--", label="target", color="red", linewidth=4, alpha=0.5)
+    plt.xlabel("Timesteps")
+    plt.ylabel(f"{dim.upper()} [m]")
+
+    # leg = plt.legend(loc='upper right', fancybox=True)
+    # for text in leg.get_texts():
+    #     text.set_color("black")
+
 
 
 if __name__ == "__main__":
@@ -52,6 +66,8 @@ if __name__ == "__main__":
     
     controller = TFC(config)
     quad = Quadrotor(config, desired)
+    quad.X = np.zeros(12)
+    quad.X[0], quad.X[1] = desired.x[0], desired.y[0]
 
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
@@ -69,13 +85,24 @@ if __name__ == "__main__":
             quad.set_propeller_speed(F_cmd, moment_cmd)
             quad.update_state(dt/FREQ)
 
-
         state_history = np.vstack((state_history, quad.X))
         omega_history = np.vstack((omega_history, quad.omega))
 
+    plt.figure(figsize=(20, 10))
 
+    plt.subplot(2, 2, 1)
+    draw_controller_response(state_history[:, 0], desired.x, "x")
+    plt.subplot(2, 2, 2)
+    draw_controller_response(state_history[:, 1], desired.y, "y")
+    plt.subplot(2, 2, 3)
+    draw_controller_response(state_history[:, 2], desired.z, "z")
+    # plt.subplot(2, 2, 4)
+    # draw_controller_response(state_history[:, 9], desired.yaw, "yaw")
 
-    sim = Sim3d(r_des, state_history, T.obstacle_edges)
-    ani = sim.run_sim(frames=n_waypoints, interval=5)
     plt.show()
+
+
+    # sim = Sim3d(r_des, state_history, T.obstacle_edges)
+    # ani = sim.run_sim(frames=n_waypoints, interval=5)
+    # plt.show()
 
