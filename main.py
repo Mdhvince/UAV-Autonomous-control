@@ -19,9 +19,9 @@ def draw_controller_response(history, target_history, dim):
     plt.plot(history, label="history", color="blue", linewidth=2)
     plt.plot(target_history, "--", label="target", color="red", linewidth=4, alpha=0.5)
     plt.xlabel("Ts")
-    plt.ylabel(f"{dim.upper()} [m]")
+    plt.ylabel(f"{dim.upper()}")
 
-    leg = plt.legend(loc='upper right', fancybox=True)
+    leg = plt.legend(loc='best', fancybox=True)
     for text in leg.get_texts():
         text.set_color("black")
 
@@ -58,16 +58,21 @@ if __name__ == "__main__":
 
 
     desired = Desired(
-        r_des[:, 0], r_des[:, 1], r_des[:, 2],     # position
-        r_des[:, 3], r_des[:, 4], r_des[:, 5],     # velocity
-        r_des[:, 6], r_des[:, 7], r_des[:, 8],     # acc
-        np.arctan2(r_des[:, 3], r_des[:, 4])*0     # yaw
-    )      
+        # desired position over time
+        r_des[:, 0], r_des[:, 1], r_des[:, 2],
+        # desired velocity over time
+        r_des[:, 3], r_des[:, 4], r_des[:, 5],
+        # desired acceleration over time
+        r_des[:, 6], r_des[:, 7], r_des[:, 8],
+        # desired yaw over time such that the quadrotor faces the next waypoint
+        np.arctan2(r_des[:, 3], r_des[:, 4])
+    )
+
     
     controller = TFC(config)
     quad = Quadrotor(config, desired)
     quad.X = np.zeros(12)
-    quad.X[0], quad.X[1] = desired.x[0], desired.y[0]
+    quad.X[0], quad.X[1], quad.X[5] = desired.x[0], desired.y[0], desired.yaw[0]
 
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
@@ -91,11 +96,13 @@ if __name__ == "__main__":
     plt.figure(figsize=(20, 10))
 
     plt.subplot(2, 2, 1)
-    draw_controller_response(state_history[:, 0], desired.x, "x")
+    draw_controller_response(state_history[:, 0], desired.x, "x (m)")
     plt.subplot(2, 2, 2)
-    draw_controller_response(state_history[:, 1], desired.y, "y")
+    draw_controller_response(state_history[:, 1], desired.y, "y (m)")
     plt.subplot(2, 2, 3)
-    draw_controller_response(state_history[:, 2], desired.z, "z")
+    draw_controller_response(state_history[:, 2], desired.z, "z (m)")
+    plt.subplot(2, 2, 4)
+    draw_controller_response(state_history[:, 5], desired.yaw, "yaw (rad)")
 
     plt.show()
 

@@ -8,6 +8,7 @@ import matplotlib.path
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
+from matplotlib.patches import Polygon
 
 warnings.filterwarnings('ignore')
 plt.style.use('ggplot')
@@ -159,6 +160,14 @@ class MinimumSnap:
         self.coeffs = None
 
     def generate_collision_free_trajectory(self, coord_obstacles):
+        """
+        Generate a collision free trajectory. The trajectory is generated in two steps:
+        1. Generate a minimum snap trajectory
+        2. Correct the trajectory to avoid collision with obstacles:
+        - if the trajectory goes through an obstacle, create a mid-point in the spline that goes through the obstacle
+
+        :param coord_obstacles: list of coordinates of the obstacles
+        """
         self.obstacle_edges = []
 
         # create a collision free minimal snap path
@@ -171,7 +180,7 @@ class MinimumSnap:
             traj = self.generate_trajectory()
 
             # create mid-point in splines that goes through an obstacle
-            id_spline_to_correct = set([1])
+            id_spline_to_correct = {1}
             while len(id_spline_to_correct) > 0:
 
                 id_spline_to_correct = set([])
@@ -347,8 +356,6 @@ class MinimumSnap:
         self.A = np.zeros((self.n_boundary_conditions * self.nb_splines, self.n_boundary_conditions * self.nb_splines))
         self.b = np.zeros((self.n_boundary_conditions * self.nb_splines, len(self.waypoints[0])))
 
-        print("A shape: ", self.A.shape)
-
     def _generate_time_per_spline(self):
         """
         This function computes the time required to travel between each pair of waypoints.
@@ -377,11 +384,6 @@ class Obstacle:
             (center[0] - side_length / 2, center[1] + side_length / 2, altitude_start)
         ]
 
-        # self.edges = []
-        # for i, vertex1 in enumerate(self.vertices):
-        #     for vertex2 in self.vertices[i+1:]:
-        #         self.edges.append((vertex1, vertex2))
-
         self.edges = [
             (self.vertices[0], self.vertices[1]),
             (self.vertices[1], self.vertices[2]),
@@ -396,6 +398,54 @@ class Obstacle:
             (self.vertices[2], self.vertices[6]),
             (self.vertices[3], self.vertices[7])
         ]
+
+
+
+def plot_3d_trajectory_and_obstacle(waypoints, trajectory_obj):
+    """
+    This function plots the trajectory and the obstacle in 3D. And apply color on the path based on the velocity
+    """
+    trajectory = trajectory_obj.full_trajectory
+
+    # filter-out some rows to reduce the number of points to plot
+    n = 2
+    for _ in range(2):
+        mask = np.ones(trajectory.shape[0], dtype=bool)
+        mask[::n] = False
+        trajectory = trajectory[mask]
+
+    # map color to velocity
+    vel = np.linalg.norm(trajectory[:, 3:6], axis=1)
+    max_vel = np.max(vel)
+    norm = Normalize(vmin=0, vmax=max_vel)
+    scalar_map = get_cmap("jet")
+    sm = ScalarMappable(cmap=scalar_map, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, location="bottom", shrink=0.5)
+    cbar.set_label('Velocity (m/s)')
+    colors = scalar_map(norm(vel))
+
+    # plot min snap trajectory
+    for i in range(len(trajectory)):
+        label = "Minimum snap trajectory" if i == 0 else None
+        ax.plot(
+            trajectory[i, 0], trajectory[i, 1], trajectory[i, 2],
+            marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
+
+    # plot waypoints
+    for i in range(len(waypoints)):
+        x, y, z = waypoints[i]
+        ax.plot(x, y, z, marker=".", markersize=20, alpha=.2)
+
+    # plot obstacles edges
+    for edges in trajectory_obj.obstacle_edges:
+        for edge in edges:
+            x, y, z = zip(*edge)
+            ax.plot(x, y, z, color="red", alpha=.2)
+
+    ax.legend()
+    ax.grid(False)
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -416,49 +466,10 @@ if __name__ == "__main__":
 
     T = MinimumSnap(waypoints, velocity=1.0, dt=0.02)
     T.generate_collision_free_trajectory(coord_obstacles)
-    traj = T.full_trajectory
-
-    ############################################################## PLOTTING ##############################################################
-
-    # filter-out some rows for plotting
-    n = 2
-    for _ in range(2):
-        mask = np.ones(traj.shape[0], dtype=bool)
-        mask[::n] = False
-        traj = traj[mask]
 
     fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(90, -90)
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
-    # map color to velocity
-    vel = np.linalg.norm(traj[:, 3:6], axis=1)
-    max_vel = np.max(vel)
-    norm = Normalize(vmin=0, vmax=max_vel)
-    scalar_map = get_cmap("jet")
-    sm = ScalarMappable(cmap=scalar_map, norm=norm)
-    sm.set_array([])
-    cbar = plt.colorbar(sm, location="bottom", shrink=0.5)
-    cbar.set_label('Velocity (m/s)')
-    colors = scalar_map(norm(vel))
-
-    # plot min snap
-    for i in range(len(traj)):
-        label = "Minimum snap trajectory" if i == 0 else None
-        ax.plot(traj[i, 0], traj[i, 1], traj[i, 2], marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
-
-    # plot waypoints
-    for i in range(len(waypoints)):
-        x, y, z = waypoints[i]
-        ax.plot(x, y, z, marker=".", markersize=20, alpha=.2)
-
-    # plot obstacles
-    for edges in T.obstacle_edges:
-        for edge in edges:
-            x, y, z = zip(*edge)
-            ax.plot(x, y, z, color="red", alpha=.2)
-
-    ax.legend()
-    ax.grid(False)
-    plt.show()
+    plot_3d_trajectory_and_obstacle(waypoints, T)
