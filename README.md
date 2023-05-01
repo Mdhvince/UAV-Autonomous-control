@@ -51,7 +51,7 @@ So a good trajectory for this system can be thought as minimum snap trajectory, 
 
 $$x^{*}(t) = argmin_{x(t)} = \int_{0}^{T} \mathcal{L}(x^{....}, x^{...}, \ddot{x}, \dot{x}, x, t) dt =  \int_{0}^{T} x^{....2} dt$$
 
-where $$\mathcal{L}$$ is the Lagrangian of the system and $$x^{....}$$ is the snap of the trajectory.
+where $\mathcal{L}$ is the Lagrangian of the system and $x^{....}$ is the snap of the trajectory.
 
 We can solve the Euler-Lagrange equation to ensure $x^{(6)}=0$ and get a trajectory of the form:  
 
