@@ -400,12 +400,12 @@ class Obstacle:
 
 if __name__ == "__main__":
 
-    waypoints = np.array([[10., 0.0, 0.0],
+    waypoints = np.array([[10., 0.0, 1.0],
                           [10., 4.0, 1.0],
                           [6.0, 5.0, 1.5],
-                          [7.0, 8.0, 1.5],
+                          [4.0, 7.0, 1.5],
                           [2.0, 7.0, 2.0],
-                          [1.0, 0.0, 2.0], ])
+                          [1.0, 0.0, 2.0]])
 
     coord_obstacles = np.array([[8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
                                 [4.0, 9.0, 1.5, 5.0, 0.0],
