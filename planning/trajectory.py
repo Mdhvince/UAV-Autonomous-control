@@ -231,7 +231,7 @@ class MinimumSnap:
         continuity, hence smoothness.
 
         - Constraints up to the 6th derivative at t=0 should be the same at t=T. For example no change of velocity
-        between the end of a spline (polyT) and the start of the nex spline (poly0)
+        between the end of a spline (polyT) and the start of the next spline (poly0)
 
         We have 1 constraint for each derivatives(6).
         """
@@ -244,8 +244,7 @@ class MinimumSnap:
             for k in [1, 2, 3, 4, 5, 6]:
                 poly0 = -1 * MinimumSnap.polynom(n=N_BC, k=k, t=0)
                 polyT = MinimumSnap.polynom(n=N_BC, k=k, t=timeT)
-                poly = np.hstack((polyT,
-                                  poly0))  # (end of seg) - (start of seg) must be 0. so no change of velocity/acc/jerk/snap...
+                poly = np.hstack((polyT, poly0))  # (end of seg) - (start of seg) must be 0. so no change of velocity/acc/jerk/snap...
                 self.A[self.row_counter, (s - 1) * N_BC:N_BC * (s + 1)] = poly
                 self.row_counter += 1
 
@@ -256,7 +255,7 @@ class MinimumSnap:
         - Starting spline constraint: Velocity/Acceleration/Jerk should be 0
         - Ending spline constraint: Velocity/Acceleration/Jerk should be 0
 
-        We have 1 constraint for each derivatives(3) and for 2 splines. So 3 constraints per splines. In total
+        We have 1 constraint for each derivative(3) and for 2 splines. So 3 constraints per splines. In total,
         we have 6 constraints.
         """
 
@@ -347,6 +346,8 @@ class MinimumSnap:
     def _init_matrices(self):
         self.A = np.zeros((self.n_boundary_conditions * self.nb_splines, self.n_boundary_conditions * self.nb_splines))
         self.b = np.zeros((self.n_boundary_conditions * self.nb_splines, len(self.waypoints[0])))
+
+        print("A shape: ", self.A.shape)
 
     def _generate_time_per_spline(self):
         """

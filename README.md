@@ -32,7 +32,7 @@ https://user-images.githubusercontent.com/17160701/211073314-78f419ca-e53b-4a88-
 # Minimum snap trajectory
 
 Finding a path (waypoints) to a goal location is one of many important steps for autonomous robot. But this path must 
-satisfy some conditions such that a controller can handle it. Some of these conditions can be summarize as follow:
+satisfy some conditions such that a controller can handle it. Some of these conditions can be summarized as follows:
 
 - The path must be feasible
 - The path must be collision free
@@ -53,9 +53,21 @@ $$x^{*}(t) = argmin_{x(t)} = \int_{0}^{T} \mathcal{L}(x^{....}, x^{...}, \ddot{x
 
 where $\mathcal{L}$ is the Lagrangian of the system and $x^{....}$ is the snap of the trajectory.
 
-We can solve the Euler-Lagrange equation to ensure $x^{(6)}=0$ and get a trajectory of the form:  
+We can find the optimal path by solving the Euler-Lagrange equation:  
 
 $$x(t) = c_{7}t^7 + c_{6}t^6 + c_{5}t^5 + c_{4}t^4 + c_{3}t^3 + c_{2}t^2 + c_{1}t + c_{0}$$  
+
+Why 8 coefficients? Because we have 8 boundary conditions to respect. The boundary conditions are:
+- Position at t=0
+- Position at t=T
+- Velocity at t=0
+- Velocity at t=T
+- Acceleration at t=0
+- Acceleration at t=T
+- Jerk at t=0
+- Jerk at t=T
+
+By applying these conditions, we can find the 8 coefficients, hence the optimal path that minimize the snap criterion.  
 
 Differentiating this equation gives the velocity/acceleration/jerk/snap constraints and so on...   
 $$\dot{x}(t) = 7c_{7}t^6 +6 c_{6}t^5 + 5c_{5}t^4 + 4c_{4}t^3 + 3c_{3}t^2 + 2c_{2}t + c_{1}$$
@@ -204,40 +216,6 @@ $$\begin{bmatrix} 210T^4 & 120T^3 & 60T^2 & 24T^1 & 6T^0 & 0 & 0 & 0 \end{bmatri
                                                                                         c_{0}
                                                                                         \end{bmatrix} = j_{b}$$
 
-same for snap ... we differentiate and we compute:  
-
-$$\ddddot{x}(t) = 840c_{7}t^3 + 360c_{6}t^2 + 120c_{5}t + 24c_{4}$$  
-
-$$\ddddot{x}(0) = 24c_{4} = s_{a}$$  
-
-$$\ddddot{x}(T) = 840c_{7}T^3 + 360c_{6}T^2 + 120c_{5}T + 24c_{4} = s_{b}$$  
-
-in matrix form, at t=0 we must have:  
-
-$$\begin{bmatrix} 0 & 0 & 0 & 24 & 0 & 0 & 0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
-                                                                        c_{7} \\
-                                                                        c_{6} \\
-                                                                        c_{5} \\
-                                                                        c_{4} \\
-                                                                        c_{3} \\
-                                                                        c_{2} \\
-                                                                        c_{1} \\
-                                                                        c_{0}
-                                                                        \end{bmatrix} = s_{a}$$
-
-in matrix form, at t=T we must have:  
-
-$$\begin{bmatrix} 840T^3 & 360T^2 & 120T^1 & 24T^0 & 0 & 0 & 0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
-                                                                                        c_{7} \\
-                                                                                        c_{6} \\
-                                                                                        c_{5} \\
-                                                                                        c_{4} \\
-                                                                                        c_{3} \\
-                                                                                        c_{2} \\
-                                                                                        c_{1} \\
-                                                                                        c_{0}
-                                                                                        \end{bmatrix} = s_{b}$$
-
 All the 8 constraints can be written as a 8x8 matrix in order to find the coefficients of the polynomial (coefficients of the trajectory).
 The full matrix is the following:
 
@@ -250,6 +228,29 @@ $$A = \begin{bmatrix}
         42T^5 & 30T^4 & 20T^3 & 12T^2 & 6T & 2 & 0 & 0 \\
         0 & 0 & 0 & 0 & 6 & 0 & 0 & 0 \\
         210T^4 & 120T^3 & 60T^2 & 24T & 6 & 0 & 0 & 0 \\
-        0 & 0 & 0 & 24 & 0 & 0 & 0 & 0 \\
-        840T^3 & 360T^2 & 120T & 24 & 0 & 0 & 0 & 0
         \end{bmatrix}$$
+
+
+So $A$ is the matrix of the constraints, and we need to find the vector of the coefficients of the polynomial $c$ from $A$ and $b$ the vector of the constraints:
+
+$$\boxed{c = A^{-1}b}$$  
+
+#### Define $b$ vector
+
+$b$ is a column vector of 8 elements, each element is a constraint.  
+Let's say we want a trajectory that starts from $x=2$, ends at $x=5$, with an average velocity of $v=1$.
+
+$$b = \begin{bmatrix}
+        2 \\
+        5 \\
+        1 \\
+        1 \\
+        0 \\
+        0 \\
+        0 \\
+        0 \\
+        \end{bmatrix}$$
+
+
+
+
