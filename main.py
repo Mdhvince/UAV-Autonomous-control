@@ -56,23 +56,15 @@ if __name__ == "__main__":
     T.generate_collision_free_trajectory(coord_obstacles)
     r_des = T.full_trajectory
 
-
     desired = Desired(
-        # desired position over time
-        r_des[:, 0], r_des[:, 1], r_des[:, 2],
-        # desired velocity over time
-        r_des[:, 3], r_des[:, 4], r_des[:, 5],
-        # desired acceleration over time
-        r_des[:, 6], r_des[:, 7], r_des[:, 8],
-        # desired yaw over time such that the quadrotor faces the next waypoint
-        np.arctan2(r_des[:, 3], r_des[:, 4])
+        r_des[:, 0], r_des[:, 1], r_des[:, 2],  # desired position over time
+        r_des[:, 3], r_des[:, 4], r_des[:, 5],  # desired velocity over time
+        r_des[:, 6], r_des[:, 7], r_des[:, 8],  # desired acceleration over time
+        np.arctan2(r_des[:, 3], r_des[:, 4])    # desired yaw over time such that the quadrotor faces the next waypoint
     )
 
-    
     controller = TFC(config)
     quad = Quadrotor(config, desired)
-    quad.X = np.zeros(12)
-    quad.X[0], quad.X[1], quad.X[5] = desired.x[0], desired.y[0], desired.yaw[0]
 
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]

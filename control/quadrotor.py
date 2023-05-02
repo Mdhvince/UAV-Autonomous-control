@@ -42,6 +42,9 @@ class Quadrotor():
         # Propeller speed
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
 
+        # initialize the (x, y, yaw) state with the desired state
+        self.X[0], self.X[1], self.X[5] = des.x[0], des.y[0], des.yaw[0]
+
     def update_state(self, dt):
         """
         Simulate evolution of the vehicle state over time. Not needed when running on real drone,
