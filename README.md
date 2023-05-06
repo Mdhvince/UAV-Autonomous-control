@@ -88,7 +88,9 @@ these constants (coeffs) are a linear problem.
 To respect the __position constraint__:  
 
 > $$x(t) = c_{7}t^7 + c_{6}t^6 + c_{5}t^5 + c_{4}t^4 + c_{3}t^3 + c_{2}t^2 + c_{1}t + c_{0}$$
+> 
 > $$x(0) = c_{0}$$
+> 
 > $$x(T) = c_{7}T^7 + c_{6}T^6 + c_{5}T^5 + c_{4}T^4 + c_{3}T^3 + c_{2}T^2 + c_{1}T + c_{0}$$
 
 Matrix form __at t=0__    
@@ -124,7 +126,9 @@ $$
 To respect the __velocity constraint__ we differentiate the position equation:  
 
 > $$\dot{x}(t) = 7c_{7}t^6 +6 c_{6}t^5 + 5c_{5}t^4 + 4c_{4}t^3 + 3c_{3}t^2 + 2c_{2}t + c_{1}$$
+> 
 > $$\dot{x}(0) = c_{1}$$
+> 
 > $$\dot{x}(T) = 7c_{7}T^6 +6 c_{6}T^5 + 5c_{5}T^4 + 4c_{4}T^3 + 3c_{3}T^2 + 2c_{2}T + c_{1}$$  
 
 Matrix form __at t=0__    
@@ -160,7 +164,9 @@ $$
 To respect the __acceleration constraint__ we differentiate the velocity equation:  
 
 > $$\ddot{x}(t) = 42c_{7}t^5 + 30c_{6}t^4 + 20c_{5}t^3 + 12c_{4}t^2 + 6c_{3}t + 2c_{2}$$
+> 
 > $$\ddot{x}(0) = 2c_{2}$$
+> 
 > $$\ddot{x}(T) = 42c_{7}T^5 + 30c_{6}T^4 + 20c_{5}T^3 + 12c_{4}T^2 + 6c_{3}T + 2c_{2}$$  
 
 Matrix form __at t=0__    
@@ -197,7 +203,9 @@ $$
 To respect the __jerk constraint__ we differentiate the acceleration equation:  
 
 > $$\dddot{x}(t) = 210c_{7}t^4 + 120c_{6}t^3 + 60c_{5}t^2 + 24c_{4}t + 6c_{3}$$
+> 
 > $$\dddot{x}(0) = 6c_{3}$$
+> 
 > $$\dddot{x}(T) = 210c_{7}T^4 + 120c_{6}T^3 + 60c_{5}T^2 + 24c_{4}T + 6c_{3}$$  
 
 Matrix form __at t=0__  
