@@ -79,15 +79,13 @@ _note: If I have another constraint to respect, I will have to find one more coe
 Each of the conditions gives an equation, so we can represent them in a **Matrix** $A$. We can write the equation in terms of unknown constant and boundary conditions. Solving for
 these constants (coeffs) are a linear problem.
 
-To respect the position constraint:  
+To respect the __position constraint__:  
 
-$$x(t) = c_{7}t^7 + c_{6}t^6 + c_{5}t^5 + c_{4}t^4 + c_{3}t^3 + c_{2}t^2 + c_{1}t + c_{0}$$  
+> $$x(t) = c_{7}t^7 + c_{6}t^6 + c_{5}t^5 + c_{4}t^4 + c_{3}t^3 + c_{2}t^2 + c_{1}t + c_{0}$$
+> $$x(0) = c_{0}$$
+> $$x(T) = c_{7}T^7 + c_{6}T^6 + c_{5}T^5 + c_{4}T^4 + c_{3}T^3 + c_{2}T^2 + c_{1}T + c_{0}$$
 
-$$x(0) = c_{0} = a$$  
-
-$$x(T) = c_{7}T^7 + c_{6}T^6 + c_{5}T^5 + c_{4}T^4 + c_{3}T^3 + c_{2}T^2 + c_{1}T + c_{0} = b$$
-
-in matrix form, at t=0 we must have:  
+Matrix form __at t=0__    
 
 $$\begin{bmatrix} 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                         c_{7} \\
@@ -98,9 +96,9 @@ $$\begin{bmatrix} 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \end{bmatrix} \cdot  \begin{bmat
                                                                         c_{2} \\
                                                                         c_{1} \\
                                                                         c_{0}
-                                                                        \end{bmatrix} = a$$
+                                                                        \end{bmatrix} = p_0$$
 
-in matrix form, at t=T we must have:  
+Matrix form __at t=T__    
 
 $$\begin{bmatrix} T^7 & T^6 & T^5 & T^4 & T^3 & T^2 & T^1 & T^0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                                         c_{7} \\
@@ -111,17 +109,15 @@ $$\begin{bmatrix} T^7 & T^6 & T^5 & T^4 & T^3 & T^2 & T^1 & T^0 \end{bmatrix} \c
                                                                                         c_{2} \\
                                                                                         c_{1} \\
                                                                                         c_{0}
-                                                                                        \end{bmatrix} = b$$
+                                                                                        \end{bmatrix} = p_T$$
 
-To find the equation for the velocity, we just have to differentiate the position equation:  
+To respect the __velocity constraint__ we differentiate the position equation:  
 
-$$\dot{x}(t) = 7c_{7}t^6 +6 c_{6}t^5 + 5c_{5}t^4 + 4c_{4}t^3 + 3c_{3}t^2 + 2c_{2}t + c_{1}$$  
+> $$\dot{x}(t) = 7c_{7}t^6 +6 c_{6}t^5 + 5c_{5}t^4 + 4c_{4}t^3 + 3c_{3}t^2 + 2c_{2}t + c_{1}$$
+> $$\dot{x}(0) = c_{1}$$
+> $$\dot{x}(T) = 7c_{7}T^6 +6 c_{6}T^5 + 5c_{5}T^4 + 4c_{4}T^3 + 3c_{3}T^2 + 2c_{2}T + c_{1}$$  
 
-$$\dot{x}(0) = c_{1} = v_{a}$$  
-
-$$\dot{x}(T) = 7c_{7}T^6 +6 c_{6}T^5 + 5c_{5}T^4 + 4c_{4}T^3 + 3c_{3}T^2 + 2c_{2}T + c_{1} = v_{b}$$  
-
-in matrix form, at t=0 we must have:  
+Matrix form __at t=0__    
 
 $$\begin{bmatrix} 0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                         c_{7} \\
@@ -132,9 +128,9 @@ $$\begin{bmatrix} 0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \end{bmatrix} \cdot  \begin{bmat
                                                                         c_{2} \\
                                                                         c_{1} \\
                                                                         c_{0}
-                                                                        \end{bmatrix} = v_{a}$$
+                                                                        \end{bmatrix} = v_0$$
 
-in matrix form, at t=T we must have:  
+Matrix form __at t=T__    
 
 $$\begin{bmatrix} 7T^6 & 6T^5 & 5T^4 & 4T^3 & 3T^2 & 2T^1 & T^0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                                         c_{7} \\
@@ -145,18 +141,16 @@ $$\begin{bmatrix} 7T^6 & 6T^5 & 5T^4 & 4T^3 & 3T^2 & 2T^1 & T^0 & 0 \end{bmatrix
                                                                                         c_{2} \\
                                                                                         c_{1} \\
                                                                                         c_{0}
-                                                                                        \end{bmatrix} = v_{b}$$
+                                                                                        \end{bmatrix} = v_T$$
 
 
-same for accelerations ... we differentiate and we compute:  
+To respect the __acceleration constraint__ we differentiate the velocity equation:  
 
-$$\ddot{x}(t) = 42c_{7}t^5 + 30c_{6}t^4 + 20c_{5}t^3 + 12c_{4}t^2 + 6c_{3}t + 2c_{2}$$  
+> $$\ddot{x}(t) = 42c_{7}t^5 + 30c_{6}t^4 + 20c_{5}t^3 + 12c_{4}t^2 + 6c_{3}t + 2c_{2}$$
+> $$\ddot{x}(0) = 2c_{2}$$
+> $$\ddot{x}(T) = 42c_{7}T^5 + 30c_{6}T^4 + 20c_{5}T^3 + 12c_{4}T^2 + 6c_{3}T + 2c_{2}$$  
 
-$$\ddot{x}(0) = 2c_{2} = a_{a}$$  
-
-$$\ddot{x}(T) = 42c_{7}T^5 + 30c_{6}T^4 + 20c_{5}T^3 + 12c_{4}T^2 + 6c_{3}T + 2c_{2} = a_{b}$$  
-
-in matrix form, at t=0 we must have:  
+Matrix form __at t=0__    
 
 $$\begin{bmatrix} 0 & 0 & 0 & 0 & 0 & 2 & 0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                         c_{7} \\
@@ -167,9 +161,9 @@ $$\begin{bmatrix} 0 & 0 & 0 & 0 & 0 & 2 & 0 & 0 \end{bmatrix} \cdot  \begin{bmat
                                                                         c_{2} \\
                                                                         c_{1} \\
                                                                         c_{0}
-                                                                        \end{bmatrix} = a_{a}$$
+                                                                        \end{bmatrix} = a_{0}$$
 
-in matrix form, at t=T we must have:  
+Matrix form __at t=T__  
 
 $$\begin{bmatrix} 42T^5 & 30T^4 & 20T^3 & 12T^2 & 6T^1 & 2T^0 & 0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                                         c_{7} \\
@@ -180,18 +174,16 @@ $$\begin{bmatrix} 42T^5 & 30T^4 & 20T^3 & 12T^2 & 6T^1 & 2T^0 & 0 & 0 \end{bmatr
                                                                                         c_{2} \\
                                                                                         c_{1} \\
                                                                                         c_{0}
-                                                                                        \end{bmatrix} = a_{b}$$
+                                                                                        \end{bmatrix} = a_{T}$$
 
 
-same for jerk ... we differentiate and we compute:  
+To respect the __jerk constraint__ we differentiate the acceleration equation:  
 
-$$\dddot{x}(t) = 210c_{7}t^4 + 120c_{6}t^3 + 60c_{5}t^2 + 24c_{4}t + 6c_{3}$$  
+> $$\dddot{x}(t) = 210c_{7}t^4 + 120c_{6}t^3 + 60c_{5}t^2 + 24c_{4}t + 6c_{3}$$
+> $$\dddot{x}(0) = 6c_{3}$$
+> $$\dddot{x}(T) = 210c_{7}T^4 + 120c_{6}T^3 + 60c_{5}T^2 + 24c_{4}T + 6c_{3}$$  
 
-$$\dddot{x}(0) = 6c_{3} = j_{a}$$  
-
-$$\dddot{x}(T) = 210c_{7}T^4 + 120c_{6}T^3 + 60c_{5}T^2 + 24c_{4}T + 6c_{3} = j_{b}$$  
-
-in matrix form, at t=0 we must have:  
+Matrix form __at t=0__  
 
 $$\begin{bmatrix} 0 & 0 & 0 & 0 & 6 & 0 & 0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                         c_{7} \\
@@ -202,9 +194,9 @@ $$\begin{bmatrix} 0 & 0 & 0 & 0 & 6 & 0 & 0 & 0 \end{bmatrix} \cdot  \begin{bmat
                                                                         c_{2} \\
                                                                         c_{1} \\
                                                                         c_{0}
-                                                                        \end{bmatrix} = j_{a}$$
+                                                                        \end{bmatrix} = j_{0}$$
 
-nmatrix form, at t=T we must have:  
+Matrix form __at t=T__  
 
 $$\begin{bmatrix} 210T^4 & 120T^3 & 60T^2 & 24T^1 & 6T^0 & 0 & 0 & 0 \end{bmatrix} \cdot  \begin{bmatrix}
                                                                                         c_{7} \\
@@ -215,7 +207,7 @@ $$\begin{bmatrix} 210T^4 & 120T^3 & 60T^2 & 24T^1 & 6T^0 & 0 & 0 & 0 \end{bmatri
                                                                                         c_{2} \\
                                                                                         c_{1} \\
                                                                                         c_{0}
-                                                                                        \end{bmatrix} = j_{b}$$
+                                                                                        \end{bmatrix} = j_{T}$$
 
 All the 8 constraints can be written as a 8x8 matrix in order to find the coefficients of the polynomial (coefficients of the trajectory).
 The full matrix is the following:
