@@ -75,6 +75,7 @@ Why 8 coefficients? Because we have 8 boundary conditions to respect. The bounda
 By applying these conditions, we can find the 8 coefficients, hence the optimal path that minimize the snap criterion.  
 
 Differentiating this equation gives the velocity/acceleration/jerk/snap constraints and so on...   
+
 $$
 \dot{x}(t) = 7c_{7}t^6 +6 c_{6}t^5 + 5c_{5}t^4 + 4c_{4}t^3 + 3c_{3}t^2 + 2c_{2}t + c_{1}
 $$
