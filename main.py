@@ -26,6 +26,18 @@ def draw_controller_response(history, target_history, dim):
         text.set_color("black")
 
 
+def draw_all(state_history, desired):
+    plt.figure(figsize=(20, 10))
+    plt.subplot(2, 2, 1)
+    draw_controller_response(state_history[:, 0], desired.x, "x (m)")
+    plt.subplot(2, 2, 2)
+    draw_controller_response(state_history[:, 1], desired.y, "y (m)")
+    plt.subplot(2, 2, 3)
+    draw_controller_response(state_history[:, 2], desired.z, "z (m)")
+    plt.subplot(2, 2, 4)
+    draw_controller_response(state_history[:, 5], desired.yaw, "yaw (rad)")
+
+
 
 if __name__ == "__main__":
 
@@ -85,21 +97,12 @@ if __name__ == "__main__":
         state_history = np.vstack((state_history, quad.X))
         omega_history = np.vstack((omega_history, quad.omega))
 
-    plt.figure(figsize=(20, 10))
 
-    plt.subplot(2, 2, 1)
-    draw_controller_response(state_history[:, 0], desired.x, "x (m)")
-    plt.subplot(2, 2, 2)
-    draw_controller_response(state_history[:, 1], desired.y, "y (m)")
-    plt.subplot(2, 2, 3)
-    draw_controller_response(state_history[:, 2], desired.z, "z (m)")
-    plt.subplot(2, 2, 4)
-    draw_controller_response(state_history[:, 5], desired.yaw, "yaw (rad)")
-
-    plt.show()
+    draw_all(state_history, desired)
 
 
     # sim = Sim3d(r_des, state_history, T.obstacle_edges)
     # ani = sim.run_sim(frames=n_waypoints, interval=5)
-    # plt.show()
+
+    plt.show()
 
