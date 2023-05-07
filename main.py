@@ -1,3 +1,6 @@
+
+# %%
+
 import warnings
 import configparser
 from collections import namedtuple
@@ -12,6 +15,7 @@ from planning.trajectory import MinimumSnap, getwp
 
 warnings.filterwarnings('ignore')
 plt.style.use('ggplot')
+
 
 
 def draw_controller_response(history, target_history, dim):
@@ -98,6 +102,7 @@ if __name__ == "__main__":
         omega_history = np.vstack((omega_history, quad.omega))
 
 
+    # %%
     draw_all(state_history, desired)
 
 
@@ -106,3 +111,5 @@ if __name__ == "__main__":
 
     plt.show()
 
+
+# %%
