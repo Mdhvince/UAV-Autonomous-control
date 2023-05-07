@@ -43,7 +43,7 @@ class MinimumSnap:
         self.coeffs = None
 
 
-    def generate_collision_free_trajectory(self, coord_obstacles):
+    def generate_collision_free_trajectory(self, coord_obstacles=None):
         """
         Generate a collision free trajectory. The trajectory is generated in two steps:
         1. Generate a minimum snap trajectory
@@ -54,30 +54,33 @@ class MinimumSnap:
         """
         self.obstacle_edges = []
 
-        # create a collision free minimal snap path
-        for coord in coord_obstacles:
-            self.reset()
-            Obs = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
-            self.obstacle_edges.append(Obs.edges)
+        if coord_obstacles is not None:
+            # create a collision free minimal snap path
+            for coord in coord_obstacles:
+                self.reset()
+                Obs = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
+                self.obstacle_edges.append(Obs.edges)
 
-            # Generate a minimum snap trajectory and check if there is collision with the current obstacle
-            traj = self.generate_trajectory()
+                # Generate a minimum snap trajectory and check if there is collision with the current obstacle
+                traj = self.generate_trajectory()
 
-            # create mid-point in splines that goes through an obstacle
-            id_spline_to_correct = {1}
-            while len(id_spline_to_correct) > 0:
+                # create mid-point in splines that goes through an obstacle
+                id_spline_to_correct = {1}
+                while len(id_spline_to_correct) > 0:
 
-                id_spline_to_correct = set([])
-                for n, point in enumerate(traj[:, :3]):
-                    if MinimumSnap.is_collision(point, Obs.vertices):
-                        spline_id = traj[n, -1]
-                        id_spline_to_correct.add(spline_id + 1)
+                    id_spline_to_correct = set([])
+                    for n, point in enumerate(traj[:, :3]):
+                        if MinimumSnap.is_collision(point, Obs.vertices):
+                            spline_id = traj[n, -1]
+                            id_spline_to_correct.add(spline_id + 1)
 
-                if len(id_spline_to_correct) > 0:
-                    self.reset()
-                    new_waypoints = MinimumSnap.insert_midpoints_at_indexes(self.waypoints, id_spline_to_correct)
-                    self.waypoints = new_waypoints
-                    traj = self.generate_trajectory()
+                    if len(id_spline_to_correct) > 0:
+                        self.reset()
+                        new_waypoints = MinimumSnap.insert_midpoints_at_indexes(self.waypoints, id_spline_to_correct)
+                        self.waypoints = new_waypoints
+                        traj = self.generate_trajectory()
+        else:
+            _ = self.generate_trajectory()
 
 
     def generate_trajectory(self, method="lstsq"):
@@ -267,8 +270,16 @@ class MinimumSnap:
 
     @staticmethod
     def is_collision(point, vertices):
+        """
+        :param point: row numpy vector representing (x, y, z) coordinates of a point
+        :param vertices: list of (x, y, z) coordinates of the vertices of obstacles cubes
+        """
         x, y, z = point
-        xs, ys, zs = zip(*vertices)
+        try:
+            xs, ys, zs = zip(*vertices)
+        except ValueError:
+            return False
+
         return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys) and min(zs) <= z <= max(zs)
 
 

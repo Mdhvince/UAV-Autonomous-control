@@ -134,11 +134,12 @@ def plot_3d_trajectory_and_obstacle(waypoints, trajectory_obj):
         x, y, z = waypoints[i]
         ax.plot(x, y, z, marker=".", markersize=20, alpha=.2)
 
-    # plot obstacles edges
-    for edges in trajectory_obj.obstacle_edges:
-        for edge in edges:
-            x, y, z = zip(*edge)
-            ax.plot(x, y, z, color="red", alpha=.2)
+    if len(trajectory_obj.obstacle_edges) > 0:
+        # plot obstacles edges
+        for edges in trajectory_obj.obstacle_edges:
+            for edge in edges:
+                x, y, z = zip(*edge)
+                ax.plot(x, y, z, color="red", alpha=.2)
 
     ax.legend()
     ax.grid(False)
