@@ -11,3 +11,5 @@ venv/
 *ipynb
 estimation/
 notes*
+*.ipynb_checkpoints/
+.pytest_cache/
