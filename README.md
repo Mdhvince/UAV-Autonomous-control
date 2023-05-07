@@ -18,29 +18,29 @@ Sergei Lupashin, Markus Hehn, Mark W. Mueller, Angela P. Schoellig, Michael Sher
 
 ### 2. Trajectory Planner with minimum snap
 
-Minimum Snap trajectory has been implemented for this project. Here are one a result for an arbritary trajectory, we can find the comparison between a naive trajectory (just connecting waypoints with a straight line) and the optimal one (Minimum snap)
+A minimum Snap trajectory has been implemented for this project. Here is one result for an arbitrary trajectory, we can find the comparison between a naive trajectory (just connecting waypoints with a straight line) and the optimal one (Minimum snap)
 
 ![Min Snap](docs/min_snap.png "")
 
 #### Without collision check
 ![Min Snap](docs/no_collision_check.png "")
 
-#### With collision check (upper right waypoint is mandadory)
+#### With collision check (upper right waypoint is mandatory)
 ![Min Snap](docs/collision_check.png "")
 
 
 https://user-images.githubusercontent.com/17160701/211073314-78f419ca-e53b-4a88-a63e-565018963ce7.mp4
 
 
-Finding a path (waypoints) to a goal location is one of many important steps for autonomous robot. But this path must 
+Finding a path (waypoints) to a goal location is one of many important steps for an autonomous robot. But this path must 
 satisfy some conditions such that a controller can handle it. Some of these conditions can be summarized as follows:
 
 - The path must be feasible
-- The path must be collision free
+- The path must be collision-free
 - The path must be differentiable
 - The path must be smooth enough
   
-The thing is that a system as a quadrotor can be represented (in this case) as a 4th order system, so a path for this kind of system must be differentiable at least 4 times:
+The thing is that a system as a quadrotor can be represented (in this case) as a 4th-order system, so a path for this kind of system must be differentiable at least 4 times:
 Let's denote k as the order of derivative:
 
 - k=1 : velocity
@@ -48,7 +48,7 @@ Let's denote k as the order of derivative:
 - k=3 : jerk
 - k=4 : snap
 
-So a good trajectory for this system can be thought as minimum snap trajectory, hence a trajectory that minimize the snap criterion. So we need to find the optimal path  
+So a good trajectory for this system can be thought of as a minimum snap trajectory, hence a trajectory that minimizes the snap criterion. So we need to find the optimal path  
 
 $$
 \boxed{
@@ -72,7 +72,7 @@ Why 8 coefficients? Because we have 8 boundary conditions to respect. The bounda
 - Acceleration at t=0, and t=T
 - Jerk at t=0, and t=T
 
-By applying these conditions, we can find the 8 coefficients, hence the optimal path that minimize the snap criterion.  
+By applying these conditions, we can find the 8 coefficients, hence the optimal path that minimizes the snap criterion.  
 
 Differentiating this equation gives the velocity/acceleration/jerk/snap constraints and so on...   
 
@@ -80,11 +80,10 @@ $$
 \dot{x}(t) = 7c_{7}t^6 +6 c_{6}t^5 + 5c_{5}t^4 + 4c_{4}t^3 + 3c_{3}t^2 + 2c_{2}t + c_{1}
 $$
 
-what we are interested in is to find the coefficient `c0, c1, c2, c3, c4, c5` that satisfy all the constraints (boundary conditions) mentioned above.
-_note: If I have another constraint to respect, I will have to find one more coefficients._
+what we are interested in is finding the coefficients `c0, c1, c2, c3, c4, c5` that satisfy all the constraints (boundary conditions) mentioned above.
+_note: If I have another constraint to respect, I will have to find _one more coefficient_.
 
-Each of the conditions gives an equation, so we can represent them in a **Matrix** $A$. We can write the equation in terms of unknown constant and boundary conditions. Solving for
-these constants (coeffs) are a linear problem.
+Each of the conditions gives an equation, so we can represent them in a **Matrix** $A$. We can write the equation in terms of unknown constants and boundary conditions. Solving for these constants (coefficients) is a linear problem.
 
 To respect the __position constraint__:  
 
@@ -239,7 +238,7 @@ $$
                                                                                         \end{bmatrix} = j_{T}
 $$
 
-All the 8 constraints can be written as a 8x8 matrix in order to find the coefficients of the polynomial (coefficients of the trajectory).
+All 8 constraints can be written as an 8x8 matrix to find the coefficients of the polynomial (coefficients of the trajectory).
 The full matrix is the following:
 
 $$
@@ -262,7 +261,7 @@ $$\boxed{c = A^{-1}b}$$
 #### Define $b$ vector
 
 $b$ is a column vector of 8 elements, each element is a constraint.  
-Let's say we want a trajectory that starts from $x=2$, ends at $x=5$, with an average velocity of $v=1$.
+Let's say we want a trajectory that starts from $x=2$, and ends at $x=5$, with an average velocity of $v=1$.
 
 $$
 b = \begin{bmatrix}
