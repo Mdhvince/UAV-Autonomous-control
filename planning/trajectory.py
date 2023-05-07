@@ -1,13 +1,10 @@
-import random
 import warnings
 from collections import namedtuple
 
 import numpy as np
-import matplotlib.path
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
-from matplotlib.patches import Polygon
 
 from minimum_snap import MinimumSnap
 
@@ -56,7 +53,6 @@ def get_path_helix(total_time=20, r=1, height=10, dt=0.01):
 
     omega_x = 0.8
     omega_y = 0.4
-    omega_z = 0.4
 
     a_x = r  # radius of helix
     a_y = r  # radius of helix

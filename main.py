@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from control.simulation_3d import Sim3d
 from control.quadrotor import Quadrotor
 from control.controller import TFC
-from planning.trajectory import MinimumSnap, getwp
+from planning.minimum_snap import MinimumSnap
+
 
 warnings.filterwarnings('ignore')
 plt.style.use('ggplot')
@@ -98,9 +99,9 @@ if __name__ == "__main__":
         state_history = np.vstack((state_history, quad.X))
         omega_history = np.vstack((omega_history, quad.omega))
 
-
     draw_all(state_history, desired)
-    # sim = Sim3d(r_des, state_history, T.obstacle_edges)
-    # ani = sim.run_sim(frames=n_waypoints, interval=5)
+    sim = Sim3d(r_des, state_history, T.obstacle_edges)
+    ani = sim.run_sim(frames=n_waypoints, interval=5)
+
     plt.show()
 

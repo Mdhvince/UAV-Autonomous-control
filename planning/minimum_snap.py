@@ -1,6 +1,6 @@
 import numpy as np
 
-from obstacle import Obstacle
+from planning.obstacle import Obstacle
 
 
 class MinimumSnap:
@@ -26,6 +26,7 @@ class MinimumSnap:
         self.b = None
         self.coeffs = None                      # will hold the coefficients of the trajectory
 
+
     def reset(self):
         self.times = []
         self.spline_id = []
@@ -41,6 +42,7 @@ class MinimumSnap:
         self.b = None
         self.coeffs = None
 
+
     def generate_collision_free_trajectory(self, coord_obstacles):
         """
         Generate a collision free trajectory. The trajectory is generated in two steps:
@@ -55,8 +57,8 @@ class MinimumSnap:
         # create a collision free minimal snap path
         for coord in coord_obstacles:
             self.reset()
-            O = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
-            self.obstacle_edges.append(O.edges)
+            Obs = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
+            self.obstacle_edges.append(Obs.edges)
 
             # Generate a minimum snap trajectory and check if there is collision with the current obstacle
             traj = self.generate_trajectory()
@@ -67,7 +69,7 @@ class MinimumSnap:
 
                 id_spline_to_correct = set([])
                 for n, point in enumerate(traj[:, :3]):
-                    if MinimumSnap.is_collision(point, O.vertices):
+                    if MinimumSnap.is_collision(point, Obs.vertices):
                         spline_id = traj[n, -1]
                         id_spline_to_correct.add(spline_id + 1)
 
@@ -76,7 +78,7 @@ class MinimumSnap:
                     new_waypoints = MinimumSnap.insert_midpoints_at_indexes(self.waypoints, id_spline_to_correct)
                     self.waypoints = new_waypoints
                     traj = self.generate_trajectory()
-    
+
 
     def generate_trajectory(self, method="lstsq"):
         self._compute_spline_parameters(method)
@@ -103,6 +105,7 @@ class MinimumSnap:
         self.full_trajectory = np.hstack((self.positions, self.velocities, self.accelerations, self.spline_id))
         return self.full_trajectory
 
+
     def _compute_spline_parameters(self, method):
         self._create_polynom_matrices()
         if method == "lstsq":
@@ -110,12 +113,14 @@ class MinimumSnap:
         else:
             self.coeffs = np.linalg.solve(self.A, self.b)
 
+
     def _create_polynom_matrices(self):
         """Populate matrices A and b with the constraints/boundary conditions"""
         self._setup()
         self._generate_position_constraints()
         self._generate_start_and_goal_constraints()
         self._generate_continuity_constraints()
+
 
     def _generate_continuity_constraints(self):
         """
@@ -136,9 +141,10 @@ class MinimumSnap:
             for k in [1, 2, 3, 4, 5, 6]:
                 poly0 = -1 * MinimumSnap.polynom(n=N_BC, k=k, t=0)
                 polyT = MinimumSnap.polynom(n=N_BC, k=k, t=timeT)
-                poly = np.hstack((polyT, poly0))  # (end of seg) - (start of seg) must be 0. so no change of velocity/acc/jerk/snap...
+                poly = np.hstack((polyT, poly0))  # (end of seg) - (start of seg) must be 0. so no change of vel/acc/...
                 self.A[self.row_counter, (s - 1) * N_BC:N_BC * (s + 1)] = poly
                 self.row_counter += 1
+
 
     def _generate_start_and_goal_constraints(self):
         """
@@ -165,6 +171,7 @@ class MinimumSnap:
             poly = MinimumSnap.polynom(n=N_BC, k=k, t=self.times[-1])
             self.A[self.row_counter, (N_SPLINES - 1) * N_BC:N_BC * N_SPLINES] = poly
             self.row_counter += 1
+
 
     def _generate_position_constraints(self):
         """
@@ -199,6 +206,7 @@ class MinimumSnap:
             self.b[self.row_counter, :] = wpT
             self.row_counter += 1
 
+
     @staticmethod
     def polynom(n, k, t):
         """
@@ -230,14 +238,17 @@ class MinimumSnap:
 
         return T.T
 
+
     def _setup(self):
         self._generate_waypoints()
         self._generate_time_per_spline()
         self._init_matrices()
 
+
     def _init_matrices(self):
         self.A = np.zeros((self.n_boundary_conditions * self.nb_splines, self.n_boundary_conditions * self.nb_splines))
         self.b = np.zeros((self.n_boundary_conditions * self.nb_splines, len(self.waypoints[0])))
+
 
     def _generate_time_per_spline(self):
         """
@@ -248,20 +259,28 @@ class MinimumSnap:
             time = distance / self.velocity
             self.times.append(time)
 
+
     def _generate_waypoints(self):
         # while waiting for the algorithm to generate them
         self.nb_splines = self.waypoints.shape[0] - 1
 
-    
+
     @staticmethod
     def is_collision(point, vertices):
         x, y, z = point
         xs, ys, zs = zip(*vertices)
         return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys) and min(zs) <= z <= max(zs)
 
-    
+
     @staticmethod
     def insert_midpoints_at_indexes(points, indexes):
+        """
+        :param points: 2D numpy array of shape (n, 3) where n is the number of points and 3 is the dimension (x, y, z)
+        :param indexes: list of indexes where to insert the midpoints (between which points we want to insert midpoints)
+        the index is the index of the last point of the segment. So if we want to insert a midpoint at "index" we need
+        to insert it between points[index-1] and points[index].
+        :return: a 2D numpy array of shape (n + len(indexes), 3) where n is the number of points and 3 is the dimension
+        """
         result = []
         i = 0
         while i < len(points):
