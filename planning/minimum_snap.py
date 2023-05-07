@@ -255,7 +255,7 @@ class MinimumSnap:
 
     def _generate_time_per_spline(self):
         """
-        This function computes the time required to travel between each pair of waypoints.
+        This function computes the time required to travel between each pair of waypoints given the velocity.
         """
         for i in range(self.nb_splines):
             distance = np.linalg.norm(self.waypoints[i + 1] - self.waypoints[i])

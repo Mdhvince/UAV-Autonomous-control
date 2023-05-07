@@ -4,14 +4,13 @@ import pytest
 from planning.minimum_snap import MinimumSnap
 
 
+
 @pytest.fixture
 def waypoints():
-    waypoints = np.array([[10., 0.0, 1.0],
-                          [10., 4.0, 1.0],
-                          [6.0, 5.0, 1.5],
-                          [4.0, 7.0, 1.5],
-                          [2.0, 7.0, 2.0],
-                          [1.0, 0.0, 2.0]])
+    waypoints = np.array([[0.0, 0.0, 1.0],
+                          [1.0, 0.0, 1.0],
+                          [4.0, 0.0, 1.0],
+                          [6.0, 0.0, 1.0]])
     return waypoints
 
 
@@ -96,4 +95,19 @@ def test_is_collision_with_empty_obstacles():
 
     # Assert
     assert result == expected
+
+
+def test_generate_time_per_spline(waypoints):
+    # Arrange
+    T = MinimumSnap(waypoints, velocity=1.0, dt=0.02)
+    T.nb_splines = waypoints.shape[0] - 1
+    distances = np.array([1.0, 3.0, 2.0])
+    expected = distances / T.velocity
+
+    # Act
+    T._generate_time_per_spline()
+
+    # Assert
+    assert T.times == pytest.approx(expected)
+
 
