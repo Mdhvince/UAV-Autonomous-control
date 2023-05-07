@@ -1,6 +1,3 @@
-
-# %%
-
 import warnings
 import configparser
 from collections import namedtuple
@@ -102,14 +99,8 @@ if __name__ == "__main__":
         omega_history = np.vstack((omega_history, quad.omega))
 
 
-    # %%
     draw_all(state_history, desired)
-
-
     # sim = Sim3d(r_des, state_history, T.obstacle_edges)
     # ani = sim.run_sim(frames=n_waypoints, interval=5)
-
     plt.show()
 
-
-# %%
