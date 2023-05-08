@@ -2,39 +2,16 @@ import numpy as np
 import pytest
 
 from planning.minimum_snap import MinimumSnap
+from tests.fixtures.fixtures import waypoints  # noqa: F401
 
 
-
-@pytest.fixture
-def waypoints():
-    waypoints = np.array([[0.0, 0.0, 1.0],
-                          [1.0, 0.0, 1.0],
-                          [4.0, 0.0, 1.0],
-                          [6.0, 0.0, 1.0]])
-    return waypoints
-
-
-@pytest.fixture
-def coord_obstacles():
-    coord_obstacles = np.array([[8.0, 6.0, 1.5, 5.0, 0.0],
-                                [4.0, 9.0, 1.5, 5.0, 0.0],
-                                [4.0, 1.0, 2.0, 5.0, 0.0],
-                                [3.0, 5.0, 1.0, 5.0, 0.0],
-                                [4.0, 3.5, 2.5, 5.0, 0.0],
-                                [5.0, 5.0, 10., 0.5, 5.0]])
-    return coord_obstacles
-
-
-
-def test_insert_midpoints_at_indexes():
+@pytest.mark.parametrize("indexes, expected", [
+    ([1, 3], np.array([[0, 0, 0], [.5, .5, .5], [1, 1, 1], [2, 2, 2], [2.5, 2.5, 2.5], [3, 3, 3]])),
+    ([], np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]])),
+])
+def test_insert_midpoints_at_indexes(indexes, expected):
     # Arrange
-    points = np.array([
-        [0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]
-    ])
-    indexes = [1, 3]
-    expected = np.array([
-        [0, 0, 0], [.5, .5, .5], [1, 1, 1], [2, 2, 2], [2.5, 2.5, 2.5], [3, 3, 3]
-    ])
+    points = np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]])
 
     # Act
     result = MinimumSnap.insert_midpoints_at_indexes(points, indexes)
@@ -43,19 +20,6 @@ def test_insert_midpoints_at_indexes():
     assert result == pytest.approx(expected)
 
 
-def test_insert_midpoints_at_indexes_with_empty_indexes():
-    # Arrange
-    points = np.array([
-        [0, 0, 0], [1, 1, 1], [2, 2, 2]
-    ])
-    indexes = []
-    expected = points
-
-    # Act
-    result = MinimumSnap.insert_midpoints_at_indexes(points, indexes)
-
-    # Assert
-    assert result == pytest.approx(expected)
 
 @pytest.mark.parametrize("points, expected", [
     (np.array([1, 1, 1]), True),
