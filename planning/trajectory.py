@@ -148,12 +148,14 @@ def plot_3d_trajectory_and_obstacle(waypoints, trajectory_obj):
 
 if __name__ == "__main__":
 
-    waypoints = np.array([[10., 0.0, 1.0],
-                          [10., 4.0, 1.0],
-                          [6.0, 5.0, 1.5],
-                          [4.0, 7.0, 1.5],
-                          [2.0, 7.0, 2.0],
-                          [1.0, 0.0, 2.0]])
+    waypoints = np.array([
+        [10., 0.0, 1.0],
+        [10., 4.0, 1.0],
+        [6.0, 5.0, 1.5],
+        [4.0, 7.0, 1.5],
+        [2.0, 7.0, 2.0],
+        [1.0, 0.0, 2.0]
+    ])
 
     coord_obstacles = np.array([[8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
                                 [4.0, 9.0, 1.5, 5.0, 0.0],
@@ -163,7 +165,9 @@ if __name__ == "__main__":
                                 [5.0, 5.0, 10., 0.5, 5.0]])
 
     T = MinimumSnap(waypoints, velocity=1.0, dt=0.02)
-    T.generate_collision_free_trajectory(coord_obstacles)
+    T.generate_collision_free_trajectory(coord_obstacles=None)
+
+    print(T.A.shape)
 
     fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')
