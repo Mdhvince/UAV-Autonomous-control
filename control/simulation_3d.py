@@ -185,9 +185,7 @@ class Sim3d:
             self.ax.quiver(x0, y0, z0, yaw_axis[0], yaw_axis[1], yaw_axis[2], color='b', lw=2)
 
     def draw_trajectory(self):
-
-        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2],
-                     marker='.', alpha=.2, markersize=20)
+        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], marker='.', alpha=.2, markersize=20)
 
     @staticmethod
     def quad_pos(current_position, rot_mat, L, H=.05):
