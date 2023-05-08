@@ -12,7 +12,7 @@ class MinimumSnap:
         self.times = []                         # will hold the time between segment based on the velocity
         self.spline_id = []                     # identify on which spline the newly generated point belongs to
         self.nb_splines = None                  # number of splines in the trajectory
-        self.nb_coeffs = 8          # number of boundary conditions per spline to respect minimum snap
+        self.n_coeffs = 8                      # number of boundary conditions per spline to respect minimum snap
 
         self.positions = []                     # will hold the desired positions of the trajectory
         self.velocities = []                    # will hold the desired velocities of the trajectory
@@ -90,11 +90,11 @@ class MinimumSnap:
             timeT = self.times[it]
 
             for t in np.arange(0.0, timeT, self.dt):
-                position = self.polynom(8, k=0, t=t) @ self.coeffs[it * self.nb_coeffs: self.nb_coeffs * (it + 1)]
-                velocity = self.polynom(8, k=1, t=t) @ self.coeffs[it * self.nb_coeffs: self.nb_coeffs * (it + 1)]
-                acceleration = self.polynom(8, k=2, t=t) @ self.coeffs[it * self.nb_coeffs: self.nb_coeffs * (it + 1)]
-                # jerk = self.polynom(8, k=3, t=t) @ self.coeffs[it*self.nb_coeffs : self.nb_coeffs*(it+1)]
-                # snap = self.polynom(8, k=4, t=t) @ self.coeffs[it*self.nb_coeffs : self.nb_coeffs*(it+1)]
+                position = self.polynom(self.n_coeffs, order=0, t=t) @ self.coeffs[it * self.n_coeffs: self.n_coeffs * (it + 1)]
+                velocity = self.polynom(self.n_coeffs, order=1, t=t) @ self.coeffs[it * self.n_coeffs: self.n_coeffs * (it + 1)]
+                acceleration = self.polynom(self.n_coeffs, order=2, t=t) @ self.coeffs[it * self.n_coeffs: self.n_coeffs * (it + 1)]
+                # jerk = self.polynom(8, order=3, t=t) @ self.coeffs[it*self.n_coeffs : self.n_coeffs*(it+1)]
+                # snap = self.polynom(8, order=4, t=t) @ self.coeffs[it*self.n_coeffs : self.n_coeffs*(it+1)]
 
                 self.positions.append(position)
                 self.velocities.append(velocity)
@@ -139,10 +139,10 @@ class MinimumSnap:
         for s in range(1, N_SPLINES):
             timeT = self.times[s - 1]
             for k in [1, 2, 3, 4, 5, 6]:
-                poly0 = -1 * MinimumSnap.polynom(n=self.nb_coeffs, k=k, t=0)
-                polyT = MinimumSnap.polynom(n=self.nb_coeffs, k=k, t=timeT)
+                poly0 = -1 * MinimumSnap.polynom(self.n_coeffs, order=k, t=0)
+                polyT = MinimumSnap.polynom(self.n_coeffs, order=k, t=timeT)
                 poly = np.hstack((polyT, poly0))  # (end of seg) - (start of seg) must be 0. so no change of vel/acc/...
-                self.A[self.row_counter, (s - 1) * self.nb_coeffs:self.nb_coeffs * (s + 1)] = poly
+                self.A[self.row_counter, (s - 1) * self.n_coeffs:self.n_coeffs * (s + 1)] = poly
                 self.row_counter += 1
 
 
@@ -161,14 +161,14 @@ class MinimumSnap:
 
         # CONSTRAINTS FOR THE VERY FIRST SEGMENT at t=0
         for k in [1, 2, 3]:
-            poly = MinimumSnap.polynom(n=self.nb_coeffs, k=k, t=0)
-            self.A[self.row_counter, 0:self.nb_coeffs] = poly
+            poly = MinimumSnap.polynom(self.n_coeffs, order=k, t=0)
+            self.A[self.row_counter, 0:self.n_coeffs] = poly
             self.row_counter += 1
 
         # CONSTRAINTS FOR THE VERY LAST SEGMENT at t=T
         for k in [1, 2, 3]:
-            poly = MinimumSnap.polynom(n=self.nb_coeffs, k=k, t=self.times[-1])
-            self.A[self.row_counter, (N_SPLINES - 1) * self.nb_coeffs:self.nb_coeffs * N_SPLINES] = poly
+            poly = MinimumSnap.polynom(self.n_coeffs, order=k, t=self.times[-1])
+            self.A[self.row_counter, (N_SPLINES - 1) * self.n_coeffs:self.n_coeffs * N_SPLINES] = poly
             self.row_counter += 1
 
 
@@ -188,10 +188,10 @@ class MinimumSnap:
         N_SPLINES = self.nb_splines
 
         # at t=0 - FOR ALL START OF SEGMENTS
-        poly = MinimumSnap.polynom(n=self.nb_coeffs, k=0, t=0)
+        poly = MinimumSnap.polynom(self.n_coeffs, order=0, t=0)
         for i in range(N_SPLINES):
             wp0 = self.waypoints[i]
-            self.A[self.row_counter, i * self.nb_coeffs: self.nb_coeffs * (i + 1)] = poly
+            self.A[self.row_counter, i * self.n_coeffs: self.n_coeffs * (i + 1)] = poly
             self.b[self.row_counter, :] = wp0
             self.row_counter += 1
 
@@ -199,42 +199,42 @@ class MinimumSnap:
         for i in range(N_SPLINES):
             wpT = self.waypoints[i + 1]
             timeT = self.times[i]
-            poly = MinimumSnap.polynom(n=self.nb_coeffs, k=0, t=timeT)
-            self.A[self.row_counter, i * self.nb_coeffs:self.nb_coeffs * (i + 1)] = poly
+            poly = MinimumSnap.polynom(self.n_coeffs, order=0, t=timeT)
+            self.A[self.row_counter, i * self.n_coeffs:self.n_coeffs * (i + 1)] = poly
             self.b[self.row_counter, :] = wpT
             self.row_counter += 1
 
 
     @staticmethod
-    def polynom(n, k, t):
+    def polynom(n_coeffs, order, t):
         """
-        This function returns a polynom of degree n and order k evaluated at t.
-        :param n: degree of the polynom or number of boundary conditions or number of unknown coefficients
-        :param k: order of the polynom (k=1: velocity; k=2: acceleration; k=3: jerk; k=4: snap)
+        This function returns a polynom of n_coeffs n and order k evaluated at t.
+        :param n_coeffs: number of unknown coefficients (degree of the polynom + 1)
+        :param order: order of the polynom (k=1: velocity; k=2: acceleration; k=3: jerk; k=4: snap)
         :param t: time at which the polynom is evaluated
         :return: the polynom evaluated at t
         """
-        T = np.zeros(n)  # T is the polynom
-        D = np.zeros(n)  # D is the derivative of the polynom
+
+        polynomial = np.zeros(n_coeffs)  # polynomial is an array of coefficients
+        derivative = np.zeros(n_coeffs)  # derivative is an array of the polynomial's derivatives
 
         # Initialisation
-        for i in range(n):
-            D[i] = i
-            T[i] = 1
+        for i in range(n_coeffs):
+            derivative[i] = i
+            polynomial[i] = 1
 
         # compute derivative
-        for j in range(k):
-            for i in range(n):
-
-                T[i] = T[i] * D[i]
-                if D[i] > 0:
-                    D[i] = D[i] - 1
+        for _ in range(order):
+            for i in range(n_coeffs):
+                polynomial[i] = polynomial[i] * derivative[i]
+                if derivative[i] > 0:
+                    derivative[i] = derivative[i] - 1
 
         # compute polynom
-        for i in range(n):
-            T[i] = T[i] * t ** D[i]
+        for i in range(n_coeffs):
+            polynomial[i] = polynomial[i] * t ** derivative[i]
 
-        return T.T
+        return polynomial.T
 
 
     def _setup(self):
@@ -244,8 +244,17 @@ class MinimumSnap:
 
 
     def _init_matrices(self):
-        self.A = np.zeros((self.nb_coeffs * self.nb_splines, self.nb_coeffs * self.nb_splines))
-        self.b = np.zeros((self.nb_coeffs * self.nb_splines, len(self.waypoints[0])))
+        """
+        This function initializes the A and b matrices with zeros.
+        For 1 spline, we have 8 unknown coefficients (c7, c6, c5, c4, c3, c2, c1, c0) and the following constraints
+        - 2 constraints on position (start and end of spline)
+        - 2 constraints on velocity (start and end of spline)
+        - 2 constraints on acceleration (start and end of spline)
+        - 2 constraints on jerk (start and end of spline)
+        - 1 continuity constraint on each derivative up to the 6th derivative of position
+        """
+        self.A = np.zeros((self.n_coeffs * self.nb_splines, self.n_coeffs * self.nb_splines))
+        self.b = np.zeros((self.n_coeffs * self.nb_splines, len(self.waypoints[0])))
 
 
     def _generate_time_per_spline(self):
