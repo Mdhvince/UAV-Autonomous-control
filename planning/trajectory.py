@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 
-from minimum_snap import MinimumSnap
+from planning.minimum_snap import MinimumSnap
 
 warnings.filterwarnings('ignore')
 plt.style.use('ggplot')
@@ -98,7 +98,7 @@ def getwp(form, a=None, phi=None):
     return w
 
 
-def plot_3d_trajectory_and_obstacle(waypoints, trajectory_obj):
+def plot_3d_trajectory_and_obstacle(ax, waypoints, trajectory_obj):
     """
     This function plots the trajectory and the obstacle in 3D. And apply color on the path based on the velocity
     """
@@ -116,10 +116,10 @@ def plot_3d_trajectory_and_obstacle(waypoints, trajectory_obj):
     max_vel = np.max(vel)
     norm = Normalize(vmin=0, vmax=max_vel)
     scalar_map = get_cmap("jet")
-    sm = ScalarMappable(cmap=scalar_map, norm=norm)
-    sm.set_array([])
-    cbar = plt.colorbar(sm, location="bottom", shrink=0.5)
-    cbar.set_label('Velocity (m/s)')
+    # sm = ScalarMappable(cmap=scalar_map, norm=norm)
+    # sm.set_array([])
+    # cbar = plt.colorbar(sm, location="bottom", shrink=0.5)
+    # cbar.set_label('Velocity (m/s)')
     colors = scalar_map(norm(vel))
 
     # plot min snap trajectory
@@ -143,7 +143,6 @@ def plot_3d_trajectory_and_obstacle(waypoints, trajectory_obj):
 
     ax.legend()
     ax.grid(False)
-    plt.show()
 
 
 if __name__ == "__main__":
@@ -167,11 +166,10 @@ if __name__ == "__main__":
     T = MinimumSnap(waypoints, velocity=1.0, dt=0.02)
     T.generate_collision_free_trajectory(coord_obstacles=None)
 
-    print(T.A.shape)
-
     fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(90, -90)
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
-    plot_3d_trajectory_and_obstacle(waypoints, T)
+    plot_3d_trajectory_and_obstacle(ax, waypoints, T)
+    plt.show()
