@@ -4,7 +4,7 @@
 ![Controller response](docs/controller_response.png "")
 
 ### 3D snap
-![3D snap](docs/snap2.png "")
+![3D snap](docs/min_snap2.png "")
 
 ### Result on the Helix path
 https://user-images.githubusercontent.com/17160701/209675444-38a1941d-f8d2-4477-b8ec-09222fa9c32d.mp4
