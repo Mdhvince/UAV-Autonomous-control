@@ -122,4 +122,5 @@ if __name__ == "__main__":
     # ani = sim.run_sim(frames=n_waypoints, interval=5)
 
     plt.show()
+    # plt.savefig("docs/controller_response.png", dpi=300, bbox_inches='tight', facecolor="white")
 
