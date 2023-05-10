@@ -125,14 +125,18 @@ def plot_3d_trajectory_and_obstacle(ax, waypoints, trajectory_obj):
     # plot min snap trajectory
     for i in range(len(trajectory)):
         label = "Minimum snap trajectory" if i == 0 else None
-        ax.plot(
-            trajectory[i, 0], trajectory[i, 1], trajectory[i, 2],
-            marker='.', alpha=.2, markersize=20, color=colors[i], label=label)
+        if i > 0:
+            ax.plot(
+                [trajectory[i - 1, 0], trajectory[i, 0]],
+                [trajectory[i - 1, 1], trajectory[i, 1]],
+                [trajectory[i - 1, 2], trajectory[i, 2]],
+                color=colors[i], alpha=.2, linewidth=5, label=label)
+
 
     # plot waypoints
     for i in range(len(waypoints)):
         x, y, z = waypoints[i]
-        ax.plot(x, y, z, marker=".", markersize=20, alpha=.2)
+        ax.plot(x, y, z, marker=".", markersize=10, color="black", label="Waypoints" if i == 0 else None)
 
     if len(trajectory_obj.obstacle_edges) > 0:
         # plot obstacles edges
@@ -164,7 +168,7 @@ if __name__ == "__main__":
                                 [5.0, 5.0, 10., 0.5, 5.0]])
 
     T = MinimumSnap(waypoints, velocity=1.0, dt=0.02)
-    T.generate_collision_free_trajectory(coord_obstacles=None)
+    T.generate_collision_free_trajectory(coord_obstacles=coord_obstacles)
 
     fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')
