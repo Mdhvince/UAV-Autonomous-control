@@ -6,6 +6,8 @@ from collections import namedtuple
 
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
+from stl import mesh
 
 from control.quadrotor import Quadrotor
 from control.controller import TFC
@@ -18,6 +20,7 @@ plt.style.use('ggplot')
 
 
 if __name__ == "__main__":
+
     logdir = Path("logs")
     logdir.mkdir(exist_ok=True)
 
@@ -88,8 +91,8 @@ if __name__ == "__main__":
             quad.set_propeller_speed(F_cmd, moment_cmd)
             quad.update_state(dt/FREQ)
 
-        # state_history = np.vstack((state_history, quad.X))
-        # omega_history = np.vstack((omega_history, quad.omega))
+        state_history = np.vstack((state_history, quad.X))
+        omega_history = np.vstack((omega_history, quad.omega))
 
         logging.info(
             f" | Position: {quad.X[0]:.2f}, {quad.X[1]:.2f}, {quad.X[2]:.2f}"
@@ -97,8 +100,8 @@ if __name__ == "__main__":
             f" | Velocity: {quad.X[6]:.2f}, {quad.X[7]:.2f}, {quad.X[8]:.2f}"
         )
 
-    # sim = Sim3d(r_des, state_history, T.obstacle_edges)
-    # ani = sim.run_sim(frames=n_waypoints, interval=5)
+    sim = Sim3d(r_des, state_history, T.obstacle_edges)
+    ani = sim.run_sim(frames=n_waypoints, interval=5)
     # plt.show()
-    # plt.savefig("docs/controller_response.png", dpi=300, bbox_inches='tight', facecolor="white")
+    sim.save_sim(ani, filepath="docs/sim3dv2.mp4")
 

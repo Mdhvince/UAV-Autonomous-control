@@ -1,8 +1,14 @@
+import copy
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.animation as animation
+from mpl_toolkits import mplot3d
+from stl import mesh
+
 
 # plt.style.use('dark_background')
 
@@ -37,6 +43,13 @@ class Sim3d:
         cbar.set_label('Velocity (m/s)')
         self.colors = self.scalar_map(self.norm(vel))
 
+        # quadrotor model
+        self.quad_model = mesh.Mesh.from_file(str(Path("quad_model/quadrotor_base.stl")))
+        scale = 1.5
+        self.quad_model .x *= scale
+        self.quad_model .y *= scale
+        self.quad_model .z *= scale
+
     def run_sim(self, frames, interval, *args):
         ani = animation.FuncAnimation(self.fig, self.animate, frames=frames, interval=interval, fargs=(args))
         return ani
@@ -46,45 +59,63 @@ class Sim3d:
 
     def vehicle_3d_pos(self, index):
         self.ax.clear()
+        current_orientation = self.quad_pos_history[index, 3:6]
 
-        phi, theta, psi = self.quad_pos_history[index, 3:6]
-        rot_mat = Sim3d.euler2Rot(phi, theta, psi)
+        current_orientation[0] = -current_orientation[0]
+        current_orientation[1] = -current_orientation[1]
+
         current_position = self.quad_pos_history[index, :3]
 
         if self.obstacles_edges is not None:
             self.draw_obstacles()
-        self.draw_quad(current_position, rot_mat)
+        self.draw_quad(current_position, current_orientation)
         self.draw_trajectory()
-        self.draw_axis(rot_mat, current_position)
 
-        # self.ax.grid(False)
         self.ax.legend(facecolor="gray", bbox_to_anchor=(1, 1), loc='best')
         self.ax.set_xlim(0, 11)
         self.ax.set_ylim(0, 11)
         self.ax.set_zlim(0, 11)
-        # self.ax.set_xticks([])
-        # self.ax.set_yticks([])
-        # self.ax.set_zticks([])
         self.ax.xaxis.line.set_color('black')
         self.ax.yaxis.line.set_color('black')
         self.ax.zaxis.line.set_color('black')
 
+        # add text on the figure showing the current position and orientation in degrees
+        self.ax.text2D(0.05, 0.95, f"XYZ: {np.round(current_position, 2)}", transform=self.ax.transAxes)
+        self.ax.text2D(0.05, 0.90, f"RPY: {np.round(np.rad2deg(current_orientation), 2)}", transform=self.ax.transAxes)
 
-    def draw_quad(self, current_position, rot_mat):
-        quad_wf = self.quad_pos(current_position, rot_mat, L=.7, H=0.005)
-        x, y, z = quad_wf[0, :], quad_wf[1, :], quad_wf[2, :]
+    def draw_quad(self, current_position, current_orientation):
+        # plot the quadrotor according to its current position
+        c = copy.deepcopy(self.quad_model)
+        c.x += current_position[0]
+        c.y += current_position[1]
+        c.z += current_position[2]
 
-        self.ax.scatter(x, y, z, alpha=.2, color="red", s=2)
+        # plot the quadrotor according to its current orientation
+        c.rotate([1, 0, 0], current_orientation[0], point=current_position)
+        c.rotate([0, 1, 0], current_orientation[1], point=current_position)
+        c.rotate([0, 0, 1], current_orientation[2], point=current_position)
 
-        COM, FRONT, RIGHT, LEFT, TAIL = 5, 0, 1, 3, 2
-        # line from COM to Front
-        self.ax.plot([x[COM], x[FRONT]], [y[COM], y[FRONT]], [z[COM], z[FRONT]], color="red", lw=2)
-        # line from COM to Right
-        self.ax.plot([x[COM], x[RIGHT]], [y[COM], y[RIGHT]], [z[COM], z[RIGHT]], color="b", lw=2)
-        # line from COM to Left
-        self.ax.plot([x[COM], x[LEFT]], [y[COM], y[LEFT]], [z[COM], z[LEFT]], color="g", lw=2)
-        # line from COM to Tail
-        self.ax.plot([x[COM], x[TAIL]], [y[COM], y[TAIL]], [z[COM], z[TAIL]], color="y", lw=2)
+        self.ax.add_collection3d(mplot3d.art3d.Poly3DCollection(c.vectors, alpha=.2, color="gray"))
+
+    def draw_trajectory(self):
+        # self.ax.plot(
+        #     self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], marker='.', alpha=.2, markersize=2)
+
+        trajectory = self.desired
+        for i in range(len(trajectory)):
+            label = "Minimum snap trajectory" if i == 0 else None
+            if i > 0:
+                self.ax.plot(
+                    [trajectory[i - 1, 0], trajectory[i, 0]],
+                    [trajectory[i - 1, 1], trajectory[i, 1]],
+                    [trajectory[i - 1, 2], trajectory[i, 2]],
+                    color=self.colors[i], alpha=.2, linewidth=5, label=label)
+
+    def draw_obstacles(self):
+        for edges in self.obstacles_edges:
+            for edge in edges:
+                x, y, z = zip(*edge)
+                self.ax.plot(x, y, z, color="red", alpha=.2)
 
 
     def draw_axis(self, rot_mat, current_position, onboard_axis=False):
@@ -110,8 +141,6 @@ class Sim3d:
             self.ax.quiver(x0, y0, z0, pitch_axis[0], pitch_axis[1], pitch_axis[2], color='g', lw=2)
             self.ax.quiver(x0, y0, z0, yaw_axis[0], yaw_axis[1], yaw_axis[2], color='b', lw=2)
 
-    def draw_trajectory(self):
-        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], marker='.', alpha=.2, markersize=20)
 
     @staticmethod
     def quad_pos(current_position, rot_mat, L, H=.05):
@@ -157,19 +186,8 @@ class Sim3d:
         writer = animation.FFMpegFileWriter(fps=60)
         ani.save(filepath, writer=writer)
 
-    def min_snap_plots(self):
-        """
-        - independently plot X, Y, Z
-        - magnitude of Vel, Acc, Jerk, Snap over steps
-        - final 3d trajectory
-        """
-        pass
 
-    def draw_obstacles(self):
-        for edges in self.obstacles_edges:
-            for edge in edges:
-                x, y, z = zip(*edge)
-                self.ax.plot(x, y, z, color="red", alpha=.2)
+
 
 
 if __name__ == "__main__":
