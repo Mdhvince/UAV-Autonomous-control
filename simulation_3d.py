@@ -1,4 +1,5 @@
 import copy
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -9,69 +10,66 @@ import matplotlib.animation as animation
 from mpl_toolkits import mplot3d
 from stl import mesh
 
+warnings.filterwarnings('ignore')
+plt.style.use('ggplot')
 
-# plt.style.use('dark_background')
+
+def timer(func):
+    def wrapper(*args, **kwargs):
+        import time
+        start = time.time()
+        func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} took {end - start} seconds to run")
+    return wrapper
+
 
 class Sim3d:
 
-    def __init__(self, desired_trajectory, quad_pos_history, obstacles_edges=None, colormap="jet"):
-
-        self.desired = desired_trajectory
-        # only keep some of the rows
-        n = 2
-        for _ in range(3):
-            mask = np.ones(self.desired.shape[0], dtype=bool)
-            mask[::n] = False
-            self.desired = self.desired[mask]
-
-        self.quad_pos_history = quad_pos_history
+    def __init__(self, des_trajectory, state_history, obstacles_edges=None, stl_filepath="", scale=1, colormap="jet"):
+        """
+        This class aims to simulate the quadrotor trajectory in 3D
+        """
+        self.quad_pos_history = state_history
         self.obstacles_edges = obstacles_edges
-        self.colormap = colormap
+        self.desired = des_trajectory
 
-        self.fig = plt.figure(figsize=(20, 20))
-        self.ax = self.fig.add_subplot(111, projection='3d')
-        self.fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+        self.stl_filepath = stl_filepath
+        self.scale = scale
+        self.quad_model = self._init_quadrotor_model()
 
-        vel = np.linalg.norm(self.desired[:, 3:6], axis=1)
-        max_vel = np.max(vel)
+        self._reduce_data(factor=2)
+        self._setup_plot(colormap)
 
-        self.norm = Normalize(vmin=0, vmax=max_vel)
-        self.scalar_map = get_cmap(self.colormap)
-        sm = ScalarMappable(cmap=self.scalar_map, norm=self.norm)
-        sm.set_array([])
-        cbar = plt.colorbar(sm, location="bottom", shrink=0.5)
-        cbar.set_label('Velocity (m/s)')
-        self.colors = self.scalar_map(self.norm(vel))
-
-        # quadrotor model
-        self.quad_model = mesh.Mesh.from_file(str(Path("quad_model/quadrotor_base.stl")))
-        scale = 1.5
-        self.quad_model .x *= scale
-        self.quad_model .y *= scale
-        self.quad_model .z *= scale
 
     def run_sim(self, frames, interval, *args):
         ani = animation.FuncAnimation(self.fig, self.animate, frames=frames, interval=interval, fargs=(args))
         return ani
 
     def animate(self, index):
-        self.vehicle_3d_pos(index)
+        self.update_plot(index)
 
-    def vehicle_3d_pos(self, index):
+    def update_plot(self, index):
         self.ax.clear()
-        current_orientation = self.quad_pos_history[index, 3:6]
-
-        current_orientation[0] = -current_orientation[0]
-        current_orientation[1] = -current_orientation[1]
 
         current_position = self.quad_pos_history[index, :3]
+        current_orientation = self.quad_pos_history[index, 3:6]
+        current_orientation[0] = -current_orientation[0]
+        current_orientation[1] = -current_orientation[1]
+        current_velocity = np.linalg.norm(self.quad_pos_history[index, 6:9])
 
-        if self.obstacles_edges is not None:
-            self.draw_obstacles()
+        self.ax_2d.plot(index, current_velocity, 'ro', markersize=2, alpha=.5)
+        self.ax_2d.set_xlim(0, len(self.quad_pos_history))
+        self.ax_2d.set_ylim(0, 5)
+        self.ax_2d.set_xlabel("Timestep")
+        self.ax_2d.set_ylabel("Velocity (m/s)")
+        plt.tight_layout()
+
+        # if self.obstacles_edges is not None:
+        #     self.draw_obstacles()
         self.draw_quad(current_position, current_orientation)
         self.draw_trajectory()
 
-        self.ax.legend(facecolor="gray", bbox_to_anchor=(1, 1), loc='best')
         self.ax.set_xlim(0, 11)
         self.ax.set_ylim(0, 11)
         self.ax.set_zlim(0, 11)
@@ -85,31 +83,22 @@ class Sim3d:
 
     def draw_quad(self, current_position, current_orientation):
         # plot the quadrotor according to its current position
-        c = copy.deepcopy(self.quad_model)
-        c.x += current_position[0]
-        c.y += current_position[1]
-        c.z += current_position[2]
+        self.quad_model = self._init_quadrotor_model()  # reset the quadrotor model to avoid deepcopy
+        self.quad_model.x += current_position[0]
+        self.quad_model.y += current_position[1]
+        self.quad_model.z += current_position[2]
 
         # plot the quadrotor according to its current orientation
-        c.rotate([1, 0, 0], current_orientation[0], point=current_position)
-        c.rotate([0, 1, 0], current_orientation[1], point=current_position)
-        c.rotate([0, 0, 1], current_orientation[2], point=current_position)
+        self.quad_model.rotate([1, 0, 0], current_orientation[0], point=current_position)
+        self.quad_model.rotate([0, 1, 0], current_orientation[1], point=current_position)
+        self.quad_model.rotate([0, 0, 1], current_orientation[2], point=current_position)
 
-        self.ax.add_collection3d(mplot3d.art3d.Poly3DCollection(c.vectors, alpha=.2, color="gray"))
+        self.ax.add_collection3d(mplot3d.art3d.Poly3DCollection(self.quad_model.vectors, alpha=.2, color="gray"))
+
 
     def draw_trajectory(self):
-        # self.ax.plot(
-        #     self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], marker='.', alpha=.2, markersize=2)
+        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], color="k", alpha=1, linewidth=2)
 
-        trajectory = self.desired
-        for i in range(len(trajectory)):
-            label = "Minimum snap trajectory" if i == 0 else None
-            if i > 0:
-                self.ax.plot(
-                    [trajectory[i - 1, 0], trajectory[i, 0]],
-                    [trajectory[i - 1, 1], trajectory[i, 1]],
-                    [trajectory[i - 1, 2], trajectory[i, 2]],
-                    color=self.colors[i], alpha=.2, linewidth=5, label=label)
 
     def draw_obstacles(self):
         for edges in self.obstacles_edges:
@@ -140,6 +129,46 @@ class Sim3d:
             self.ax.quiver(x0, y0, z0, roll_axis[0], roll_axis[1], roll_axis[2], color='r', lw=2)
             self.ax.quiver(x0, y0, z0, pitch_axis[0], pitch_axis[1], pitch_axis[2], color='g', lw=2)
             self.ax.quiver(x0, y0, z0, yaw_axis[0], yaw_axis[1], yaw_axis[2], color='b', lw=2)
+
+    def _reduce_data(self, factor=2):
+        """
+        Reduces the number of points in the desired trajectory by a factor of "factor"
+        """
+        self.desired = self.desired[::factor]
+
+    def _setup_plot(self, colormap):
+        """
+        Sets up the figure and the colormap
+        """
+        # init figure
+        self.fig = plt.figure(figsize=(16, 9))
+        self.ax = self.fig.add_subplot(121, projection='3d')
+        self.ax_2d = self.fig.add_subplot(122)
+
+        self.fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+        self.ax.view_init(15, -133)
+
+        # set colormap proportional to velocity
+        # self.colormap = colormap
+        # vel = np.linalg.norm(self.desired[:, 3:6], axis=1)
+        # max_vel = np.max(vel)
+        # self.norm = Normalize(vmin=0, vmax=max_vel)
+        # self.scalar_map = get_cmap(self.colormap)
+        # sm = ScalarMappable(cmap=self.scalar_map, norm=self.norm)
+        # sm.set_array([])
+        # self.cbar = plt.colorbar(sm, shrink=0.5)
+        # self.cbar.set_label('Velocity (m/s)')
+        # self.colors = self.scalar_map(self.norm(vel))
+
+    def _init_quadrotor_model(self):
+        """
+        Loads the quadrotor model from an STL file and scales it by a factor of "scale"
+        """
+        quad_model = mesh.Mesh.from_file(self.stl_filepath)
+        quad_model.x *= self.scale
+        quad_model.y *= self.scale
+        quad_model.z *= self.scale
+        return quad_model
 
 
     @staticmethod

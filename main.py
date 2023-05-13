@@ -1,4 +1,3 @@
-import logging
 import warnings
 import configparser
 from pathlib import Path
@@ -6,8 +5,6 @@ from collections import namedtuple
 
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
-from stl import mesh
 
 from control.quadrotor import Quadrotor
 from control.controller import TFC
@@ -15,19 +12,9 @@ from planning.minimum_snap import MinimumSnap
 from simulation_3d import Sim3d
 
 warnings.filterwarnings('ignore')
-plt.style.use('ggplot')
-
 
 
 if __name__ == "__main__":
-
-    logdir = Path("logs")
-    logdir.mkdir(exist_ok=True)
-
-    logging.basicConfig(
-        filename=logdir / "sim.log",
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s", filemode="w")
 
     Desired = namedtuple("Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     config = configparser.ConfigParser(inline_comment_prefixes="#")
@@ -40,12 +27,14 @@ if __name__ == "__main__":
     dt = 0.01
     velocity = 2.0
 
-    waypoints = np.array([[10., 0.0, 1.0],
-                          [10., 4.0, 1.0],
-                          [6.0, 5.0, 1.5],
-                          [4.0, 7.0, 1.5],
-                          [2.0, 7.0, 2.0],
-                          [1.0, 0.0, 2.0]])
+    waypoints = np.array([
+        [10., 0.0, 1.0],
+        [10., 4.0, 1.0],
+        [6.0, 5.0, 1.5],
+        [4.0, 7.0, 1.5],
+        [2.0, 7.0, 2.0],
+        [1.0, 0.0, 2.0]
+    ])
 
     coord_obstacles = np.array([
         [8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
@@ -94,14 +83,10 @@ if __name__ == "__main__":
         state_history = np.vstack((state_history, quad.X))
         omega_history = np.vstack((omega_history, quad.omega))
 
-        logging.info(
-            f" | Position: {quad.X[0]:.2f}, {quad.X[1]:.2f}, {quad.X[2]:.2f}"
-            f" | RPY: {quad.X[3]:.2f}, {quad.X[4]:.2f}, {quad.X[5]:.2f}"
-            f" | Velocity: {quad.X[6]:.2f}, {quad.X[7]:.2f}, {quad.X[8]:.2f}"
-        )
 
-    sim = Sim3d(r_des, state_history, T.obstacle_edges)
+    stl_filepath = Path("quad_model/quadrotor_base.stl")
+
+    sim = Sim3d(r_des, state_history, T.obstacle_edges, stl_filepath, scale=1.5)
     ani = sim.run_sim(frames=n_waypoints, interval=5)
-    # plt.show()
-    sim.save_sim(ani, filepath="docs/sim3dv2.mp4")
-
+    plt.show()
+    # sim.save_sim(ani, "docs/sim3d_with_velocity.mp4")
