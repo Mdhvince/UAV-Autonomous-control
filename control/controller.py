@@ -30,13 +30,17 @@ class CascadedController:
 
     def altitude(self, quad, desired, rot_mat, dt, index):
         """
-        Output:
-            - c: collective thrust
+        Compute the desired thrust command.
+        :param quad: The quadrotor object
+        :param desired: The desired trajectory
+        :param rot_mat: The rotation matrix of the quadrotor
+        :param dt: The time step
+        :param index: The current index of the trajectory
         """
         
         error = desired.z[index] - quad.z
         error_dot = desired.z_vel[index] - quad.z_vel
-        self.integral_error += error * dt;
+        self.integral_error += error * dt
 
         acc_z = CascadedController._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error, desired.z_acc[index]) - self.g
 
@@ -55,8 +59,11 @@ class CascadedController:
     
     def lateral(self, quad, thrust_cmd, desired, index):
         """
-        Output:
-            - Commanded rotation matrix [bx_c, by_c]
+        Compute the desired roll and pitch angles.
+        :param quad: The quadrotor object
+        :param thrust_cmd: The thrust command coming from the altitude controller
+        :param desired: The desired trajectory
+        :param index: The current index of the trajectory
         """
         x_des, y_des = desired.x[index], desired.y[index]
         x_dot_des, y_dot_des = desired.x_vel[index], desired.y_vel[index]
@@ -88,12 +95,24 @@ class CascadedController:
         return bxy_cmd
     
     def reduced_attitude(self, quad, bxy_cmd, psi_des, rot_mat):
+        """
+        Put together the roll and pitch and yaw rate commands.
+        :param quad: The quadrotor object
+        :param bxy_cmd: The roll and pitch commands coming from the lateral controller
+        :param psi_des: The desired yaw angle
+        :param rot_mat: The rotation matrix of the quadrotor
+        """
         pq_c = self.roll_pitch_controller(bxy_cmd, rot_mat)
         r_c = self.yaw_controller(quad, psi_des)
         pqr_cmd = np.append(pq_c, r_c)
         return pqr_cmd
 
     def body_rate_controller(self, quad, pqr_cmd):
+        """
+        Compute the desired moments.
+        :param quad: The quadrotor object
+        :param pqr_cmd: The desired roll, pitch and yaw rates coming from the reduced attitude controller
+        """
         I = np.array([quad.i_x, quad.i_y, quad.i_z])  # moment of inertia
         kp_pqr = np.array([self.kp_p, self.kp_q, self.kp_r])
         pqr_actual = np.array([quad.p, quad.q, quad.r])
@@ -106,7 +125,11 @@ class CascadedController:
         return moment_cmd    
     
     def roll_pitch_controller(self, bxy_cmd, rot_mat):
-
+        """
+        Compute the desired roll and pitch rates.
+        :param bxy_cmd: The desired acceleration in the body frame coming from the lateral controller
+        :param rot_mat: The rotation matrix of the quadrotor
+        """
         b_xy = np.array([rot_mat[0, 2], rot_mat[1, 2]])
         errors = bxy_cmd - b_xy
 
@@ -123,6 +146,11 @@ class CascadedController:
         return pq_cmd
     
     def yaw_controller(self, quad, psi_des):
+        """
+        Compute the desired yaw rate.
+        :param quad: The quadrotor object
+        :param psi_des: The desired yaw angle
+        """
         psi_des = CascadedController.wrap_to_2pi(psi_des)
         yaw_err = CascadedController.wrap_to_pi(psi_des - quad.psi)
         r_c = self.kp_yaw * yaw_err
@@ -145,6 +173,7 @@ class CascadedController:
         """maps an angle to the range (-pi, pi]"""
         return (angle + np.pi) % (2 * np.pi) - np.pi
 
+    @staticmethod
     def wrap_to_2pi(angle):
         """maps an angle to the range [0, 2*pi)"""
         if angle > 0:
