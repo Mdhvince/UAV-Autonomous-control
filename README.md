@@ -1,13 +1,18 @@
 ## 3D UAV simulation and autonomous control for path tracking
 
+### Result 1
+https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6704c9ad-e94d-41cc-b4fe-3c8a1f67c0bc  
+
+### Result 2
+https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/5eb65af1-b17a-45ae-9914-35dd210c5fb9
+
+
 ### Controller response
 ![Controller response](docs/controller_response.png "")
 
 ### 3D snap
 ![3D snap](docs/min_snap2.png "")
 
-### Result on the Helix path
-https://user-images.githubusercontent.com/17160701/209675444-38a1941d-f8d2-4477-b8ec-09222fa9c32d.mp4
 
 ### 1. Control  
 
@@ -17,20 +22,6 @@ source: A platform for aerial robotics research and demonstration: The Flying Ma
 Sergei Lupashin, Markus Hehn, Mark W. Mueller, Angela P. Schoellig, Michael Sherback, Raffaello D’Andrea
 
 ### 2. Trajectory Planner with minimum snap
-
-A minimum Snap trajectory has been implemented for this project. Here is one result for an arbitrary trajectory, we can find the comparison between a naive trajectory (just connecting waypoints with a straight line) and the optimal one (Minimum snap)
-
-![Min Snap](docs/min_snap.png "")
-
-#### Without collision check
-![Min Snap](docs/no_collision_check.png "")
-
-#### With collision check (upper right waypoint is mandatory)
-![Min Snap](docs/collision_check.png "")
-
-
-https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6704c9ad-e94d-41cc-b4fe-3c8a1f67c0bc  
-
 
 Finding a path (waypoints) to a goal location is one of many important steps for an autonomous robot. But this path must 
 satisfy some conditions such that a controller can handle it. Some of these conditions can be summarized as follows:
