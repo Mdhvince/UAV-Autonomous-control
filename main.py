@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from control.quadrotor import Quadrotor
-from control.controller import TFC
+from control.controller import CascadedController
 from planning.minimum_snap import MinimumSnap
 from simulation_3d import Sim3d
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         np.arctan2(r_des[:, 1], r_des[:, 0]) + np.pi/2  # added pi/2 to make it face the right direction
     )
 
-    controller = TFC(config)
+    controller = CascadedController(config)
     quad = Quadrotor(config, desired)
     # initialize the quadrotor at the first desired position and yaw
     quad.X[0:3] = desired.x[0], desired.y[0], desired.z[0]
