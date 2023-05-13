@@ -1,79 +1,10 @@
-import math
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap, ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.animation as animation
 
-plt.style.use('dark_background')
-
-
-def plot_results(t, state_history, omega_history, desired):
-    plt.style.use('seaborn-paper')
-    fig = plt.figure()
-    ax = fig.add_subplot(2, 2, 1, projection='3d')
-    plot_trajectory(ax, state_history, desired)
-
-    ax = fig.add_subplot(2, 2, 2)
-    plot_yaw_angle(t, desired, state_history)
-
-    ax = fig.add_subplot(2, 2, 3)
-    plot_props_speed(t, omega_history)
-
-    ax = fig.add_subplot(2, 2, 4)
-    plot_position_error(t, state_history, desired)
-    plt.show()
-
-
-def plot_trajectory(ax, drone_state_history, desired):
-    ax.plot(desired.x, desired.y, desired.z, linestyle='-', marker='.', color='red')
-    ax.plot(drone_state_history[:, 0],
-            drone_state_history[:, 1],
-            drone_state_history[:, 2],
-            linestyle='-', color='blue')
-
-    plt.title('Flight path')
-    ax.set_xlabel('$x$ [$m$]')
-    ax.set_ylabel('$y$ [$m$]')
-    ax.set_zlabel('$z$ [$m$]')
-    plt.legend(['Planned path', 'Executed path'])
-
-
-def plot_yaw_angle(t, desired, drone_state_history):
-    plt.plot(t, desired.yaw, marker='.')
-    plt.plot(t, drone_state_history[:-1, 5])
-    plt.title('Yaw angle')
-    plt.xlabel('$t$ [$s$]')
-    plt.ylabel('$\psi$ [$rad$]')
-    plt.legend(['Planned yaw', 'Executed yaw'])
-
-
-def plot_props_speed(t, omega_history):
-    plt.plot(t, -omega_history[:-1, 0], color='blue')
-    plt.plot(t, omega_history[:-1, 1], color='red')
-    plt.plot(t, -omega_history[:-1, 2], color='green')
-    plt.plot(t, omega_history[:-1, 3], color='black')
-    plt.title('Angular velocities')
-    plt.xlabel('$t$ [$s$]')
-    plt.ylabel('$\omega$ [$rad/s$]')
-    plt.legend(['P 1', 'P 2', 'P 3', 'P 4'])
-
-
-def plot_position_error(t, drone_state_history, desired):
-    err_x = np.sqrt((desired.x - drone_state_history[:-1, 0]) ** 2)
-    err_y = np.sqrt((desired.y - drone_state_history[:-1, 1]) ** 2)
-    err_z = np.sqrt((desired.z - drone_state_history[:-1, 2]) ** 2)
-
-    plt.plot(t, err_x)
-    plt.plot(t, err_y)
-    plt.plot(t, err_z)
-    plt.title('Error in flight position')
-    plt.xlabel('$t$ [$s$]')
-    plt.ylabel('$e$ [$m$]')
-    plt.ylim(0, .02)
-    plt.legend(['x', 'y', 'z'])
-
+# plt.style.use('dark_background')
 
 class Sim3d:
 
@@ -116,7 +47,7 @@ class Sim3d:
     def vehicle_3d_pos(self, index):
         self.ax.clear()
 
-        phi, theta, psi = -self.quad_pos_history[index, 3:6]  # add negative for mirroring effect of matplotlib
+        phi, theta, psi = self.quad_pos_history[index, 3:6]
         rot_mat = Sim3d.euler2Rot(phi, theta, psi)
         current_position = self.quad_pos_history[index, :3]
 
@@ -126,40 +57,35 @@ class Sim3d:
         self.draw_trajectory()
         self.draw_axis(rot_mat, current_position)
 
-        self.ax.w_zaxis.pane.set_color('#2D3047')
-        self.ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        self.ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        self.ax.grid(False)
-        self.ax.legend(facecolor="gray", bbox_to_anchor=(1, 1), loc='upper left')
+        # self.ax.grid(False)
+        self.ax.legend(facecolor="gray", bbox_to_anchor=(1, 1), loc='best')
         self.ax.set_xlim(0, 11)
         self.ax.set_ylim(0, 11)
         self.ax.set_zlim(0, 11)
-        self.ax.set_xticks([])
-        self.ax.set_yticks([])
-        self.ax.set_zticks([])
+        # self.ax.set_xticks([])
+        # self.ax.set_yticks([])
+        # self.ax.set_zticks([])
         self.ax.xaxis.line.set_color('black')
         self.ax.yaxis.line.set_color('black')
         self.ax.zaxis.line.set_color('black')
+
 
     def draw_quad(self, current_position, rot_mat):
         quad_wf = self.quad_pos(current_position, rot_mat, L=.7, H=0.005)
         x, y, z = quad_wf[0, :], quad_wf[1, :], quad_wf[2, :]
 
-        self.ax.scatter(x, y, z, alpha=.2, color="red")
+        self.ax.scatter(x, y, z, alpha=.2, color="red", s=2)
 
-        COM, FL, FR, RL, RR = 5, 0, 1, 3, 2
-        # COM to front left / rigth / rear-left / rear-right
-        self.ax.plot([x[COM], x[FL]], [y[COM], y[FL]], [z[COM], z[FL]], '-', color='y', label="Front")
-        self.ax.plot([x[FR], x[COM]], [y[FR], y[COM]], [z[FR], z[COM]], '-', color='y')
-        self.ax.plot([x[COM], x[RL]], [y[COM], y[RL]], [z[COM], z[RL]], '-', color='w', label="Rear")
-        self.ax.plot([x[COM], x[RR]], [y[COM], y[RR]], [z[COM], z[RR]], '-', color='w')
-        # contour of the quad
-        # ax.plot([x[FL], x[FR], x[RR], x[RL], x[FL]],
-        #         [y[FL], y[FR], y[RR], y[RL], y[FL]],
-        #         [z[FL], z[FR], z[RR], z[RL], z[FL]], '-')
-        # shadow
-        px, py, pz = current_position
-        self.ax.plot(px, py, 0, color='black', alpha=0.5, markersize=5 - pz, marker='o')
+        COM, FRONT, RIGHT, LEFT, TAIL = 5, 0, 1, 3, 2
+        # line from COM to Front
+        self.ax.plot([x[COM], x[FRONT]], [y[COM], y[FRONT]], [z[COM], z[FRONT]], color="red", lw=2)
+        # line from COM to Right
+        self.ax.plot([x[COM], x[RIGHT]], [y[COM], y[RIGHT]], [z[COM], z[RIGHT]], color="b", lw=2)
+        # line from COM to Left
+        self.ax.plot([x[COM], x[LEFT]], [y[COM], y[LEFT]], [z[COM], z[LEFT]], color="g", lw=2)
+        # line from COM to Tail
+        self.ax.plot([x[COM], x[TAIL]], [y[COM], y[TAIL]], [z[COM], z[TAIL]], color="y", lw=2)
+
 
     def draw_axis(self, rot_mat, current_position, onboard_axis=False):
         # Axis Body frame

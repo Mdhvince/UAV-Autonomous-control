@@ -297,8 +297,6 @@ class MinimumSnap:
                 midpoint = (p1 + p2) / 2
                 result.extend([midpoint])
 
-                print(f"Midpoint added between the point {i-1} and {i}, first point being at index 0")
-
             result.append(points[i])
             i += 1
         return np.array(result)

@@ -106,20 +106,17 @@ def plot_3d_trajectory_and_obstacle(ax, waypoints, trajectory_obj):
 
     # filter-out some rows to reduce the number of points to plot
     n = 2
-    for _ in range(2):
-        mask = np.ones(trajectory.shape[0], dtype=bool)
-        mask[::n] = False
-        trajectory = trajectory[mask]
+    trajectory = trajectory[::n]
 
     # map color to velocity
     vel = np.linalg.norm(trajectory[:, 3:6], axis=1)
     max_vel = np.max(vel)
     norm = Normalize(vmin=0, vmax=max_vel)
     scalar_map = get_cmap("jet")
-    # sm = ScalarMappable(cmap=scalar_map, norm=norm)
-    # sm.set_array([])
-    # cbar = plt.colorbar(sm, location="bottom", shrink=0.5)
-    # cbar.set_label('Velocity (m/s)')
+    sm = ScalarMappable(cmap=scalar_map, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, location="bottom", shrink=0.5)
+    cbar.set_label('Velocity (m/s)')
     colors = scalar_map(norm(vel))
 
     # plot min snap trajectory

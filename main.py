@@ -1,67 +1,37 @@
+import logging
 import warnings
 import configparser
+from pathlib import Path
 from collections import namedtuple
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from control.simulation_3d import Sim3d
 from control.quadrotor import Quadrotor
 from control.controller import TFC
 from planning.minimum_snap import MinimumSnap
-from planning.trajectory import plot_3d_trajectory_and_obstacle
+from simulation_3d import Sim3d
 
 warnings.filterwarnings('ignore')
 plt.style.use('ggplot')
 
 
 
-def draw_controller_response(history, target_history, dim):
-    """Draw the controller response given a history of 1d position"""
-    plt.plot(history, label="history", color="blue", linewidth=2)
-    plt.plot(target_history, "--", label="target", color="red", linewidth=4, alpha=0.5)
-    plt.xlabel("Ts")
-    plt.ylabel(f"{dim.upper()}")
-
-    leg = plt.legend(loc='best', fancybox=True)
-    for text in leg.get_texts():
-        text.set_color("black")
-
-
-def draw_all(state_history, desired, T, waypoints):
-    fig = plt.figure(figsize=(16, 9))
-
-    plt.subplot(2, 3, 1)
-    draw_controller_response(state_history[:, 0], desired.x, "x (m)")
-
-    plt.subplot(2, 3, 2)
-    draw_controller_response(state_history[:, 1], desired.y, "y (m)")
-
-    plt.subplot(2, 3, 3)
-    draw_controller_response(state_history[:, 2], desired.z, "z (m)")
-
-    plt.subplot(2, 3, 4)
-    draw_controller_response(state_history[:, 5], desired.yaw, "yaw (rad)")
-
-    plt.subplot(2, 3, 5)
-    vel = np.linalg.norm(state_history[:, 6:9], axis=1)
-    stacked = np.vstack((desired.x_vel, desired.y_vel, desired.z_vel)).T
-    vel_desired = np.linalg.norm(stacked, axis=1)
-    draw_controller_response(vel, vel_desired, "velocity (m/s)")
-
-    ax = plt.subplot(2, 3, 6, projection='3d')
-    ax.view_init(23, -40)
-    plot_3d_trajectory_and_obstacle(ax, waypoints, T)
-
-    plt.tight_layout()
-
-
 if __name__ == "__main__":
+    logdir = Path("logs")
+    logdir.mkdir(exist_ok=True)
+
+    logging.basicConfig(
+        filename=logdir / "sim.log",
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s", filemode="w")
 
     Desired = namedtuple("Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     config = configparser.ConfigParser(inline_comment_prefixes="#")
-    config_file = "/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini"
+    config_file = Path("/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini")
     config.read(config_file)
+
+
 
     FREQ = 10  # inner loop speed relative to outer loop
     dt = 0.01
@@ -74,22 +44,26 @@ if __name__ == "__main__":
                           [2.0, 7.0, 2.0],
                           [1.0, 0.0, 2.0]])
 
-    coord_obstacles = np.array([[8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
-                                [4.0, 9.0, 1.5, 5.0, 0.0],
-                                [4.0, 1.0, 2.0, 5.0, 0.0],
-                                [3.0, 5.0, 1.0, 5.0, 0.0],
-                                [4.0, 3.5, 2.5, 5.0, 0.0], 
-                                [5.0, 5.0, 10., 0.5, 5.0]])
+    coord_obstacles = np.array([
+        [8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
+        [4.0, 9.0, 1.5, 5.0, 0.0],
+        [4.0, 1.0, 2.0, 5.0, 0.0],
+        [3.0, 5.0, 1.0, 5.0, 0.0],
+        [4.0, 3.5, 2.5, 5.0, 0.0],
+        # [5.0, 5.0, 10., 0.5, 5.0]
+    ])
 
     T = MinimumSnap(waypoints, velocity=velocity, dt=dt)
-    T.generate_collision_free_trajectory(coord_obstacles=None)
+    T.generate_collision_free_trajectory(coord_obstacles=coord_obstacles)
     r_des = T.full_trajectory
 
     desired = Desired(
         r_des[:, 0], r_des[:, 1], r_des[:, 2],  # desired position over time
         r_des[:, 3], r_des[:, 4], r_des[:, 5],  # desired velocity over time
         r_des[:, 6], r_des[:, 7], r_des[:, 8],  # desired acceleration over time
-        np.arctan2(r_des[:, 3], r_des[:, 4])    # desired yaw over time such that the quadrotor faces the next waypoint
+
+        # create desired yaw that always in the direction of the next waypoint
+        np.arctan2(r_des[:, 1], r_des[:, 0]) + np.pi/2  # added pi/2 to make it face the right direction
     )
 
     controller = TFC(config)
@@ -114,13 +88,17 @@ if __name__ == "__main__":
             quad.set_propeller_speed(F_cmd, moment_cmd)
             quad.update_state(dt/FREQ)
 
-        state_history = np.vstack((state_history, quad.X))
-        omega_history = np.vstack((omega_history, quad.omega))
+        # state_history = np.vstack((state_history, quad.X))
+        # omega_history = np.vstack((omega_history, quad.omega))
 
-    draw_all(state_history, desired, T, waypoints)
+        logging.info(
+            f" | Position: {quad.X[0]:.2f}, {quad.X[1]:.2f}, {quad.X[2]:.2f}"
+            f" | RPY: {quad.X[3]:.2f}, {quad.X[4]:.2f}, {quad.X[5]:.2f}"
+            f" | Velocity: {quad.X[6]:.2f}, {quad.X[7]:.2f}, {quad.X[8]:.2f}"
+        )
+
     # sim = Sim3d(r_des, state_history, T.obstacle_edges)
     # ani = sim.run_sim(frames=n_waypoints, interval=5)
-
-    plt.show()
+    # plt.show()
     # plt.savefig("docs/controller_response.png", dpi=300, bbox_inches='tight', facecolor="white")
 

@@ -13,3 +13,6 @@ estimation/
 notes*
 *.ipynb_checkpoints/
 .pytest_cache/
+crazyflie-lib-python/
+cache/
+logs/
