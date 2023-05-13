@@ -29,7 +29,7 @@ A minimum Snap trajectory has been implemented for this project. Here is one res
 ![Min Snap](docs/collision_check.png "")
 
 
-https://user-images.githubusercontent.com/17160701/211073314-78f419ca-e53b-4a88-a63e-565018963ce7.mp4
+https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6704c9ad-e94d-41cc-b4fe-3c8a1f67c0bc  
 
 
 Finding a path (waypoints) to a goal location is one of many important steps for an autonomous robot. But this path must 
