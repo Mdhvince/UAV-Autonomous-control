@@ -1,15 +1,10 @@
-import math
 
 import numpy as np
 
-# We want to control the drone in the world frame BUT we get some sensors measurement from the IMU that are in the body frame.
-# And our controls (especially the moments that we command) have a more intuitive interpretation in the body frame.
 
-
-class TFC():
+class CascadedController:
     """
-    implementing the Trajectory-Following TFC (TFC) architecture from the paper: Feed-Forward Parameter Identification for Precise Periodic
-    Quadrocopter Motions, Angela P. Schoellig, Clemens Wiltsche and Raffaello D'Andrea.
+    Cascaded controller from the paper: https://www.dynsyslab.org/wp-content/papercite-data/pdf/lupashin-mech14.pdf
     """
     def __init__(self, config):
         self.g = config["DEFAULT"].getfloat("g")
@@ -43,7 +38,7 @@ class TFC():
         error_dot = desired.z_vel[index] - quad.z_vel
         self.integral_error += error * dt;
 
-        acc_z = TFC._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error,  desired.z_acc[index]) - self.g
+        acc_z = CascadedController._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error, desired.z_acc[index]) - self.g
 
         # Project the acceleration along the z-vector of the body (Bz)
         b_z = rot_mat[2, 2]
@@ -79,7 +74,7 @@ class TFC():
         # Get required acceleration
         vel_err = vel_des - quad.velocity[:2]
         pos_err = pos_des - quad.position[:2]
-        acc_cmd = TFC._pd(self.lateral_Pgain, self.lateral_Dgain, pos_err, vel_err, ff_acc)
+        acc_cmd = CascadedController._pd(self.lateral_Pgain, self.lateral_Dgain, pos_err, vel_err, ff_acc)
 
         # Scaling down the magnitude acceleration vector
         acc_mag = np.linalg.norm(acc_cmd)
@@ -128,8 +123,8 @@ class TFC():
         return pq_cmd
     
     def yaw_controller(self, quad, psi_des):
-        psi_des = TFC.wrap_to_2pi(psi_des)
-        yaw_err = TFC.wrap_to_pi(psi_des - quad.psi)
+        psi_des = CascadedController.wrap_to_2pi(psi_des)
+        yaw_err = CascadedController.wrap_to_pi(psi_des - quad.psi)
         r_c = self.kp_yaw * yaw_err
         return r_c
      
