@@ -120,20 +120,20 @@ def plot_3d_trajectory_and_obstacle(ax, waypoints, trajectory_obj):
     colors = scalar_map(norm(vel))
 
     # plot min snap trajectory
-    for i in range(len(trajectory)):
-        label = "Minimum snap trajectory" if i == 0 else None
-        if i > 0:
-            ax.plot(
-                [trajectory[i - 1, 0], trajectory[i, 0]],
-                [trajectory[i - 1, 1], trajectory[i, 1]],
-                [trajectory[i - 1, 2], trajectory[i, 2]],
-                color=colors[i], alpha=.2, linewidth=5, label=label)
+    # for i in range(len(trajectory)):
+    #     label = "Minimum snap trajectory" if i == 0 else None
+    #     if i > 0:
+    #         ax.plot(
+    #             [trajectory[i - 1, 0], trajectory[i, 0]],
+    #             [trajectory[i - 1, 1], trajectory[i, 1]],
+    #             [trajectory[i - 1, 2], trajectory[i, 2]],
+    #             color=colors[i], alpha=.2, linewidth=5, label=label)
 
 
-    # plot waypoints
-    for i in range(len(waypoints)):
-        x, y, z = waypoints[i]
-        ax.plot(x, y, z, marker=".", markersize=10, color="black", label="Waypoints" if i == 0 else None)
+    # # plot waypoints
+    # for i in range(len(waypoints)):
+    #     x, y, z = waypoints[i]
+    #     ax.plot(x, y, z, marker=".", markersize=10, color="black", label="Waypoints" if i == 0 else None)
 
     if len(trajectory_obj.obstacle_edges) > 0:
         # plot obstacles edges
@@ -142,8 +142,11 @@ def plot_3d_trajectory_and_obstacle(ax, waypoints, trajectory_obj):
                 x, y, z = zip(*edge)
                 ax.plot(x, y, z, color="red", alpha=.2)
 
-    ax.legend()
-    ax.grid(False)
+    # labels
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Y (m)')
+    ax.set_zlabel('Z (m)')
+
 
 
 if __name__ == "__main__":
@@ -157,12 +160,14 @@ if __name__ == "__main__":
         [1.0, 0.0, 2.0]
     ])
 
-    coord_obstacles = np.array([[8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
-                                [4.0, 9.0, 1.5, 5.0, 0.0],
-                                [4.0, 1.0, 2.0, 5.0, 0.0],
-                                [3.0, 5.0, 1.0, 5.0, 0.0],
-                                [4.0, 3.5, 2.5, 5.0, 0.0],
-                                [5.0, 5.0, 10., 0.5, 5.0]])
+    coord_obstacles = np.array([
+        [8.0, 6.0, 1.5, 5.0, 0.0],  # x, y, side_length, height, altitude_start
+        [4.0, 9.0, 1.5, 5.0, 0.0],
+        [4.0, 1.0, 2.0, 5.0, 0.0],
+        [3.0, 5.0, 1.0, 5.0, 0.0],
+        [4.0, 3.5, 2.5, 5.0, 0.0],
+        # [5.0, 5.0, 10., 0.5, 5.0]
+    ])
 
     T = MinimumSnap(waypoints, velocity=1.0, dt=0.02)
     T.generate_collision_free_trajectory(coord_obstacles=coord_obstacles)

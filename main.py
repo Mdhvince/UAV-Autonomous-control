@@ -89,4 +89,4 @@ if __name__ == "__main__":
     sim = Sim3d(r_des, state_history, T.obstacle_edges, stl_filepath, scale=1.5)
     ani = sim.run_sim(frames=n_waypoints, interval=5)
     plt.show()
-    # sim.save_sim(ani, "docs/sim3d_with_velocity.mp4")
+    # sim.save_sim(ani, "docs/sim3d_with_velocity_v2.mp4")
