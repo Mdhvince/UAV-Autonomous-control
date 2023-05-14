@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from planning.minimum_snap import MinimumSnap
-from tests.fixtures.fixtures import waypoints, coord_obstacles  # noqa: F401
+from tests.fixtures.fixtures import config  # noqa: F401
 
 
 @pytest.mark.parametrize("indexes, expected", [
@@ -49,21 +49,11 @@ def test_is_collision_with_empty_obstacles():
     assert result == expected
 
 
-# FIXME: this test is not working due to the change in the signature of the MinimumSnap constructor
-def test_generate_time_per_spline(waypoints, coord_obstacles):
+def test_generate_time_per_spline(config):
     # Arrange
-    mock_config = {
-        "SIMULATION": {
-            "coord_obstacles": str(coord_obstacles),
-            "waypoints": str(waypoints),
-            "velocity": "1.0",
-            "dt": "0.02"
-        }
-    }
+    T = MinimumSnap(config)
 
-    T = MinimumSnap(mock_config)
-
-    T.nb_splines = waypoints.shape[0] - 1
+    T.nb_splines = T.waypoints.shape[0] - 1
 
     distances = np.array([1.0, 3.0, 2.0])  # computed manually from waypoints fixture
     expected = distances / T.velocity
