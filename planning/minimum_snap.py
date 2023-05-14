@@ -4,15 +4,19 @@ from planning.obstacle import Obstacle
 
 
 class MinimumSnap:
-    def __init__(self, waypoints, velocity=1.0, dt=0.02):
+    def __init__(self, config):
+
+        sim_config = config["SIMULATION"]
+        self.coord_obstacles = np.array(eval(sim_config.get("coord_obstacles")))
+        self.waypoints = np.array(eval(sim_config.get("waypoints")))
+        self.velocity = sim_config.getfloat("velocity")
+        self.dt = sim_config.getfloat("dt")
+
         self.obstacle_edges = None
-        self.dt = dt
-        self.waypoints = waypoints
-        self.velocity = velocity                # mean velocity of travel
         self.times = []                         # will hold the time between segment based on the velocity
         self.spline_id = []                     # identify on which spline the newly generated point belongs to
         self.nb_splines = None                  # number of splines in the trajectory
-        self.n_coeffs = 8                      # number of boundary conditions per spline to respect minimum snap
+        self.n_coeffs = 8                       # number of boundary conditions per spline to respect minimum snap
 
         self.positions = []                     # will hold the desired positions of the trajectory
         self.velocities = []                    # will hold the desired velocities of the trajectory
@@ -42,20 +46,18 @@ class MinimumSnap:
         self.b = None
         self.coeffs = None
 
-    def generate_collision_free_trajectory(self, coord_obstacles=None):
+    def generate_collision_free_trajectory(self):
         """
         Generate a collision free trajectory. The trajectory is generated in two steps:
         1. Generate a minimum snap trajectory
         2. Correct the trajectory to avoid collision with obstacles:
         - if the trajectory goes through an obstacle, create a mid-point in the spline that goes through the obstacle
-
-        :param coord_obstacles: list of coordinates of the obstacles
         """
         self.obstacle_edges = []
 
-        if coord_obstacles is not None:
+        if self.coord_obstacles is not None:
             # create a collision free minimal snap path
-            for coord in coord_obstacles:
+            for coord in self.coord_obstacles:
                 self.reset()
                 Obs = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
                 self.obstacle_edges.append(Obs.edges)

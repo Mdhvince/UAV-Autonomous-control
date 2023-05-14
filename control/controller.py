@@ -8,7 +8,7 @@ class CascadedController:
     """
     def __init__(self, config):
         self.g = config["DEFAULT"].getfloat("g")
-
+        self.dt = config["SIMULATION"].getfloat("dt")
         controller = config["CONTROLLER"]
 
         self.kp_z = controller.getfloat("kp_z")
@@ -28,26 +28,24 @@ class CascadedController:
         self.integral_error = 0
 
 
-    def altitude(self, quad, desired, rot_mat, dt, index):
+    def altitude(self, quad, des_z, rot_mat):
         """
         Compute the desired thrust command.
         :param quad: The quadrotor object
-        :param desired: The desired trajectory
+        :param des_z: 1D array of desired z position, velocity and acceleration [z, z_dot, z_ddot]
         :param rot_mat: The rotation matrix of the quadrotor
-        :param dt: The time step
-        :param index: The current index of the trajectory
         """
         
-        error = desired.z[index] - quad.z
-        error_dot = desired.z_vel[index] - quad.z_vel
-        self.integral_error += error * dt
+        error = des_z[0] - quad.z
+        error_dot = des_z[1] - quad.z_vel
+        self.integral_error += error * self.dt
 
-        acc_z = CascadedController._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error, desired.z_acc[index]) - self.g
+        acc_z = CascadedController._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error, des_z[2]) - self.g
 
         # Project the acceleration along the z-vector of the body (Bz)
         b_z = rot_mat[2, 2]
         acc_z = acc_z / b_z
-        acc_z = np.clip(acc_z, -quad.max_ascent_rate/dt, quad.max_descent_rate/dt)
+        acc_z = np.clip(acc_z, -quad.max_ascent_rate/self.dt, quad.max_descent_rate/self.dt)
 
         c = -quad.m * acc_z
 
@@ -57,17 +55,18 @@ class CascadedController:
 
         return c
     
-    def lateral(self, quad, thrust_cmd, desired, index):
+    def lateral(self, quad, des_x, des_y, thrust_cmd):
         """
         Compute the desired roll and pitch angles.
         :param quad: The quadrotor object
+        :param des_x: 1D array of desired x position, velocity and acceleration [x, x_dot, x_ddot]
+        :param des_y: 1D array of desired y position, velocity and acceleration [y, y_dot, y_ddot]
         :param thrust_cmd: The thrust command coming from the altitude controller
-        :param desired: The desired trajectory
         :param index: The current index of the trajectory
         """
-        x_des, y_des = desired.x[index], desired.y[index]
-        x_dot_des, y_dot_des = desired.x_vel[index], desired.y_vel[index]
-        x_dot_dot_des, y_dot_dot_des = desired.x_acc[index], desired.y_acc[index]
+        x_des, y_des = des_x[0], des_y[0]
+        x_dot_des, y_dot_des = des_x[1], des_y[1]
+        x_dot_dot_des, y_dot_dot_des = des_x[2], des_y[2]
         
         pos_des = np.array([x_des, y_des])
         vel_des = np.array([x_dot_des, y_dot_des])

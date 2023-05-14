@@ -2,9 +2,10 @@ import math
 import numpy as np
 
 
-class Quadrotor():
+class Quadrotor:
     def __init__(self, config, des):
         self.g = config["DEFAULT"].getfloat("g")
+        self.dt = config["SIMULATION"].getfloat("dt") / config["SIMULATION"].getint("frequency")
         quad_params = config["VEHICLE"]
 
         L = quad_params.getfloat("distance_rotor_to_rotor")
@@ -45,7 +46,9 @@ class Quadrotor():
         # initialize the (x, y, yaw) state with the desired state
         self.X[0], self.X[1], self.X[5] = des.x[0], des.y[0], des.yaw[0]
 
-    def update_state(self, dt):
+
+
+    def update_state(self):
         """
         Simulate evolution of the vehicle state over time. Not needed when running on real drone,
         since we can get the values from the sensors.
@@ -54,7 +57,7 @@ class Quadrotor():
         self.get_euler_derivatives()
         self.body_angular_acceleration()
         self.linear_acceleration()
-        self.X = self.X + self.dX * dt  # integrate using euler method
+        self.X = self.X + self.dX * self.dt  # integrate using euler method
     
     def set_propeller_speed(self, thrust_cmd, moment_cmd):
         c_bar = thrust_cmd
