@@ -17,6 +17,7 @@ def takeoff(quad, controller, state_history, omega_history, des_x, des_y, des_z,
     """
     Takeoff of the quadrotor from z=0 to z=z_des
     """
+    print("Taking off...")
     steps_to_reach_z = 0
     # while the quadrotor is not at the desired height +- 0.1
     while not (des_z[0] - 0.1 <= quad.X[2] <= des_z[0] + 0.1):
@@ -25,12 +26,11 @@ def takeoff(quad, controller, state_history, omega_history, des_x, des_y, des_z,
             state_history, omega_history, controller, quad, des_x, des_y, des_z, des_yaw, frequency
         )
 
-    print("Takeoff complete.")
+    print("Takeoff completed.")
     return state_history, omega_history, steps_to_reach_z
 
 
 def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des_yaw, frequency):
-
     R = quad.R()
     F_cmd = controller.altitude(quad, des_z, R)
     bxy_cmd = controller.lateral(quad, des_x, des_y, F_cmd)
@@ -70,9 +70,6 @@ if __name__ == "__main__":
 
     ctrl = CascadedController(config)
     quad = Quadrotor(config, desired)
-    # initialize the quadrotor at the first desired position and yaw
-    # quad.X[0:3] = desired.x[0], desired.y[0], desired.z[0]
-    # quad.X[5] = desired.yaw[0]
 
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
@@ -87,14 +84,18 @@ if __name__ == "__main__":
         quad, ctrl, state_history, omega_history, des_x, des_y, des_z, des_yaw, frequency
     )
 
+    print("Flying...")
     for i in range(0, n_waypoints):
         # flight computer
         des_x = np.array([desired.x[i], desired.x_vel[i], desired.x_acc[i]])
         des_y = np.array([desired.y[i], desired.y_vel[i], desired.y_acc[i]])
         des_z = np.array([desired.z[i], desired.z_vel[i], desired.z_acc[i]])
         des_yaw = desired.yaw[i]
+        state_history, omega_history = fly(
+            state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
+        )
 
-        state_history, omega_history = fly(state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency)
+    print("Flight completed.")
 
     sim = Sim3d(config, takeoff_steps, r_des, state_history, T.obstacle_edges)
     ani = sim.run_sim(frames=n_waypoints, interval=5)
