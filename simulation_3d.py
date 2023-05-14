@@ -22,27 +22,29 @@ def timer(func):
 
 class Sim3d:
 
-    def __init__(self, des_trajectory, state_history, obstacles_edges=None, stl_filepath="", scale=1):
+    def __init__(self, config, des_trajectory, state_history, obstacles_edges=None):
         """
         This class aims to simulate the quadrotor trajectory in 3D.
         :param des_trajectory: Desired trajectory of the quadrotor
         :param state_history: State history of the quadrotor
         :param obstacles_edges: Edges of the obstacles
-        :param stl_filepath: Filepath of the STL file representing the quadrotor
-        :param scale: Scale factor in order to resize the quadrotor
         """
+        self.sim_config = config["SIMULATION"]
+        self.track_mode = self.sim_config.getboolean("track_mode")
+        self.show_stats = self.sim_config.getboolean("show_stats")
+        # stats cannot be shown in track mode
+        assert not (self.track_mode and self.show_stats), "Cannot show stats in track mode"
+
         self.quad_pos_history = state_history
         self.obstacles_edges = obstacles_edges
         self.desired = des_trajectory
         self.des_raw = des_trajectory
         self.n_time_steps = self.quad_pos_history.shape[0]
 
-        self.stl_filepath = stl_filepath
-        self.scale = scale
         self.quad_model = self._init_quadrotor_model()
-
         self._reduce_data(factor=2)
         self._setup_plot()
+
 
     def run_sim(self, frames, interval, *args):
         ani = animation.FuncAnimation(self.fig, self.animate, frames=frames, interval=interval, fargs=(args))
@@ -58,28 +60,39 @@ class Sim3d:
         current_orientation = self.quad_pos_history[index, 3:6]
         current_orientation[0] = -current_orientation[0]
         current_orientation[1] = -current_orientation[1]
-        current_velocity = np.linalg.norm(self.quad_pos_history[index, 6:9])
 
-        self.draw_stats(current_position, current_velocity, index)
-
-
-        # if self.obstacles_edges is not None:
-        #     self.draw_obstacles()
         self.draw_quad(current_position, current_orientation)
         self.draw_trajectory()
+        self.ax.set_axis_off()
 
-        self.ax.set_xlim(0, 11)
-        self.ax.set_ylim(0, 11)
-        self.ax.set_zlim(0, 11)
-        self.ax.xaxis.line.set_color('black')
-        self.ax.yaxis.line.set_color('black')
-        self.ax.zaxis.line.set_color('black')
+        if self.track_mode:
+            l = .5
+            self.ax.set_xlim(current_position[0] - l, current_position[0] + l)
+            self.ax.set_ylim(current_position[1] - l, current_position[1] + l)
+            self.ax.set_zlim(current_position[2] - l, current_position[2] + l)
+            plt.grid(False)
 
-        # add text on the figure showing the current position and orientation in degrees
-        self.ax.text2D(0.05, 0.95, f"XYZ: {np.round(current_position, 2)}", transform=self.ax.transAxes)
-        self.ax.text2D(0.05, 0.90, f"RPY: {np.round(np.rad2deg(current_orientation), 2)}", transform=self.ax.transAxes)
+        else:
+            if self.show_stats:
+                current_velocity = np.linalg.norm(self.quad_pos_history[index, 6:9])
+                self.draw_stats(current_position, current_velocity, index)
 
+            if self.obstacles_edges is not None:
+                self.draw_obstacles()
 
+            self.ax.set_xlim(0, 11)
+            self.ax.set_ylim(0, 11)
+            self.ax.set_zlim(0, 11)
+
+            self.ax.xaxis.line.set_color('black')
+            self.ax.yaxis.line.set_color('black')
+            self.ax.zaxis.line.set_color('black')
+
+            if self.show_stats:
+                self.ax.text2D(
+                    0.05, 0.95, f"XYZ: {np.round(current_position, 2)}", transform=self.ax.transAxes)
+                self.ax.text2D(
+                    0.05, 0.90, f"RPY: {np.round(np.rad2deg(current_orientation), 2)}", transform=self.ax.transAxes)
 
     def draw_quad(self, current_position, current_orientation):
         # plot the quadrotor according to its current position
@@ -141,23 +154,31 @@ class Sim3d:
         """
         Sets up the figure and the colormap
         """
-        # init figure
         self.fig = plt.figure(figsize=(32, 18))
-        self.ax = self.fig.add_subplot(121, projection='3d')
-        self.ax_pos = self.fig.add_subplot(222)
-        self.ax_vel = self.fig.add_subplot(224)
+        if self.track_mode:
+            self.ax = self.fig.add_subplot(111, projection='3d')
+        else:
+            if self.show_stats:
+                self.ax = self.fig.add_subplot(121, projection='3d')
+                self.ax_pos = self.fig.add_subplot(222)
+                self.ax_vel = self.fig.add_subplot(224)
+            else:
+                self.ax = self.fig.add_subplot(111, projection='3d')
 
         self.fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
-        self.ax.view_init(15, -133)
+
+        elev_azim = eval(self.sim_config.get("elev_azim"))
+        self.ax.view_init(elev=elev_azim[0], azim=elev_azim[1])
 
     def _init_quadrotor_model(self):
         """
         Loads the quadrotor model from an STL file and scales it by a factor of "scale"
         """
-        quad_model = mesh.Mesh.from_file(self.stl_filepath)
-        quad_model.x *= self.scale
-        quad_model.y *= self.scale
-        quad_model.z *= self.scale
+        scale = self.sim_config.getfloat("scale")
+        quad_model = mesh.Mesh.from_file(self.sim_config.get("stl_filepath"))
+        quad_model.x *= scale
+        quad_model.y *= scale
+        quad_model.z *= scale
         return quad_model
 
 

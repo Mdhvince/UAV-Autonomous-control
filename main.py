@@ -61,8 +61,8 @@ if __name__ == "__main__":
     controller = CascadedController(config)
     quad = Quadrotor(config, desired)
     # initialize the quadrotor at the first desired position and yaw
-    quad.X[0:3] = desired.x[0], desired.y[0], desired.z[0]
-    quad.X[5] = desired.yaw[0]
+    # quad.X[0:3] = desired.x[0], desired.y[0], desired.z[0]
+    # quad.X[5] = desired.yaw[0]
 
     state_history, omega_history = quad.X, quad.omega    
     n_waypoints = desired.z.shape[0]
@@ -84,9 +84,7 @@ if __name__ == "__main__":
         omega_history = np.vstack((omega_history, quad.omega))
 
 
-    stl_filepath = Path("quad_model/quadrotor_base.stl")
-
-    sim = Sim3d(r_des, state_history, T.obstacle_edges, stl_filepath, scale=1.5)
+    sim = Sim3d(config, r_des, state_history, T.obstacle_edges)
     ani = sim.run_sim(frames=n_waypoints, interval=5)
     plt.show()
-    # sim.save_sim(ani, "docs/sim3d_with_velocity_v2.mp4")
+    # sim.save_sim(ani, "docs/youtube/normal_view_obstacle.mp4")
