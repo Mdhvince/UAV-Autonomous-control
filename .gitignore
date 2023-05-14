@@ -16,3 +16,5 @@ notes*
 crazyflie-lib-python/
 cache/
 logs/
+deprecated/
+*.mp4
