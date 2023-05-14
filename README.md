@@ -4,7 +4,8 @@
 https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6704c9ad-e94d-41cc-b4fe-3c8a1f67c0bc  
 
 ### Result 2
-https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/5eb65af1-b17a-45ae-9914-35dd210c5fb9
+https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/2dcca69f-2981-4cef-a6e1-313b70ec2882
+
 
 
 ### Controller response
