@@ -7,7 +7,7 @@ from mpl_toolkits import mplot3d
 from stl import mesh
 
 warnings.filterwarnings('ignore')
-plt.style.use('ggplot')
+plt.style.use('seaborn-paper')
 
 
 def timer(func):
@@ -32,6 +32,7 @@ class Sim3d:
         :param obstacles_edges: Edges of the obstacles
         """
         self.sim_config = config["SIMULATION"]
+        self.show_obstacles = self.sim_config.getboolean("show_obstacles")
         self.track_mode = self.sim_config.getboolean("track_mode")
         self.show_stats = self.sim_config.getboolean("show_stats")
         # stats cannot be shown in track mode
@@ -61,18 +62,20 @@ class Sim3d:
 
         current_position = self.quad_pos_history[index, :3]
         current_orientation = self.quad_pos_history[index, 3:6]
-        current_orientation[0] = -current_orientation[0]
-        current_orientation[1] = -current_orientation[1]
 
         self.draw_quad(current_position, current_orientation)
         self.draw_trajectory()
-        self.ax.set_axis_off()
+        # self.ax.set_axis_off()
+
+        # draw the executed path of the quadrotor from the beginning until the current position
+        self.ax.plot(self.quad_pos_history[:index, 0], self.quad_pos_history[:index, 1],
+                        self.quad_pos_history[:index, 2], color="r", alpha=1, linewidth=1)
 
         if self.track_mode:
-            l = .5
-            self.ax.set_xlim(current_position[0] - l, current_position[0] + l)
-            self.ax.set_ylim(current_position[1] - l, current_position[1] + l)
-            self.ax.set_zlim(current_position[2] - l, current_position[2] + l)
+            side = .5
+            self.ax.set_xlim(current_position[0] - side, current_position[0] + side)
+            self.ax.set_ylim(current_position[1] - side, current_position[1] + side)
+            self.ax.set_zlim(current_position[2] - side, current_position[2] + side)
             plt.grid(False)
 
         else:
@@ -82,7 +85,7 @@ class Sim3d:
                 current_position_wo_takeoff = self.quad_pos_history[self.tos:, :][index, :3]
                 self.draw_stats(current_position_wo_takeoff, current_velocity_wo_takeoff, index)
 
-            if self.obstacles_edges is not None:
+            if self.show_obstacles and self.obstacles_edges is not None:
                 self.draw_obstacles()
 
             self.ax.set_xlim(0, 11)
@@ -114,7 +117,7 @@ class Sim3d:
         self.ax.add_collection3d(mplot3d.art3d.Poly3DCollection(self.quad_model.vectors, alpha=.2, color="gray"))
 
     def draw_trajectory(self):
-        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], color="k", alpha=1, linewidth=2)
+        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], color="k", alpha=1, linewidth=1)
 
 
     def draw_obstacles(self):

@@ -8,6 +8,10 @@ class MinimumSnap:
 
         sim_config = config["SIMULATION"]
         self.coord_obstacles = np.array(eval(sim_config.get("coord_obstacles")))
+
+        if sim_config.getboolean("show_obstacles") is False:
+            self.coord_obstacles = None
+
         self.waypoints = np.array(eval(sim_config.get("waypoints")))
         self.velocity = sim_config.getfloat("velocity")
         self.dt = sim_config.getfloat("dt")

@@ -65,13 +65,13 @@ if __name__ == "__main__":
         r_des[:, 0], r_des[:, 1], r_des[:, 2],          # desired position over time
         r_des[:, 3], r_des[:, 4], r_des[:, 5],          # desired velocity over time
         r_des[:, 6], r_des[:, 7], r_des[:, 8],          # desired acceleration over time
-        np.arctan2(r_des[:, 1], r_des[:, 0]) + np.pi/2  # added pi/2 to make it face the right direction
+        np.zeros(r_des.shape[0])                        # 0 yaw for now
     )
 
     ctrl = CascadedController(config)
     quad = Quadrotor(config, desired)
 
-    state_history, omega_history = quad.X, quad.omega    
+    state_history, omega_history = quad.X, quad.omega
     n_waypoints = desired.z.shape[0]
 
     # takeoff
@@ -100,4 +100,4 @@ if __name__ == "__main__":
     sim = Sim3d(config, takeoff_steps, r_des, state_history, T.obstacle_edges)
     ani = sim.run_sim(frames=n_waypoints, interval=5)
     plt.show()
-    # sim.save_sim(ani, "docs/youtube/normal_view_obstacle.mp4")
+    # sim.save_sim(ani, "docs/youtube/tracking_perf.mp4")
