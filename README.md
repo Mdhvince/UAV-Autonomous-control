@@ -1,9 +1,9 @@
 ## 3D UAV simulation and autonomous control for path tracking
 
-### Result 1
-https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6704c9ad-e94d-41cc-b4fe-3c8a1f67c0bc  
+### Result
 
-### Result 2
+https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6dff700c-9ed4-4d6f-b976-8f42022d5d80
+
 https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/2dcca69f-2981-4cef-a6e1-313b70ec2882
 
 
