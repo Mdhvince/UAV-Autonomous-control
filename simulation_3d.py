@@ -22,11 +22,10 @@ def timer(func):
 
 class Sim3d:
 
-    def __init__(self, config, takeoff_steps, des_trajectory, state_history, obstacles_edges=None):
+    def __init__(self, config, des_trajectory, state_history, obstacles_edges=None):
         """
         This class aims to simulate the quadrotor trajectory in 3D.
         :param config: ConfigParser object
-        :param takeoff_steps: Number of steps to takeoff completed for takeoff
         :param des_trajectory: Desired trajectory of the quadrotor
         :param state_history: State history of the quadrotor
         :param obstacles_edges: Edges of the obstacles
@@ -38,7 +37,6 @@ class Sim3d:
         # stats cannot be shown in track mode
         assert not (self.track_mode and self.show_stats), "Cannot show stats in track mode"
 
-        self.tos = takeoff_steps
         self.quad_pos_history = state_history
         self.obstacles_edges = obstacles_edges
         self.desired = des_trajectory
@@ -80,9 +78,8 @@ class Sim3d:
 
         else:
             if self.show_stats:
-                # ignore the first takeoff steps for stats with self.tos
-                current_velocity_wo_takeoff = np.linalg.norm(self.quad_pos_history[self.tos:, :][index, 6:9])
-                current_position_wo_takeoff = self.quad_pos_history[self.tos:, :][index, :3]
+                current_velocity_wo_takeoff = np.linalg.norm(self.quad_pos_history[index, 6:9])
+                current_position_wo_takeoff = self.quad_pos_history[index, :3]
                 self.draw_stats(current_position_wo_takeoff, current_velocity_wo_takeoff, index)
 
             if self.show_obstacles and self.obstacles_edges is not None:
