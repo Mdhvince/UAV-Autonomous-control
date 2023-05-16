@@ -25,6 +25,7 @@ class MinimumSnap:
         self.positions = []                     # will hold the desired positions of the trajectory
         self.velocities = []                    # will hold the desired velocities of the trajectory
         self.accelerations = []                 # will hold the desired accelerations of the trajectory
+        self.yaws = []                          # will hold the desired yaws of the trajectory (yaw is hard coded to 0)
         self.jerks = []                         # will hold the desired jerks of the trajectory
         self.snap = []                          # will hold the desired snap of the trajectory
 
@@ -42,6 +43,7 @@ class MinimumSnap:
         self.positions = []
         self.velocities = []
         self.accelerations = []
+        self.yaws = []
         self.jerks = []
         self.snap = []
         self.full_trajectory = None
@@ -103,11 +105,12 @@ class MinimumSnap:
                 self.positions.append(position)
                 self.velocities.append(velocity)
                 self.accelerations.append(acceleration)
-                self.spline_id.append(np.array([it, it]))
+                self.yaws.append(np.array([0.0]))
+                self.spline_id.append(np.array([it]))
                 # self.jerks.append(jerk)
                 # self.snap.append(snap)
 
-        self.full_trajectory = np.hstack((self.positions, self.velocities, self.accelerations, self.spline_id))
+        self.full_trajectory = np.hstack((self.positions, self.velocities, self.accelerations, self.yaws, self.spline_id))
         return self.full_trajectory
 
     def _compute_spline_parameters(self, method):

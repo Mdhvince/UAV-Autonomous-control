@@ -44,9 +44,7 @@ class Quadrotor:
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
 
         # initialize the (x, y, yaw) state with the desired state
-        self.X[0], self.X[1], self.X[5] = des.x[0], des.y[0], des.yaw[0]
-        print(f"\nQuadrotor initialized at XYZ = {np.round(self.X[:3], 2)}")
-
+        self.X[0], self.X[1], self.X[5] = des[0, [0, 1, 9]]
 
     def update_state(self):
         """

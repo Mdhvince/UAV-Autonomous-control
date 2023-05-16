@@ -1,4 +1,5 @@
 import warnings
+import logging
 import configparser
 from pathlib import Path
 from collections import namedtuple
@@ -13,11 +14,17 @@ from simulation_3d import Sim3d
 
 warnings.filterwarnings('ignore')
 
-def takeoff(quad, controller, state_history, omega_history, des_x, des_y, des_z, des_yaw, frequency):
+
+def takeoff(quad, controller, state_history, omega_history, frequency):
     """
     Takeoff of the quadrotor from z=0 to z=z_des
     """
-    print("Taking off...")
+    # desired state at the end of the takeoff
+    des_x = np.array([quad.X[0], 0.0, 0.0])
+    des_y = np.array([quad.X[1], 0.0, 0.0])
+    des_z = np.array([1.0, 0.0, 0.0])
+    des_yaw = quad.X[5]
+
     steps_to_reach_z = 0
     # while the quadrotor is not at the desired height +- 0.1
     while not (des_z[0] - 0.1 <= quad.X[2] <= des_z[0] + 0.1):
@@ -25,10 +32,7 @@ def takeoff(quad, controller, state_history, omega_history, des_x, des_y, des_z,
         state_history, omega_history = fly(
             state_history, omega_history, controller, quad, des_x, des_y, des_z, des_yaw, frequency
         )
-
-    print("Takeoff completed.")
     return state_history, omega_history, steps_to_reach_z
-
 
 def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des_yaw, frequency):
     R = quad.R()
@@ -49,6 +53,13 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
 
 if __name__ == "__main__":
 
+    logging.basicConfig(
+        filename="logs/sim.log",
+        filemode="w",
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        level=logging.INFO
+    )
+
     Desired = namedtuple("Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = Path("/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini")
@@ -59,45 +70,37 @@ if __name__ == "__main__":
 
     T = MinimumSnap(config)
     T.generate_collision_free_trajectory()
-    r_des = T.full_trajectory
-
-    desired = Desired(
-        r_des[:, 0], r_des[:, 1], r_des[:, 2],          # desired position over time
-        r_des[:, 3], r_des[:, 4], r_des[:, 5],          # desired velocity over time
-        r_des[:, 6], r_des[:, 7], r_des[:, 8],          # desired acceleration over time
-        np.zeros(r_des.shape[0])                        # 0 yaw for now
-    )
+    desired_trajectory = T.full_trajectory
 
     ctrl = CascadedController(config)
-    quad = Quadrotor(config, desired)
+    quad = Quadrotor(config, desired_trajectory)
+    logging.info(f"Quadrotor initialized at XYZ: {np.round(quad.X[:3], 2)}")
 
     state_history, omega_history = quad.X, quad.omega
-    n_waypoints = desired.z.shape[0]
+    n_timesteps = desired_trajectory.shape[0]
 
-    # takeoff
-    des_x = np.array([quad.X[0], 0.0, 0.0])
-    des_y = np.array([quad.X[1], 0.0, 0.0])
-    des_z = np.array([1.0, 0.0, 0.0])
-    des_yaw = quad.X[5]
+    logging.info("Takeoff 🚀...")
+    state_history, omega_history, takeoff_steps = takeoff(quad, ctrl, state_history, omega_history, frequency)
 
-    state_history, omega_history, takeoff_steps = takeoff(
-        quad, ctrl, state_history, omega_history, des_x, des_y, des_z, des_yaw, frequency
-    )
+    logging.info(f"Takeoff completed: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
+    logging.info("Flying 🚀...")
 
-    print("Flying...")
-    for i in range(0, n_waypoints):
-        # flight computer
-        des_x = np.array([desired.x[i], desired.x_vel[i], desired.x_acc[i]])
-        des_y = np.array([desired.y[i], desired.y_vel[i], desired.y_acc[i]])
-        des_z = np.array([desired.z[i], desired.z_vel[i], desired.z_acc[i]])
-        des_yaw = desired.yaw[i]
+    for i in range(0, n_timesteps):
+        des_x = desired_trajectory[i, [0, 3, 6]]
+        des_y = desired_trajectory[i, [1, 4, 7]]
+        des_z = desired_trajectory[i, [2, 5, 8]]
+        des_yaw = desired_trajectory[i, 9]
+
         state_history, omega_history = fly(
             state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
         )
 
-    print("Flight completed.")
+    logging.info(f"Flight completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
 
-    sim = Sim3d(config, takeoff_steps, r_des, state_history, T.obstacle_edges)
-    ani = sim.run_sim(frames=n_waypoints, interval=5)
+
+    sim = Sim3d(config, takeoff_steps, desired_trajectory, state_history, T.obstacle_edges)
+    ani = sim.run_sim(frames=n_timesteps, interval=5)
     plt.show()
     # sim.save_sim(ani, "docs/youtube/tracking_perf.mp4")
+
+
