@@ -3,7 +3,7 @@ import numpy as np
 
 
 class Quadrotor:
-    def __init__(self, config, des):
+    def __init__(self, config):
         self.g = config["DEFAULT"].getfloat("g")
         self.dt = config["DEFAULT"].getfloat("dt") / config["DEFAULT"].getint("frequency")
         quad_params = config["VEHICLE"]
@@ -43,8 +43,8 @@ class Quadrotor:
         # Propeller speed
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
 
-        # initialize the (x, y, yaw) state with the desired state
-        self.X[0], self.X[1], self.X[5] = des[0, [0, 1, 9]]
+        # # initialize the (x, y, z, yaw) state with the desired state
+        # self.X[0], self.X[1], self.X[2],  self.X[5] = des[0, [0, 1, 2, 9]]
 
     def update_state(self):
         """

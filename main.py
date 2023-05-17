@@ -42,7 +42,6 @@ if __name__ == "__main__":
         level=logging.INFO
     )
 
-    Desired = namedtuple("Desired", ["x", "y", "z", "x_vel", "y_vel", "z_vel", "x_acc", "y_acc", "z_acc", "yaw"])
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = Path("/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini")
     config.read(config_file)
@@ -50,33 +49,40 @@ if __name__ == "__main__":
     cfg = config["DEFAULT"]
     frequency = cfg.getint("frequency")
 
-    mode = "takeoff"
-    T = MinimumSnap(config, mode)
-    T.generate_collision_free_trajectory()
-    desired_trajectory = T.full_trajectory
-
     ctrl = CascadedController(config)
-    quad = Quadrotor(config, desired_trajectory)
-    logging.info(f"Quadrotor initialized at XYZ: {np.round(quad.X[:3], 2)}")
+    quad = Quadrotor(config)
 
     state_history, omega_history = quad.X, quad.omega
-    n_timesteps = desired_trajectory.shape[0]
 
-    for i in range(0, n_timesteps):
-        des_x = desired_trajectory[i, [0, 3, 6]]
-        des_y = desired_trajectory[i, [1, 4, 7]]
-        des_z = desired_trajectory[i, [2, 5, 8]]
-        des_yaw = desired_trajectory[i, 9]
-        current_segment = desired_trajectory[i, 10]
+    modes = ["takeoff", "flight"]
+    total_timesteps = 0
+    final_desired = np.empty((0, 11))
 
-        state_history, omega_history = fly(
-            state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
-        )
+    for mode in modes:
+        T = MinimumSnap(config, mode)
+        T.generate_collision_free_trajectory()
+        desired_trajectory = T.full_trajectory
 
-    logging.info(f"Flight completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
+        n_timesteps = desired_trajectory.shape[0]
 
-    sim = Sim3d(config, desired_trajectory, state_history, T.obstacle_edges)
-    ani = sim.run_sim(frames=n_timesteps, interval=5)
+        for i in range(0, n_timesteps):
+            des_x = desired_trajectory[i, [0, 3, 6]]
+            des_y = desired_trajectory[i, [1, 4, 7]]
+            des_z = desired_trajectory[i, [2, 5, 8]]
+            des_yaw = desired_trajectory[i, 9]
+            current_segment = desired_trajectory[i, 10]
+
+            state_history, omega_history = fly(
+                state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
+            )
+
+        logging.info(f"Flight completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
+
+        total_timesteps += n_timesteps
+        final_desired = np.vstack((final_desired, desired_trajectory))
+
+    sim = Sim3d(config, final_desired, state_history, T.obstacle_edges)
+    ani = sim.run_sim(frames=total_timesteps, interval=5)
     plt.show()
     # sim.save_sim(ani, "docs/youtube/tracking_perf.mp4")
 

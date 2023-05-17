@@ -19,3 +19,4 @@ logs/
 deprecated/
 *.mp4
 youtube/
+crazyflie/*
