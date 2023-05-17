@@ -1,3 +1,4 @@
+import math
 import warnings
 import logging
 import configparser
@@ -14,31 +15,12 @@ from simulation_3d import Sim3d
 
 warnings.filterwarnings('ignore')
 
-
-# def takeoff(quad, controller, state_history, omega_history, frequency):
-#     """
-#     Takeoff of the quadrotor from z=0 to z=z_des
-#     """
-#     # desired state at the end of the takeoff
-#     des_x = np.array([quad.X[0], 0.0, 0.0])
-#     des_y = np.array([quad.X[1], 0.0, 0.0])
-#     des_z = np.array([1.0, 0.0, 0.0])
-#     des_yaw = quad.X[5]
-#
-#     steps_to_reach_z = 0
-#     # while the quadrotor is not at the desired height +- 0.1
-#     while not (des_z[0] - 0.1 <= quad.X[2] <= des_z[0] + 0.1):
-#         steps_to_reach_z += 1
-#         state_history, omega_history = fly(
-#             state_history, omega_history, controller, quad, des_x, des_y, des_z, des_yaw, frequency
-#         )
-#     return state_history, omega_history, steps_to_reach_z
-
 def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des_yaw, frequency):
     R = quad.R()
     F_cmd = controller.altitude(quad, des_z, R)
     bxy_cmd = controller.lateral(quad, des_x, des_y, F_cmd)
     pqr_cmd = controller.reduced_attitude(quad, bxy_cmd, des_yaw, R)
+
     for _ in range(frequency):
         # flight controller
         moment_cmd = controller.body_rate_controller(quad, pqr_cmd)
@@ -64,11 +46,12 @@ if __name__ == "__main__":
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = Path("/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini")
     config.read(config_file)
-    sim_config = config["SIMULATION"]
 
-    frequency = sim_config.getint("frequency")
+    cfg = config["DEFAULT"]
+    frequency = cfg.getint("frequency")
 
-    T = MinimumSnap(config)
+    mode = "takeoff"
+    T = MinimumSnap(config, mode)
     T.generate_collision_free_trajectory()
     desired_trajectory = T.full_trajectory
 
@@ -79,23 +62,12 @@ if __name__ == "__main__":
     state_history, omega_history = quad.X, quad.omega
     n_timesteps = desired_trajectory.shape[0]
 
-    # logging.info("Takeoff 🚀...")
-    # state_history, omega_history, takeoff_steps = takeoff(quad, ctrl, state_history, omega_history, frequency)
-    # logging.info(f"Takeoff completed: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
-
-
-    logging.info("Flying 🚀...")
-
     for i in range(0, n_timesteps):
         des_x = desired_trajectory[i, [0, 3, 6]]
         des_y = desired_trajectory[i, [1, 4, 7]]
         des_z = desired_trajectory[i, [2, 5, 8]]
         des_yaw = desired_trajectory[i, 9]
         current_segment = desired_trajectory[i, 10]
-
-        # log the current segment only if it is different from the previous one
-        if i == 0 or current_segment != desired_trajectory[i-1, 10]:
-            logging.info(f"Completing segment n° {int(current_segment)} ...")
 
         state_history, omega_history = fly(
             state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency

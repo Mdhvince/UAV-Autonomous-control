@@ -5,7 +5,7 @@ import numpy as np
 class Quadrotor:
     def __init__(self, config, des):
         self.g = config["DEFAULT"].getfloat("g")
-        self.dt = config["SIMULATION"].getfloat("dt") / config["SIMULATION"].getint("frequency")
+        self.dt = config["DEFAULT"].getfloat("dt") / config["DEFAULT"].getint("frequency")
         quad_params = config["VEHICLE"]
 
         L = quad_params.getfloat("distance_rotor_to_rotor")

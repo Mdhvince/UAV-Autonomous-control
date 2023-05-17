@@ -8,7 +8,7 @@ class CascadedController:
     """
     def __init__(self, config):
         self.g = config["DEFAULT"].getfloat("g")
-        self.dt = config["SIMULATION"].getfloat("dt")
+        self.dt = config["DEFAULT"].getfloat("dt")
         controller = config["CONTROLLER"]
 
         self.kp_z = controller.getfloat("kp_z")

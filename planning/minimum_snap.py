@@ -4,17 +4,26 @@ from planning.obstacle import Obstacle
 
 
 class MinimumSnap:
-    def __init__(self, config):
+    def __init__(self, config, mode):
 
-        sim_config = config["SIMULATION"]
-        self.coord_obstacles = np.array(eval(sim_config.get("coord_obstacles")))
+        cfg = config["DEFAULT"]
+        if mode == "takeoff":
+            sim_cfg = config["SIM_TAKEOFF"]
+        elif mode == "landing":
+            sim_cfg = config["SIM_LANDING"]
+        elif mode == "flight":
+            sim_cfg = config["SIM_FLIGHT"]
+        else:
+            raise ValueError(f"Invalid mode, expected 'takeoff', 'landing' or 'flight', got {mode}")
 
-        if sim_config.getboolean("show_obstacles") is False:
+        self.coord_obstacles = np.array(eval(sim_cfg.get("coord_obstacles")))
+
+        if self.coord_obstacles.size == 0 or cfg.getboolean("show_obstacles") is False:
             self.coord_obstacles = None
 
-        self.waypoints = np.array(eval(sim_config.get("waypoints")))
-        self.velocity = sim_config.getfloat("velocity")
-        self.dt = sim_config.getfloat("dt")
+        self.waypoints = np.array(eval(sim_cfg.get("waypoints")))
+        self.velocity = sim_cfg.getfloat("velocity")
+        self.dt = cfg.getfloat("dt")
 
         self.obstacle_edges = None
         self.times = []                         # will hold the time between segment based on the velocity

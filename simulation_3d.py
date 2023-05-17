@@ -30,10 +30,10 @@ class Sim3d:
         :param state_history: State history of the quadrotor
         :param obstacles_edges: Edges of the obstacles
         """
-        self.sim_config = config["SIMULATION"]
-        self.show_obstacles = self.sim_config.getboolean("show_obstacles")
-        self.track_mode = self.sim_config.getboolean("track_mode")
-        self.show_stats = self.sim_config.getboolean("show_stats")
+        self.cfg = config["DEFAULT"]
+        self.show_obstacles = self.cfg.getboolean("show_obstacles")
+        self.track_mode = self.cfg.getboolean("track_mode")
+        self.show_stats = self.cfg.getboolean("show_stats")
         # stats cannot be shown in track mode
         assert not (self.track_mode and self.show_stats), "Cannot show stats in track mode"
 
@@ -172,15 +172,15 @@ class Sim3d:
 
         self.fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
-        elev_azim = eval(self.sim_config.get("elev_azim"))
+        elev_azim = eval(self.cfg.get("elev_azim"))
         self.ax.view_init(elev=elev_azim[0], azim=elev_azim[1])
 
     def _init_quadrotor_model(self):
         """
         Loads the quadrotor model from an STL file and scales it by a factor of "scale"
         """
-        scale = self.sim_config.getfloat("scale")
-        quad_model = mesh.Mesh.from_file(self.sim_config.get("stl_filepath"))
+        scale = self.cfg.getfloat("scale")
+        quad_model = mesh.Mesh.from_file(self.cfg.get("stl_filepath"))
         quad_model.x *= scale
         quad_model.y *= scale
         quad_model.z *= scale
