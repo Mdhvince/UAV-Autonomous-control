@@ -3,7 +3,7 @@ import warnings
 import logging
 import configparser
 from pathlib import Path
-from collections import namedtuple
+from collections import namedtuple, deque
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,13 +57,15 @@ if __name__ == "__main__":
     for mode in modes:
         logging.info(f"Starting {mode} mode...")
 
+        sim_cfg = MinimumSnap._choose_simulation_config(config, mode)
+
         T = MinimumSnap(config, mode)
         T.generate_collision_free_trajectory()
         desired_trajectory = T.full_trajectory
 
         n_timesteps = desired_trajectory.shape[0]
 
-        visited_wp = []
+        visited_wp = deque(maxlen=1)
 
         for i in range(0, n_timesteps):
 

@@ -7,7 +7,7 @@ class MinimumSnap:
     def __init__(self, config, mode):
 
         cfg = config["DEFAULT"]
-        sim_cfg = self._choose_simulation_config(config, mode)
+        sim_cfg = MinimumSnap._choose_simulation_config(config, mode)
 
         try:
             self.coord_obstacles = np.array(eval(sim_cfg.get("coord_obstacles")))
