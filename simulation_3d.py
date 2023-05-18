@@ -67,7 +67,7 @@ class Sim3d:
 
         # draw the executed path of the quadrotor from the beginning until the current position
         self.ax.plot(self.quad_pos_history[:index, 0], self.quad_pos_history[:index, 1],
-                        self.quad_pos_history[:index, 2], color="r", alpha=1, linewidth=1)
+                        self.quad_pos_history[:index, 2], color="r", alpha=.7, linewidth=1)
 
         if self.track_mode:
             side = .5
@@ -114,7 +114,7 @@ class Sim3d:
         self.ax.add_collection3d(mplot3d.art3d.Poly3DCollection(self.quad_model.vectors, alpha=.2, color="gray"))
 
     def draw_trajectory(self):
-        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], color="k", alpha=1, linewidth=1)
+        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], color="g", alpha=.3, linewidth=5)
 
 
     def draw_obstacles(self):

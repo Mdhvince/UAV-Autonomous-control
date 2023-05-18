@@ -7,21 +7,16 @@ class MinimumSnap:
     def __init__(self, config, mode):
 
         cfg = config["DEFAULT"]
-        if mode == "takeoff":
-            sim_cfg = config["SIM_TAKEOFF"]
-        elif mode == "landing":
-            sim_cfg = config["SIM_LANDING"]
-        elif mode == "flight":
-            sim_cfg = config["SIM_FLIGHT"]
-        else:
-            raise ValueError(f"Invalid mode, expected 'takeoff', 'landing' or 'flight', got {mode}")
+        sim_cfg = self._choose_simulation_config(config, mode)
 
-        self.coord_obstacles = np.array(eval(sim_cfg.get("coord_obstacles")))
-
-        if self.coord_obstacles.size == 0 or cfg.getboolean("show_obstacles") is False:
+        try:
+            self.coord_obstacles = np.array(eval(sim_cfg.get("coord_obstacles")))
+        except TypeError:
             self.coord_obstacles = None
 
         self.waypoints = np.array(eval(sim_cfg.get("waypoints")))
+        self._insert_initial_wp(config, mode)
+
         self.velocity = sim_cfg.getfloat("velocity")
         self.dt = cfg.getfloat("dt")
 
@@ -245,6 +240,42 @@ class MinimumSnap:
             polynomial[i] = polynomial[i] * t ** derivative[i]
 
         return polynomial.T
+
+
+    @staticmethod
+    def _choose_simulation_config(config, mode):
+        """
+        This function chooses the simulation configuration depending on the mode.
+        """
+        if mode == "takeoff":
+            sim_cfg = config["SIM_TAKEOFF"]
+        elif mode == "landing":
+            sim_cfg = config["SIM_LANDING"]
+        elif mode == "flight":
+            sim_cfg = config["SIM_FLIGHT"]
+        else:
+            raise ValueError(f"Invalid mode, expected 'takeoff', 'landing' or 'flight', got {mode}")
+
+        return sim_cfg
+
+    def _insert_initial_wp(self, config, mode):
+        """
+        This function inserts the initial waypoint in the waypoints array depending on the mode.
+        :param config: configuration file
+        :param mode: mode of the trajectory (takeoff, flight, landing)
+        """
+        last_takeoff_wp = np.array(eval(config["SIM_TAKEOFF"].get("waypoints")))[-1]
+        last_flight_wp = np.array(eval(config["SIM_FLIGHT"].get("waypoints")))[-1]
+
+        if mode == "takeoff":
+            # insert the origin at the beginning of the waypoints array
+            self.waypoints = np.insert(self.waypoints, 0, [0., 0., 0.], axis=0)
+        if mode == "flight":
+            # insert the last takeoff waypoint at the beginning of the waypoints array
+            self.waypoints = np.insert(self.waypoints, 0, last_takeoff_wp, axis=0)
+        elif mode == "landing":
+            # insert the last flight waypoint at the beginning of the waypoints array
+            self.waypoints = np.insert(self.waypoints, 0, last_flight_wp, axis=0)
 
     def _setup(self):
         self._generate_waypoints()
