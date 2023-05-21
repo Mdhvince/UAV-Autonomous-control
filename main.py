@@ -1,4 +1,5 @@
 import math
+import time
 import warnings
 import logging
 import configparser
@@ -52,47 +53,47 @@ if __name__ == "__main__":
 
     modes = ["takeoff", "flight", "landing"]
     total_timesteps = 0
-    final_desired = np.empty((0, 11))
+    combined_desired_trajectory = np.empty((0, 11))
 
     for mode in modes:
         logging.info(f"Starting {mode} mode...")
-
         sim_cfg = MinimumSnap._choose_simulation_config(config, mode)
 
         T = MinimumSnap(config, mode)
-        T.generate_collision_free_trajectory()
-        desired_trajectory = T.full_trajectory
+        desired_trajectory = T.get_trajectory()
 
-        n_timesteps = desired_trajectory.shape[0]
+        logging.info("Optimized trajectory successfully generated")
 
-        visited_wp = deque(maxlen=1)
+        total_timesteps += desired_trajectory.shape[0]
+        combined_desired_trajectory = np.vstack((combined_desired_trajectory, desired_trajectory))
 
-        for i in range(0, n_timesteps):
+        while True:
 
-            while i not in visited_wp:
-                des_x = desired_trajectory[i, [0, 3, 6]]
-                des_y = desired_trajectory[i, [1, 4, 7]]
-                des_z = desired_trajectory[i, [2, 5, 8]]
-                des_yaw = desired_trajectory[i, 9]
-                current_segment = desired_trajectory[i, 10]
+            des_x = desired_trajectory[0, [0, 3, 6]]
+            des_y = desired_trajectory[0, [1, 4, 7]]
+            des_z = desired_trajectory[0, [2, 5, 8]]
+            des_yaw = desired_trajectory[0, 9]
 
-                state_history, omega_history = fly(
-                    state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
-                )
+            state_history, omega_history = fly(
+                state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
+            )
 
-                # add current waypoint to visited if quad is within 0.1m (x, y, z) of it
-                if np.linalg.norm(quad.X[:3] - desired_trajectory[i, :3]) < 0.3:
-                    visited_wp.append(i)
-                    logging.info(f"Waypoint {i} visited.")
+            target_has_been_reached = np.linalg.norm(quad.X[:3] - desired_trajectory[0, :3]) < 0.5
+
+            if target_has_been_reached:
+                desired_trajectory = np.delete(desired_trajectory, 0, axis=0)  # remove current waypoint from desired
+                logging.info(f"Waypoint {round(des_x[0], 1), round(des_y[0], 1), round(des_z[0], 1)} visited.")
+
+            if desired_trajectory.shape[0] == 0:  # if all waypoints have been visited
+                break
 
         logging.info(f"{mode} completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
 
-        total_timesteps += n_timesteps
-        final_desired = np.vstack((final_desired, desired_trajectory))
 
-    sim = Sim3d(config, final_desired, state_history, T.obstacle_edges)
+    sim = Sim3d(config, combined_desired_trajectory, state_history)
     ani = sim.run_sim(frames=total_timesteps+10, interval=5)
     plt.show()
-    # sim.save_sim(ani, "docs/youtube/tracking_perf.mp4")
+    # sim.save_sim(ani, "docs/youtube/test.mp4")
+
 
 

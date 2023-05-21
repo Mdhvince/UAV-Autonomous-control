@@ -14,30 +14,33 @@ class MinimumSnap:
         except TypeError:
             self.coord_obstacles = None
 
-        self.waypoints = np.array(eval(sim_cfg.get("waypoints")))
+        try:
+            self.waypoints = np.array(eval(sim_cfg.get("waypoints")))
+        except TypeError:
+            self.waypoints = None
+
         self._insert_initial_wp(config, mode)
 
         self.velocity = sim_cfg.getfloat("velocity")
         self.dt = cfg.getfloat("dt")
 
-        self.obstacle_edges = None
-        self.times = []                         # will hold the time between segment based on the velocity
-        self.spline_id = []                     # identify on which spline the newly generated point belongs to
-        self.nb_splines = None                  # number of splines in the trajectory
-        self.n_coeffs = 8                       # number of boundary conditions per spline to respect minimum snap
+        self.times = []  # will hold the time between segment based on the velocity
+        self.spline_id = []  # identify on which spline the newly generated point belongs to
+        self.nb_splines = None  # number of splines in the trajectory
+        self.n_coeffs = 8  # number of boundary conditions per spline to respect minimum snap
 
-        self.positions = []                     # will hold the desired positions of the trajectory
-        self.velocities = []                    # will hold the desired velocities of the trajectory
-        self.accelerations = []                 # will hold the desired accelerations of the trajectory
-        self.yaws = []                          # will hold the desired yaws of the trajectory (yaw is hard coded to 0)
-        self.jerks = []                         # will hold the desired jerks of the trajectory
-        self.snap = []                          # will hold the desired snap of the trajectory
+        self.positions = []  # will hold the desired positions of the trajectory
+        self.velocities = []  # will hold the desired velocities of the trajectory
+        self.accelerations = []  # will hold the desired accelerations of the trajectory
+        self.yaws = []  # will hold the desired yaws of the trajectory (yaw is hard coded to 0)
+        self.jerks = []  # will hold the desired jerks of the trajectory
+        self.snap = []  # will hold the desired snap of the trajectory
 
-        self.full_trajectory = None             # will hold the full trajectory
-        self.row_counter = 0                    # keep track of the current row being filled in the A matrix
+        self.full_trajectory = None  # will hold the full trajectory
+        self.row_counter = 0  # keep track of the current row being filled in the A matrix
         self.A = None
         self.b = None
-        self.coeffs = None                      # will hold the coefficients of the trajectory
+        self.coeffs = None  # will hold the coefficients of the trajectory
 
 
     def reset(self):
@@ -56,24 +59,28 @@ class MinimumSnap:
         self.b = None
         self.coeffs = None
 
-    def generate_collision_free_trajectory(self):
+    def get_trajectory(self):
+        self._generate_collision_free_trajectory()
+        return self.full_trajectory
+
+    def _generate_collision_free_trajectory(self):
         """
         Generate a collision free trajectory. The trajectory is generated in two steps:
         1. Generate a minimum snap trajectory
         2. Correct the trajectory to avoid collision with obstacles:
         - if the trajectory goes through an obstacle, create a mid-point in the spline that goes through the obstacle
         """
-        self.obstacle_edges = []
+        # self.obstacle_edges = []
 
         if self.coord_obstacles is not None:
             # create a collision free minimal snap path
             for coord in self.coord_obstacles:
                 self.reset()
                 Obs = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
-                self.obstacle_edges.append(Obs.edges)
+                # self.obstacle_edges.append(Obs.edges)
 
                 # Generate a minimum snap trajectory and check if there is collision with the current obstacle
-                traj = self.generate_trajectory()
+                traj = self._generate_trajectory()
 
                 # create mid-point in splines that goes through an obstacle
                 id_spline_to_correct = {1}
@@ -81,7 +88,7 @@ class MinimumSnap:
 
                     id_spline_to_correct = set([])
                     for n, point in enumerate(traj[:, :3]):
-                        if MinimumSnap.is_collision(point, Obs.vertices):
+                        if MinimumSnap.is_collisionCuboid(*point, coord):  #MinimumSnap.is_collision(point, Obs.vertices):
                             spline_id = traj[n, -1]
                             id_spline_to_correct.add(spline_id + 1)
 
@@ -89,20 +96,23 @@ class MinimumSnap:
                         self.reset()
                         new_waypoints = MinimumSnap.insert_midpoints_at_indexes(self.waypoints, id_spline_to_correct)
                         self.waypoints = new_waypoints
-                        traj = self.generate_trajectory()
+                        traj = self._generate_trajectory()
         else:
-            _ = self.generate_trajectory()
+            _ = self._generate_trajectory()
 
-    def generate_trajectory(self, method="lstsq"):
+    def _generate_trajectory(self, method="lstsq"):
         self._compute_spline_parameters(method)
 
         for it in range(self.nb_splines):
             timeT = self.times[it]
 
             for t in np.arange(0.0, timeT, self.dt):
-                position = self.polynom(self.n_coeffs, order=0, t=t) @ self.coeffs[it * self.n_coeffs: self.n_coeffs * (it + 1)]
-                velocity = self.polynom(self.n_coeffs, order=1, t=t) @ self.coeffs[it * self.n_coeffs: self.n_coeffs * (it + 1)]
-                acceleration = self.polynom(self.n_coeffs, order=2, t=t) @ self.coeffs[it * self.n_coeffs: self.n_coeffs * (it + 1)]
+                position = self.polynom(self.n_coeffs, order=0, t=t) @ self.coeffs[
+                                                                       it * self.n_coeffs: self.n_coeffs * (it + 1)]
+                velocity = self.polynom(self.n_coeffs, order=1, t=t) @ self.coeffs[
+                                                                       it * self.n_coeffs: self.n_coeffs * (it + 1)]
+                acceleration = self.polynom(self.n_coeffs, order=2, t=t) @ self.coeffs[
+                                                                           it * self.n_coeffs: self.n_coeffs * (it + 1)]
                 # jerk = self.polynom(8, order=3, t=t) @ self.coeffs[it*self.n_coeffs : self.n_coeffs*(it+1)]
                 # snap = self.polynom(8, order=4, t=t) @ self.coeffs[it*self.n_coeffs : self.n_coeffs*(it+1)]
 
@@ -114,7 +124,8 @@ class MinimumSnap:
                 # self.jerks.append(jerk)
                 # self.snap.append(snap)
 
-        self.full_trajectory = np.hstack((self.positions, self.velocities, self.accelerations, self.yaws, self.spline_id))
+        self.full_trajectory = np.hstack(
+            (self.positions, self.velocities, self.accelerations, self.yaws, self.spline_id))
         return self.full_trajectory
 
     def _compute_spline_parameters(self, method):
@@ -146,7 +157,7 @@ class MinimumSnap:
 
         for s in range(1, N_SPLINES):
             timeT = self.times[s - 1]
-            for k in [1, 2, 3, 4, 5, 6]:
+            for k in [1, 2, 3, 4]:  # , 5, 6]:
                 poly0 = -1 * MinimumSnap.polynom(self.n_coeffs, order=k, t=0)
                 polyT = MinimumSnap.polynom(self.n_coeffs, order=k, t=timeT)
                 poly = np.hstack((polyT, poly0))  # (end of seg) - (start of seg) must be 0. so no change of vel/acc/...
@@ -241,7 +252,6 @@ class MinimumSnap:
 
         return polynomial.T
 
-
     @staticmethod
     def _choose_simulation_config(config, mode):
         """
@@ -275,7 +285,11 @@ class MinimumSnap:
             self.waypoints = np.insert(self.waypoints, 0, last_takeoff_wp, axis=0)
         elif mode == "landing":
             # insert the last flight waypoint at the beginning of the waypoints array
-            self.waypoints = np.insert(self.waypoints, 0, last_flight_wp, axis=0)
+            self.waypoints = np.array([
+                [last_flight_wp[0], last_flight_wp[1], last_flight_wp[2]],
+                [last_flight_wp[0], last_flight_wp[1], 0.]
+            ])
+            #np.insert(self.waypoints, 0, last_flight_wp, axis=0)
 
     def _setup(self):
         self._generate_waypoints()
@@ -327,6 +341,21 @@ class MinimumSnap:
             return False
 
         return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys) and min(zs) <= z <= max(zs)
+
+
+    @staticmethod
+    def is_collisionCuboid(x, y, z, cuboid_params):
+        """
+        Check if a point collides with a cuboid
+        """
+        x_min, x_max, y_min, y_max, z_min, z_max = cuboid_params
+        x_collision = x_min <= x <= x_max
+        y_collision = y_min <= y <= y_max
+        z_collision = z_min <= z <= z_max
+
+        return x_collision and y_collision and z_collision
+
+
 
     @staticmethod
     def insert_midpoints_at_indexes(points, indexes):

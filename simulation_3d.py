@@ -21,16 +21,16 @@ def timer(func):
 
 
 class Sim3d:
-
-    def __init__(self, config, des_trajectory, state_history, obstacles_edges=None):
+    def __init__(self, config, des_trajectory, state_history):
         """
         This class aims to simulate the quadrotor trajectory in 3D.
         :param config: ConfigParser object
         :param des_trajectory: Desired trajectory of the quadrotor
         :param state_history: State history of the quadrotor
-        :param obstacles_edges: Edges of the obstacles
         """
         self.cfg = config["DEFAULT"]
+        self.flight_wp = np.array(eval(config["SIM_FLIGHT"].get("waypoints")))
+
         self.show_obstacles = self.cfg.getboolean("show_obstacles")
         self.track_mode = self.cfg.getboolean("track_mode")
         self.show_stats = self.cfg.getboolean("show_stats")
@@ -38,7 +38,6 @@ class Sim3d:
         assert not (self.track_mode and self.show_stats), "Cannot show stats in track mode"
 
         self.quad_pos_history = state_history
-        self.obstacles_edges = obstacles_edges
         self.desired = des_trajectory
         self.des_raw = des_trajectory
         self.n_time_steps = self.quad_pos_history.shape[0]
@@ -47,6 +46,10 @@ class Sim3d:
         self._reduce_data(factor=2)
         self._setup_plot()
 
+        try:
+            self.coord_obstacles = np.array(eval(config["SIM_FLIGHT"].get("coord_obstacles")))
+        except TypeError:
+            self.coord_obstacles = None
 
     def run_sim(self, frames, interval, *args):
         ani = animation.FuncAnimation(self.fig, self.animate, frames=frames, interval=interval, fargs=(args))
@@ -62,12 +65,11 @@ class Sim3d:
         current_orientation = self.quad_pos_history[index, 3:6]
 
         self.draw_quad(current_position, current_orientation)
-        self.draw_trajectory()
+        self.draw_desired_trajectory()
+        self.draw_executed_trajectory(index)
+        self.draw_flight_waypoints()
         # self.ax.set_axis_off()
-
-        # draw the executed path of the quadrotor from the beginning until the current position
-        self.ax.plot(self.quad_pos_history[:index, 0], self.quad_pos_history[:index, 1],
-                        self.quad_pos_history[:index, 2], color="r", alpha=.7, linewidth=1)
+        # plt.grid(False)
 
         if self.track_mode:
             side = .5
@@ -82,22 +84,18 @@ class Sim3d:
                 current_position_wo_takeoff = self.quad_pos_history[index, :3]
                 self.draw_stats(current_position_wo_takeoff, current_velocity_wo_takeoff, index)
 
-            if self.show_obstacles and self.obstacles_edges is not None:
+            if self.show_obstacles and self.coord_obstacles is not None:
                 self.draw_obstacles()
+
+            # labels
+            self.ax.set_xlabel('X')
+            self.ax.set_ylabel('Y')
+            self.ax.set_zlabel('Z')
 
             self.ax.set_xlim(0, 11)
             self.ax.set_ylim(0, 11)
             self.ax.set_zlim(0, 11)
 
-            self.ax.xaxis.line.set_color('black')
-            self.ax.yaxis.line.set_color('black')
-            self.ax.zaxis.line.set_color('black')
-
-            if self.show_stats:
-                self.ax.text2D(
-                    0.05, 0.95, f"XYZ: {np.round(current_position, 2)}", transform=self.ax.transAxes)
-                self.ax.text2D(
-                    0.05, 0.90, f"RPY: {np.round(np.rad2deg(current_orientation), 2)}", transform=self.ax.transAxes)
 
     def draw_quad(self, current_position, current_orientation):
         # plot the quadrotor according to its current position
@@ -113,15 +111,37 @@ class Sim3d:
 
         self.ax.add_collection3d(mplot3d.art3d.Poly3DCollection(self.quad_model.vectors, alpha=.2, color="gray"))
 
-    def draw_trajectory(self):
-        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], color="g", alpha=.3, linewidth=5)
+    def draw_flight_waypoints(self):
+        self.ax.plot(self.flight_wp[:, 0], self.flight_wp[:, 1], self.flight_wp[:, 2], 'ro', markersize=8, alpha=.2)
 
+    def draw_executed_trajectory(self, index):
+        """
+        draw the executed path of the quadrotor from the beginning until the current position
+        """
+        self.ax.plot(self.quad_pos_history[:index, 0], self.quad_pos_history[:index, 1],
+                     self.quad_pos_history[:index, 2], color="r", alpha=.7, linewidth=1)
+
+    def draw_desired_trajectory(self):
+        self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], color="g", alpha=.3, linewidth=2)
 
     def draw_obstacles(self):
-        for edges in self.obstacles_edges:
-            for edge in edges:
-                x, y, z = zip(*edge)
-                self.ax.plot(x, y, z, color="red", alpha=.2)
+        x, y, z = np.indices((10, 10, 5))  # space limits where cuboids can be placed
+
+        for obs in self.coord_obstacles:
+            x_min, x_max = obs[:2]
+            y_min, y_max = obs[2:4]
+            z_min, z_max = obs[4:]
+
+            # represent the cuboid as a binary array
+            cube = np.logical_and.reduce((
+                x_min <= x, x < x_max,  # x is between x_min and x_max
+                y_min <= y, y < y_max,  # y_min <= y <= y_max
+                z_min <= z, z < z_max  # z_min <= z <= z_max
+            ))
+
+            colors = np.empty(cube.shape, dtype=object)
+            colors[cube] = '#9881F3'
+            self.ax.voxels(cube, facecolors=colors, alpha=.5)
 
     def draw_stats(self, current_position, current_velocity, index):
         if index % 10 == 0 and index != 0:
@@ -196,5 +216,36 @@ class Sim3d:
 
 
 
+
+
+
 if __name__ == "__main__":
-    pass
+    fig = plt.figure(figsize=(32, 18))
+    ax = fig.add_subplot(111, projection='3d')
+
+    x, y, z = np.indices((30, 30, 30))  # space limits where cuboids can be placed
+
+    x_min, x_max = 0, 3
+    y_min, y_max = 3, 5
+    z_min, z_max = 0, 10
+
+    # represent the cuboid as a binary array
+    cube = np.logical_and.reduce((
+        x_min <= x, x < x_max,  # x is between x_min and x_max
+        y_min <= y, y < y_max,  # y_min <= y <= y_max
+        z_min <= z, z < z_max   # z_min <= z <= z_max
+    ))
+
+    colors = np.empty(cube.shape, dtype=object)
+    colors[cube] = 'gray'
+    ax.voxels(cube, facecolors=colors, alpha=.7)
+
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.set_zlim(0, 10)
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+
+    plt.show()

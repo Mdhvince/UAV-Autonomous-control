@@ -170,7 +170,7 @@ if __name__ == "__main__":
     ])
 
     T = MinimumSnap(waypoints, velocity=1.0, dt=0.02)
-    T.generate_collision_free_trajectory()
+    T._generate_collision_free_trajectory()
 
     fig = plt.figure(figsize=(20, 20))
     ax = fig.add_subplot(111, projection='3d')

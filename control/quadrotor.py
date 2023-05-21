@@ -43,9 +43,6 @@ class Quadrotor:
         # Propeller speed
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
 
-        # # initialize the (x, y, z, yaw) state with the desired state
-        # self.X[0], self.X[1], self.X[2],  self.X[5] = des[0, [0, 1, 2, 9]]
-
     def update_state(self):
         """
         Simulate evolution of the vehicle state over time. Not needed when running on real drone,
@@ -66,8 +63,7 @@ class Quadrotor:
         u_bar = np.array([p_bar, q_bar, r_bar, c_bar])
 
         self.omega = Quadrotor.propeller_coeffs() @ u_bar / 4
-        
- 
+
     def linear_acceleration(self):  # used for state update
         """
         Convert the thrust body frame to world frame , divide by the mass and add the gravity
@@ -81,7 +77,7 @@ class Quadrotor:
         self.dX[6:9] = G + np.matmul(R, F) / self.m
     
     def body_angular_acceleration(self):  # used for state update
-        """Angular aceeleration in the body frame"""
+        """Angular acceleration in the body frame"""
         p_dot = (self.tau_x - self.r * self.q * (self.i_z - self.i_y)) / self.i_x
         q_dot = (self.tau_y - self.r * self.p * (self.i_x - self.i_z)) / self.i_y
         r_dot = (self.tau_z - self.q * self.p * (self.i_y - self.i_x)) / self.i_z
