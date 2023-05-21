@@ -88,7 +88,7 @@ class MinimumSnap:
 
                     id_spline_to_correct = set([])
                     for n, point in enumerate(traj[:, :3]):
-                        if MinimumSnap.is_collisionCuboid(*point, coord):  #MinimumSnap.is_collision(point, Obs.vertices):
+                        if MinimumSnap.is_collisionCuboid(*point, coord):
                             spline_id = traj[n, -1]
                             id_spline_to_correct.add(spline_id + 1)
 
