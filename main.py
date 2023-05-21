@@ -57,7 +57,6 @@ if __name__ == "__main__":
 
     for mode in modes:
         logging.info(f"Starting {mode} mode...")
-        sim_cfg = MinimumSnap._choose_simulation_config(config, mode)
 
         T = MinimumSnap(config, mode)
         desired_trajectory = T.get_trajectory()

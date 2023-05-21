@@ -51,6 +51,8 @@ class Sim3d:
         except TypeError:
             self.coord_obstacles = None
 
+        self.xy_max_limit = 11  # plot limits on x and y axis
+
     def run_sim(self, frames, interval, *args):
         ani = animation.FuncAnimation(self.fig, self.animate, frames=frames, interval=interval, fargs=(args))
         return ani
@@ -68,34 +70,35 @@ class Sim3d:
         self.draw_desired_trajectory()
         self.draw_executed_trajectory(index)
         self.draw_flight_waypoints()
-        # self.ax.set_axis_off()
-        # plt.grid(False)
 
-        if self.track_mode:
-            side = .5
-            self.ax.set_xlim(current_position[0] - side, current_position[0] + side)
-            self.ax.set_ylim(current_position[1] - side, current_position[1] + side)
-            self.ax.set_zlim(current_position[2] - side, current_position[2] + side)
-            plt.grid(False)
+        if self.show_stats:
+            current_velocity_wo_takeoff = np.linalg.norm(self.quad_pos_history[index, 6:9])
+            current_position_wo_takeoff = self.quad_pos_history[index, :3]
+            self.draw_stats(current_position_wo_takeoff, current_velocity_wo_takeoff, index)
 
-        else:
-            if self.show_stats:
-                current_velocity_wo_takeoff = np.linalg.norm(self.quad_pos_history[index, 6:9])
-                current_position_wo_takeoff = self.quad_pos_history[index, :3]
-                self.draw_stats(current_position_wo_takeoff, current_velocity_wo_takeoff, index)
+        if self.show_obstacles and self.coord_obstacles is not None:
+            self.draw_obstacles()
 
-            if self.show_obstacles and self.coord_obstacles is not None:
-                self.draw_obstacles()
+        self.format_axis()
 
-            # labels
-            self.ax.set_xlabel('X')
-            self.ax.set_ylabel('Y')
-            self.ax.set_zlabel('Z')
 
-            self.ax.set_xlim(0, 11)
-            self.ax.set_ylim(0, 11)
-            self.ax.set_zlim(0, 11)
+    def format_axis(self):
+        self.ax.w_xaxis.set_pane_color((1, 1, 1, 0))
+        self.ax.w_yaxis.set_pane_color((1, 1, 1, 0))          # white
+        self.ax.w_zaxis.set_pane_color((.25, .25, .25, 0.8))  # set the floor color to #404854
 
+        # add more grids resolution
+        self.ax.set_xticks(np.arange(0, self.xy_max_limit, 1))
+        self.ax.set_yticks(np.arange(0, self.xy_max_limit, 1))
+
+        # labels
+        self.ax.set_xlabel('X')
+        self.ax.set_ylabel('Y')
+        self.ax.set_zlabel('Z')
+
+        self.ax.set_xlim(0, self.xy_max_limit)
+        self.ax.set_ylim(0, self.xy_max_limit)
+        self.ax.set_zlim(0, self.xy_max_limit)
 
     def draw_quad(self, current_position, current_orientation):
         # plot the quadrotor according to its current position
@@ -125,7 +128,7 @@ class Sim3d:
         self.ax.plot(self.desired[:, 0], self.desired[:, 1], self.desired[:, 2], color="g", alpha=.3, linewidth=2)
 
     def draw_obstacles(self):
-        x, y, z = np.indices((10, 10, 5))  # space limits where cuboids can be placed
+        x, y, z = np.indices((self.xy_max_limit, self.xy_max_limit, 5))  # space limits where cuboids can be placed
 
         for obs in self.coord_obstacles:
             x_min, x_max = obs[:2]
