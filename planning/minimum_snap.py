@@ -260,6 +260,7 @@ class MinimumSnap:
         Find the path depending on the mode using RRT algorithm.
         """
         cfg_rrt = config["RRT"]
+        use_star = cfg_rrt.getboolean("use_star")
         cfg_flight = config["SIM_FLIGHT"]
         goal_loc = np.array(eval(cfg_flight.get("goal_loc")))
 
@@ -279,7 +280,7 @@ class MinimumSnap:
 
             # find waypoints using RRT algorithm
             start_loc = np.array([0., 0., takeoff_height])
-            rrt = RRT(space_limits, start_loc, goal_loc, max_distance, max_iterations, self.coord_obstacles)
+            rrt = RRT(space_limits, start_loc, goal_loc, max_distance, max_iterations, self.coord_obstacles, use_star)
             rrt.run()
             path = rrt.get_path()
 

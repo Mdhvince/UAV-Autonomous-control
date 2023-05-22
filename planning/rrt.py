@@ -1,20 +1,27 @@
 import numpy as np
 
+# rrt*
+# generate random node
+# find neighbors of random node within a radius
+# among these neighbors, find the one with the lowest cost (min distance from the start node)
+# connect the random node to the neighbor with the lowest cost
+
 class RRT:
     """
     Rapidly-exploring Random Tree (RRT) algorithm
     """
-    def __init__(self, space_limits, start, goal, max_distance, max_iterations, obstacles=None):
+    def __init__(self, space_limits, start, goal, max_distance, max_iterations, obstacles=None, use_star=False):
         self.all_nodes = [start]
         self.goal = goal
         self.space_limits = space_limits
         self.max_distance = max_distance
         self.max_iterations = max_iterations
         self.obstacles = obstacles
+        self.use_star = use_star
 
         self.random_node = None
-        self.nearest_node = None
-        self.distance_of_nearest_node = None
+        self.candidate_node = None
+        self.distance_of_candidate_node = None
         self.connected_nodes = []
 
     def run(self):
@@ -23,10 +30,10 @@ class RRT:
         """
         for i in range(self.max_iterations):
             self._generate_random_node()
-            self._find_nearest_node()
+            self._find_candidate_node()
 
             self._update_tree()
-            self.connected_nodes.append([self.nearest_node, self.random_node])
+            self.connected_nodes.append([self.candidate_node, self.random_node])
 
             if self._is_path_found() and self._is_valid_connection():
                 break
@@ -42,18 +49,64 @@ class RRT:
 
         self.random_node = np.array([x_rand, y_rand, z_rand])
 
-    def _find_nearest_node(self):
-        """
-        Find the nearest node in the tree to the random node
-        """
-        # calculate the distance between the random node and all nodes in the tree
-        distances = []
-        for node in self.all_nodes:
-            distances.append(np.linalg.norm(self.random_node - node))
 
-        # find the nearest node
-        self.nearest_node = self.all_nodes[np.argmin(distances)]
-        self.distance_of_nearest_node = np.min(distances)
+    def _find_candidate_node(self):
+        """
+        - Find the nearest node in the tree to the random node [RRT]
+        - Find the neighbor with the lowest cost (min distance from the start node) [RRT*]
+        """
+        distances = []
+        start_node = self.all_nodes[0]
+
+        if self.use_star:
+            neighbors = []
+            costs = []
+
+            # calculate the distance between the random node and all nodes in the tree
+            for node in self.all_nodes:
+                distances.append(np.linalg.norm(self.random_node - node))
+            nearest_node = self.all_nodes[np.argmin(distances)]
+
+            # place the random node at max distance from the nearest node if it is too far away but no connection
+            distance_nearest = np.linalg.norm(self.random_node - nearest_node)
+            if distance_nearest > self.max_distance:
+                self.random_node = nearest_node + (self.random_node - nearest_node) * self.max_distance / distance_nearest
+
+            # check if self.random_node contains infinite values
+            assert np.all(np.isfinite(self.random_node)), "Random node contains infinite values"
+
+            # find neighbors of random node within a radius
+            for node in self.all_nodes:
+                if np.linalg.norm(self.random_node - node) <= self.max_distance*2:
+                    neighbors.append(node)
+
+            # among these neighbors, find the one with the lowest cost (min distance from the start node)
+            if len(neighbors) > 0:
+                for node in neighbors:
+                    costs.append(np.linalg.norm(start_node - node))
+
+                self.candidate_node = neighbors[np.argmin(costs)]
+
+                # here 0 just to say that it is close enough to the random node to validate the connection
+                # because it is a neighbor
+                self.distance_of_candidate_node = 0  # distance of the candidate node to the random node
+
+            # else:
+                # # nearest
+                # for node in self.all_nodes:
+                #     distances.append(np.linalg.norm(self.random_node - node))
+                #
+                # self.candidate_node = self.all_nodes[np.argmin(distances)]
+                # self.distance_of_candidate_node = np.min(distances)
+
+        else:
+            # calculate the distance between the random node and all nodes in the tree
+            for node in self.all_nodes:
+                distances.append(np.linalg.norm(self.random_node - node))
+
+            # find the nearest node
+            self.candidate_node = self.all_nodes[np.argmin(distances)]
+            self.distance_of_candidate_node = np.min(distances)  # distance of the candidate node to the random node
 
 
     def _is_valid_connection(self):
@@ -66,7 +119,7 @@ class RRT:
         # check if the line connecting the nearest node and the random node intersects with any of the obstacles
         for obstacle in self.obstacles:
             xmin, xmax, ymin, ymax, zmin, zmax = obstacle
-            node1, node2 = self.nearest_node, self.random_node
+            node1, node2 = self.candidate_node, self.random_node
 
 
             direction = node2 - node1
@@ -91,14 +144,14 @@ class RRT:
         """
         Update the tree with the new node
         """
-        # if the random node is close enough to the nearest node, add it to the tree
-        if (self.distance_of_nearest_node <= self.max_distance) and self._is_valid_connection():
+        # if the random node is close enough to the candidate node, add it to the tree
+        if (self.distance_of_candidate_node <= self.max_distance) and self._is_valid_connection():
             self.all_nodes.append(self.random_node)
         else:
-            self.__generate_node_at_max_distance()
-
-            if self._is_valid_connection():
-                self.all_nodes.append(self.random_node)
+            if not self.use_star:
+                self.__generate_node_at_max_distance()
+                if self._is_valid_connection():
+                    self.all_nodes.append(self.random_node)
 
 
     def __generate_node_at_max_distance(self):
@@ -106,7 +159,7 @@ class RRT:
         Generate a node at max distance from the nearest node in the case that the random node is too far away
         """
         # generate a node at max distance from the nearest node on the line connecting the two nodes
-        self.random_node = self.nearest_node + (self.random_node - self.nearest_node) * self.max_distance / self.distance_of_nearest_node
+        self.random_node = self.candidate_node + (self.random_node - self.candidate_node) * self.max_distance / self.distance_of_candidate_node
 
 
     def _is_path_found(self):
@@ -121,8 +174,8 @@ class RRT:
         # find the nearest node
         self.nearest_node_to_goal = self.all_nodes[np.argmin(distances)]
 
-        # if the nearest node to the goal is within the max distance, we have found a path, return true
-        if np.min(distances) <= self.max_distance:
+        # if the nearest node to the goal is within 1m, we have found a path, return true
+        if np.min(distances) <= 1:
             self.all_nodes.append(self.goal)
             self.connected_nodes.append([self.nearest_node_to_goal, self.goal])
             return True
