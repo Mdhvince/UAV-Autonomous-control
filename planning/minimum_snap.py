@@ -14,23 +14,23 @@ class MinimumSnap:
         self.velocity = sim_cfg.getfloat("velocity")
         self.dt = cfg.getfloat("dt")
 
-        self.times = []  # will hold the time between segment based on the velocity
-        self.spline_id = []  # identify on which spline the newly generated point belongs to
-        self.nb_splines = None  # number of splines in the trajectory
-        self.n_coeffs = 8  # number of boundary conditions per spline to respect minimum snap
+        self.times = []                          # will hold the time between segment based on the velocity
+        self.spline_id = []                      # identify on which spline the newly generated point belongs to
+        self.nb_splines = None                   # number of splines in the trajectory
+        self.n_coeffs = 8                        # number of boundary conditions per spline to respect minimum snap
 
-        self.positions = []  # will hold the desired positions of the trajectory
-        self.velocities = []  # will hold the desired velocities of the trajectory
-        self.accelerations = []  # will hold the desired accelerations of the trajectory
-        self.yaws = []  # will hold the desired yaws of the trajectory (yaw is hard coded to 0)
-        self.jerks = []  # will hold the desired jerks of the trajectory
-        self.snap = []  # will hold the desired snap of the trajectory
+        self.positions = []                      # will hold the desired positions of the trajectory
+        self.velocities = []                     # will hold the desired velocities of the trajectory
+        self.accelerations = []                  # will hold the desired accelerations of the trajectory
+        self.yaws = []                           # will hold the desired yaws of the trajectory (yaw is hard coded to 0)
+        self.jerks = []                          # will hold the desired jerks of the trajectory
+        self.snap = []                           # will hold the desired snap of the trajectory
 
-        self.full_trajectory = None  # will hold the full trajectory
-        self.row_counter = 0  # keep track of the current row being filled in the A matrix
+        self.full_trajectory = None              # will hold the full trajectory
+        self.row_counter = 0                     # keep track of the current row being filled in the A matrix
         self.A = None
         self.b = None
-        self.coeffs = None  # will hold the coefficients of the trajectory
+        self.coeffs = None                       # will hold the coefficients of the trajectory
 
 
     def reset(self):
@@ -261,6 +261,7 @@ class MinimumSnap:
         """
         cfg_rrt = config["RRT"]
         cfg_flight = config["SIM_FLIGHT"]
+        goal_loc = np.array(eval(cfg_flight.get("goal_loc")))
 
         # last_flight_wp = waypoints[-1]
         takeoff_height = config["SIM_TAKEOFF"].getfloat("height")
@@ -270,7 +271,7 @@ class MinimumSnap:
         if mode == "takeoff":
             waypoints = np.array([[0., 0., 0.], [0., 0., takeoff_height]])
         if mode == "flight":
-            goal_loc = np.array(eval(cfg_flight.get("goal_loc")))
+
             self.coord_obstacles = np.array(eval(cfg_flight.get("coord_obstacles")))
             space_limits = np.array(eval(cfg_rrt.get("space_limits")))
             max_distance = cfg_rrt.getfloat("max_distance")
@@ -285,12 +286,12 @@ class MinimumSnap:
             # insert the last takeoff waypoint at the beginning of the waypoints array
             waypoints = np.insert(path, 0, [0., 0., takeoff_height], axis=0)
 
-        # elif mode == "landing":
-        #     # insert the last flight waypoint at the beginning of the waypoints array
-        #     waypoints = np.array([
-        #         [last_flight_wp[0], last_flight_wp[1], last_flight_wp[2]],
-        #         [last_flight_wp[0], last_flight_wp[1], 0.]
-        #     ])
+        elif mode == "landing":
+            # insert the last flight waypoint at the beginning of the waypoints array
+            waypoints = np.array([
+                [goal_loc[0], goal_loc[1], goal_loc[2]],
+                [goal_loc[0], goal_loc[1], 0.]
+            ])
         return waypoints, rrt
 
     def _setup(self):

@@ -120,7 +120,7 @@ if __name__ == "__main__":
     quad = Quadrotor(config)
     state_history, omega_history = quad.X, quad.omega
 
-    modes = ["takeoff", "flight"]
+    modes = ["takeoff", "flight", "landing"]
     total_timesteps = 0
     combined_desired_trajectory = np.empty((0, 11))
 
