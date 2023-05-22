@@ -1,6 +1,7 @@
 import numpy as np
 
 from planning.obstacle import Obstacle
+from planning.rrt import RRT
 
 
 class MinimumSnap:
@@ -9,17 +10,8 @@ class MinimumSnap:
         cfg = config["DEFAULT"]
         sim_cfg = MinimumSnap._choose_simulation_config(config, mode)
 
-        try:
-            self.coord_obstacles = np.array(eval(sim_cfg.get("coord_obstacles")))
-        except TypeError:
-            self.coord_obstacles = None
-
-        try:
-            self.waypoints = np.array(eval(sim_cfg.get("waypoints")))
-        except TypeError:
-            self.waypoints = None
-
-        self._insert_initial_wp(config, mode)
+        self.coord_obstacles = None
+        self.waypoints, self.rrt = self._find_path(config, mode)
 
         self.velocity = sim_cfg.getfloat("velocity")
         self.dt = cfg.getfloat("dt")
@@ -76,9 +68,6 @@ class MinimumSnap:
             # create a collision free minimal snap path
             for coord in self.coord_obstacles:
                 self.reset()
-                Obs = Obstacle(center=coord[:2], side_length=coord[2], height=coord[3], altitude_start=coord[4])
-                # self.obstacle_edges.append(Obs.edges)
-
                 # Generate a minimum snap trajectory and check if there is collision with the current obstacle
                 traj = self._generate_trajectory()
 
@@ -268,28 +257,43 @@ class MinimumSnap:
 
         return sim_cfg
 
-    def _insert_initial_wp(self, config, mode):
+    def _find_path(self, config, mode):
         """
-        This function inserts the initial waypoint in the waypoints array depending on the mode.
-        :param config: configuration file
-        :param mode: mode of the trajectory (takeoff, flight, landing)
+        Find the path depending on the mode using RRT algorithm.
         """
-        last_takeoff_wp = np.array(eval(config["SIM_TAKEOFF"].get("waypoints")))[-1]
-        last_flight_wp = np.array(eval(config["SIM_FLIGHT"].get("waypoints")))[-1]
+        cfg_rrt = config["RRT"]
+        cfg_flight = config["SIM_FLIGHT"]
+
+        # last_flight_wp = waypoints[-1]
+        takeoff_height = config["SIM_TAKEOFF"].getfloat("height")
+        waypoints = None
+        rrt = None
 
         if mode == "takeoff":
-            # insert the origin at the beginning of the waypoints array
-            self.waypoints = np.insert(self.waypoints, 0, [0., 0., 0.], axis=0)
+            waypoints = np.array([[0., 0., 0.], [0., 0., takeoff_height]])
         if mode == "flight":
+            goal_loc = np.array(eval(cfg_flight.get("goal_loc")))
+            self.coord_obstacles = np.array(eval(cfg_flight.get("coord_obstacles")))
+            space_limits = np.array(eval(cfg_rrt.get("space_limits")))
+            max_distance = cfg_rrt.getfloat("max_distance")
+            max_iterations = cfg_rrt.getint("max_iterations")
+
+            # find waypoints using RRT algorithm
+            start_loc = np.array([0., 0., takeoff_height])
+            rrt = RRT(space_limits, start_loc, goal_loc, max_distance, max_iterations, self.coord_obstacles)
+            rrt.run()
+            path = rrt.get_path()
+
             # insert the last takeoff waypoint at the beginning of the waypoints array
-            self.waypoints = np.insert(self.waypoints, 0, last_takeoff_wp, axis=0)
-        elif mode == "landing":
-            # insert the last flight waypoint at the beginning of the waypoints array
-            self.waypoints = np.array([
-                [last_flight_wp[0], last_flight_wp[1], last_flight_wp[2]],
-                [last_flight_wp[0], last_flight_wp[1], 0.]
-            ])
-            #np.insert(self.waypoints, 0, last_flight_wp, axis=0)
+            waypoints = np.insert(path, 0, [0., 0., takeoff_height], axis=0)
+
+        # elif mode == "landing":
+        #     # insert the last flight waypoint at the beginning of the waypoints array
+        #     waypoints = np.array([
+        #         [last_flight_wp[0], last_flight_wp[1], last_flight_wp[2]],
+        #         [last_flight_wp[0], last_flight_wp[1], 0.]
+        #     ])
+        return waypoints, rrt
 
     def _setup(self):
         self._generate_waypoints()

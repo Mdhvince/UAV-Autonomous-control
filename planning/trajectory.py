@@ -98,7 +98,7 @@ def getwp(form, a=None, phi=None):
     return w
 
 
-def plot_3d_trajectory_and_obstacle(ax, waypoints, trajectory_obj):
+def plot_3d_trajectory_and_obstacle(ax, trajectory_obj):
     """
     This function plots the trajectory and the obstacle in 3D. And apply color on the path based on the velocity
     """
@@ -120,14 +120,14 @@ def plot_3d_trajectory_and_obstacle(ax, waypoints, trajectory_obj):
     colors = scalar_map(norm(vel))
 
     # plot min snap trajectory
-    # for i in range(len(trajectory)):
-    #     label = "Minimum snap trajectory" if i == 0 else None
-    #     if i > 0:
-    #         ax.plot(
-    #             [trajectory[i - 1, 0], trajectory[i, 0]],
-    #             [trajectory[i - 1, 1], trajectory[i, 1]],
-    #             [trajectory[i - 1, 2], trajectory[i, 2]],
-    #             color=colors[i], alpha=.2, linewidth=5, label=label)
+    for i in range(len(trajectory)):
+        label = "Minimum snap trajectory" if i == 0 else None
+        if i > 0:
+            ax.plot(
+                [trajectory[i - 1, 0], trajectory[i, 0]],
+                [trajectory[i - 1, 1], trajectory[i, 1]],
+                [trajectory[i - 1, 2], trajectory[i, 2]],
+                color=colors[i], alpha=.2, linewidth=5, label=label)
 
 
     # # plot waypoints
@@ -135,12 +135,12 @@ def plot_3d_trajectory_and_obstacle(ax, waypoints, trajectory_obj):
     #     x, y, z = waypoints[i]
     #     ax.plot(x, y, z, marker=".", markersize=10, color="black", label="Waypoints" if i == 0 else None)
 
-    if len(trajectory_obj.obstacle_edges) > 0:
-        # plot obstacles edges
-        for edges in trajectory_obj.obstacle_edges:
-            for edge in edges:
-                x, y, z = zip(*edge)
-                ax.plot(x, y, z, color="red", alpha=.2)
+    # if len(trajectory_obj.obstacle_edges) > 0:
+    #     # plot obstacles edges
+    #     for edges in trajectory_obj.obstacle_edges:
+    #         for edge in edges:
+    #             x, y, z = zip(*edge)
+    #             ax.plot(x, y, z, color="red", alpha=.2)
 
     # labels
     ax.set_xlabel('X (m)')

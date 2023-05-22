@@ -2,10 +2,9 @@ import configparser
 from pathlib import Path
 
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
+from mayavi import mlab
 
-from planning.minimum_snap import MinimumSnap
+# from planning.minimum_snap import MinimumSnap
 
 
 class RRT:
@@ -108,6 +107,7 @@ class RRT:
             if self._is_valid_connection():
                 self.all_nodes.append(self.random_node)
 
+
     def __generate_node_at_max_distance(self):
         """
         Generate a node at max distance from the nearest node in the case that the random node is too far away
@@ -156,86 +156,8 @@ class RRT:
         return path
 
 
-
-
-
 if __name__ == "__main__":
-    start = np.array([2, 2, 2])
-    goal = np.array([10, 10, 10])
-    max_distance = 3
-    max_iterations = 5000
-
-    obstacles = np.array([[0, 3, 3, 5, 0, 10], [3, 6, 3, 5, 0, 10]])  # xmin, xmax, ymin, ymax, zmin, zmax
-
-    rrt = RRT([10, 10, 10], start, goal, max_distance, max_iterations, obstacles)
-    rrt.run()
-
-    fig = plt.figure(figsize=(32, 18))
-    ax = fig.add_subplot(111, projection='3d')
-
-
-    # plot the start and goal points in red and green respectively
-    ax.scatter(start[0], start[1], start[2], c='r', marker='o')
-    ax.scatter(goal[0], goal[1], goal[2], c='g', marker='o', s=100, alpha=0.5)
-
-    # plot the nodes in the tree
-    for node in rrt.all_nodes:
-        ax.scatter(node[0], node[1], node[2], color='b', s=2, alpha=0.5)
-
-    # plot the connected nodes
-    for node in rrt.connected_nodes:
-        nearest, random = node
-        ax.plot(
-            [nearest[0], random[0]],
-            [nearest[1], random[1]],
-            [nearest[2], random[2]], color='k', alpha=0.3)
-
-    # plot the path
-    path = rrt.get_path()
-    for i in range(len(path) - 1):
-        ax.plot(
-            [path[i][0], path[i + 1][0]],
-            [path[i][1], path[i + 1][1]],
-            [path[i][2], path[i + 1][2]], color='r', alpha=0.5)
-
-
-    # plot obstacles
-    x, y, z = np.indices((11, 11, 11))  # space limits where cuboids can be placed
-
-    for obstacle in obstacles:
-        x_min, x_max = obstacle[0], obstacle[1]
-        y_min, y_max = obstacle[2], obstacle[3]
-        z_min, z_max = obstacle[4], obstacle[5]
-
-
-        # represent the cuboid as a binary array
-        cube = np.logical_and.reduce((
-            x_min <= x, x < x_max,  # x is between x_min and x_max
-            y_min <= y, y < y_max,  # y_min <= y <= y_max
-            z_min <= z, z < z_max  # z_min <= z <= z_max
-        ))
-
-        colors = np.empty(cube.shape, dtype=object)
-        colors[cube] = 'gray'
-        ax.voxels(cube, facecolors=colors, alpha=.7)
-
-    config = configparser.ConfigParser(inline_comment_prefixes="#")
-    config_file = Path("/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini")
-    config.read(config_file)
-
-    T = MinimumSnap(config, "flight")
-    T.coord_obstacles = None
-    T.waypoints = path
-    T.velocity = 2
-    desired_trajectory = T.get_trajectory()[:, :3]
-
-    ax.plot(
-        desired_trajectory[:, 0],
-        desired_trajectory[:, 1],
-        desired_trajectory[:, 2], color='g', alpha=0.3, linewidth=3)
-
-
-    plt.show()
+    pass
 
 
 
