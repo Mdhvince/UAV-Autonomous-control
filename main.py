@@ -32,12 +32,17 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
 
 def plot_trajectory(config, rrt, optim, state_history, animate=False, delay=60):
     f = mlab.figure(size=(1920, 1080), bgcolor=(.9, .9, .9))
+
     # start and goal points (static)
     takeoff_height = eval(config["SIM_TAKEOFF"].get("height"))
     start = np.array([0., 0., takeoff_height])
     goal = np.array(eval(config["SIM_FLIGHT"].get("goal_loc")))
+    goal_land = np.array([goal[0], goal[1], 0.])
+
+    mlab.points3d(0., 0., 0., color=(1, 0, 0), scale_factor=0.2, resolution=60)
     mlab.points3d(start[0], start[1], start[2], color=(1, 0, 0), scale_factor=0.2, resolution=60)
     mlab.points3d(goal[0], goal[1], goal[2], color=(0, 1, 0), scale_factor=0.2, resolution=60)
+    mlab.points3d(goal_land[0], goal_land[1], goal_land[2], color=(0, 1, 0), scale_factor=0.2, resolution=60)
 
     # obstacles
     obstacles = np.array(eval(config["SIM_FLIGHT"].get("coord_obstacles")))[1:, :]  # ignore the floor
@@ -88,14 +93,24 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, delay=60):
 
     if animate:
         # quad position (to animate)
+        # quad_mesh = mlab.pipeline.open(
+        #     '/home/medhyvinceslas/Documents/programming/quad3d_sim/quad_model/quadrotor_base.stl')
+        # quad_mesh = mlab.pipeline.surface(quad_mesh, color=(0, 0, 0))
+
         quad_pos = mlab.points3d(
-            state_history[0, 0], state_history[0, 1], state_history[0, 2], color=(0, 1, 1), scale_factor=0.2)
+            state_history[0, 0], state_history[0, 1], state_history[0, 2], color=(1, 1, 0), scale_factor=0.2)
 
         @mlab.animate(delay=delay)
         def anim():
             for coord in state_history:
                 x, y, z = coord[:3]
                 quad_pos.mlab_source.set(x=x, y=y, z=z)
+
+                # roll, pitch, yaw = coord[3:6]
+                # quad_mesh.actor.actor.rotate_y(roll)
+                # quad_mesh.actor.actor.rotate_x(pitch)
+                # quad_mesh.actor.actor.rotate_z(yaw)
+                # quad_mesh.actor.actor.position = (x, y, z)
                 yield
 
         anim()
@@ -166,4 +181,4 @@ if __name__ == "__main__":
         logging.info(f"{mode} completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
 
 
-    plot_trajectory(config, rrt, optim, state_history, animate=True, delay=30)
+    plot_trajectory(config, rrt, optim, state_history, animate=True, delay=50)
