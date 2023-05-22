@@ -1,21 +1,14 @@
-import math
-import time
 import warnings
 import logging
 import configparser
 from pathlib import Path
-from collections import namedtuple, deque
 
 import numpy as np
-from matplotlib.cm import get_cmap, ScalarMappable
-from matplotlib.colors import Normalize
 from mayavi import mlab
 
 from control.quadrotor import Quadrotor
 from control.controller import CascadedController
 from planning.minimum_snap import MinimumSnap
-from planning.trajectory import plot_3d_trajectory_and_obstacle
-from simulation_3d import Sim3d
 
 warnings.filterwarnings('ignore')
 
@@ -37,7 +30,7 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
 
     return state_history, omega_history
 
-def plot_trajectory(config, rrt, optim):
+def plot_trajectory(config, rrt, optim, state_history, animate=False, delay=60):
     f = mlab.figure(size=(1920, 1080), bgcolor=(.9, .9, .9))
     # start and goal points (static)
     takeoff_height = eval(config["SIM_TAKEOFF"].get("height"))
@@ -93,6 +86,21 @@ def plot_trajectory(config, rrt, optim):
     # Optimal trajectory
     mlab.plot3d(optim[:, 0], optim[:, 1], optim[:, 2], tube_radius=0.02, color=(1, 0, 1))
 
+    if animate:
+        # quad position (to animate)
+        quad_pos = mlab.points3d(
+            state_history[0, 0], state_history[0, 1], state_history[0, 2], color=(0, 1, 1), scale_factor=0.2)
+
+        @mlab.animate(delay=delay)
+        def anim():
+            for coord in state_history:
+                x, y, z = coord[:3]
+                quad_pos.mlab_source.set(x=x, y=y, z=z)
+                yield
+
+        anim()
+    mlab.show()
+
 
 
 if __name__ == "__main__":
@@ -117,7 +125,7 @@ if __name__ == "__main__":
     combined_desired_trajectory = np.empty((0, 11))
 
     rrt = None
-    min_distance_target = 10  # minimum distance to target to consider it reached
+    min_distance_target = .5  # minimum distance to target to consider it reached
     optim = None
 
     for mode in modes:
@@ -158,28 +166,4 @@ if __name__ == "__main__":
         logging.info(f"{mode} completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
 
 
-
-
-    plot_trajectory(config, rrt, optim)
-
-
-    # # quad position (to animate)
-    # quad_pos = mlab.points3d(
-    #     state_history[0, 0], state_history[0, 1], state_history[0, 2], color=(0, 1, 1), scale_factor=0.2)
-    #
-    # @mlab.animate(delay=60)
-    # def anim():
-    #     for coord in state_history:
-    #         x, y, z = coord[:3]
-    #         quad_pos.mlab_source.set(x=x, y=y, z=z)
-    #         yield
-    #
-    # anim()
-
-
-    mlab.show()
-
-    # sim = Sim3d(config, combined_desired_trajectory, state_history)
-    # ani = sim.run_sim(frames=total_timesteps+10, interval=5)
-    # plt.show()
-    # sim.save_sim(ani, "docs/youtube/test.mp4")
+    plot_trajectory(config, rrt, optim, state_history, animate=True, delay=30)

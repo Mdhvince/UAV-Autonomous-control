@@ -1,11 +1,4 @@
-import configparser
-from pathlib import Path
-
 import numpy as np
-from mayavi import mlab
-
-# from planning.minimum_snap import MinimumSnap
-
 
 class RRT:
     """

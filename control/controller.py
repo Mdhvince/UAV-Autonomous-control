@@ -1,5 +1,10 @@
+import configparser
+from pathlib import Path
 
 import numpy as np
+import matplotlib.pyplot as plt
+
+from control.quadrotor import Quadrotor
 
 
 class CascadedController:
@@ -13,10 +18,13 @@ class CascadedController:
 
         self.kp_z = controller.getfloat("kp_z")
         self.kd_z = controller.getfloat("kd_z")
-        self.kp_x = controller.getfloat("kp_x")
-        self.kd_x = controller.getfloat("kd_x")
-        self.kp_y = controller.getfloat("kp_y")
-        self.kd_y = controller.getfloat("kd_y")
+
+        self.kp_x = controller.getfloat("kp_xy")
+        self.kd_x = controller.getfloat("kd_xy")
+
+        self.kp_y = controller.getfloat("kp_xy")
+        self.kd_y = controller.getfloat("kd_xy")
+
         self.ki_z = controller.getfloat("ki_z")
         self.kp_roll = controller.getfloat("kp_roll")
         self.kp_pitch = controller.getfloat("kp_pitch")
@@ -40,7 +48,8 @@ class CascadedController:
         error_dot = des_z[1] - quad.z_vel
         self.integral_error += error * self.dt
 
-        acc_z = CascadedController._pid(self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error, des_z[2]) - self.g
+        acc_z = CascadedController._pid(
+            self.kp_z, self.kd_z, self.ki_z, error, error_dot, self.integral_error, des_z[2]) - self.g
 
         # Project the acceleration along the z-vector of the body (Bz)
         b_z = rot_mat[2, 2]
@@ -195,4 +204,56 @@ class CascadedController:
     
 
 if __name__ == "__main__":
-    pass
+    config = configparser.ConfigParser(inline_comment_prefixes="#")
+    config_file = Path("/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini")
+    config.read(config_file)
+    cfg = config["DEFAULT"]
+    frequency = cfg.getint("frequency")
+
+    ctrl = CascadedController(config)
+    quad = Quadrotor(config)
+    state_history, omega_history = quad.X, quad.omega
+
+    # Test the controller response for a desired position and velocity in the z direction
+    des_x = np.array([5, 2, 0])
+    des_y = np.array([12, 2, 0])
+    des_z = np.array([10, 2, 0])
+    des_yaw = 0
+
+    for _ in range(1500):
+        R = quad.R()
+        F_cmd = ctrl.altitude(quad, des_z, R)
+        bxy_cmd = ctrl.lateral(quad, des_x, des_y, F_cmd)
+        pqr_cmd = ctrl.reduced_attitude(quad, bxy_cmd, des_yaw, R)
+
+        for _ in range(frequency):
+            # flight controller
+            moment_cmd = ctrl.body_rate_controller(quad, pqr_cmd)
+            quad.set_propeller_speed(F_cmd, moment_cmd)
+            quad.update_state()
+
+        state_history = np.vstack((state_history, quad.X))
+        omega_history = np.vstack((omega_history, quad.omega))
+
+
+    # plot controller response for the x, y, z direction
+    plt.figure()
+    plt.subplot(3, 1, 1)
+    plt.plot(state_history[:, 0], label="x")
+    plt.plot(des_x[0] * np.ones_like(state_history[:, 0]), label="desired x")
+    # plt.ylim([-1, 15])
+
+    plt.subplot(3, 1, 2)
+    plt.plot(state_history[:, 1], label="y")
+    plt.plot(des_y[0] * np.ones_like(state_history[:, 1]), label="desired y")
+    # plt.ylim([-1, 15])
+
+    plt.subplot(3, 1, 3)
+    plt.plot(state_history[:, 2], label="z")
+    plt.plot(des_z[0] * np.ones_like(state_history[:, 2]), label="desired z")
+    # plt.ylim([-1, 15])
+
+
+    plt.show()
+
+

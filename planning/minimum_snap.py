@@ -1,6 +1,4 @@
 import numpy as np
-
-from planning.obstacle import Obstacle
 from planning.rrt import RRT
 
 
