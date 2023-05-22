@@ -7,8 +7,10 @@ https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6dff700c-9ed4
 https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/2dcca69f-2981-4cef-a6e1-313b70ec2882
 
 ### Vanilla RRT
-![Vanilla RRT](docs/rrt_classic.png "")
+![Vanilla RRT](docs/rrt_classic.png "")  
 
+### RRT*
+![RRT*](docs/rrt_star.png "")  
 
 ### Controller response
 ![Controller response](docs/controller_response.png "")

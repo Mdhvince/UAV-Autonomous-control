@@ -30,7 +30,7 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
 
     return state_history, omega_history
 
-def plot_trajectory(config, rrt, optim, state_history, animate=False, delay=60):
+def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes=False, draw_obstacles=False, delay=60):
     f = mlab.figure(size=(1920, 1080), bgcolor=(.9, .9, .9))
 
     # start and goal points (static)
@@ -44,45 +44,48 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, delay=60):
     mlab.points3d(goal[0], goal[1], goal[2], color=(0, 1, 0), scale_factor=0.2, resolution=60)
     mlab.points3d(goal_land[0], goal_land[1], goal_land[2], color=(0, 1, 0), scale_factor=0.2, resolution=60)
 
-    # obstacles
-    obstacles = np.array(eval(config["SIM_FLIGHT"].get("coord_obstacles")))[1:, :]  # ignore the floor
-    offset = 0.5  # need to offset the obstacle by 0.5 due to mayavi way of plotting cubes
+    if draw_obstacles:
+        # obstacles
+        obstacles = np.array(eval(config["SIM_FLIGHT"].get("coord_obstacles")))[1:, :]  # ignore the floor
+        offset = 0.5  # need to offset the obstacle by 0.5 due to mayavi way of plotting cubes
 
-    for obstacle in obstacles:
-        xx, yy, zz = np.mgrid[
-                     obstacle[0] + offset:obstacle[1]:1,
-                     obstacle[2] + offset:obstacle[3]:1,
-                     obstacle[4] + offset:obstacle[5]:1
-                     ]
-        mlab.points3d(xx, yy, zz, color=(.6, .6, .6), scale_factor=1, mode='cube', opacity=0.2)
+        for obstacle in obstacles:
+            xx, yy, zz = np.mgrid[
+                         obstacle[0] + offset:obstacle[1]:1,
+                         obstacle[2] + offset:obstacle[3]:1,
+                         obstacle[4] + offset:obstacle[5]:1
+                         ]
+            mlab.points3d(xx, yy, zz, color=(.6, .6, .6), scale_factor=1, mode='cube', opacity=0.2)
 
-    # true obstacles (non-enhanced): their width are 0.5 smaller and height 0.5 smaller than the ones in the config file
-    rm = 0.25
-    offset = offset + rm
-    matrix_factor = np.ones(obstacles.shape) * rm
-    matrix_factor[:, [1, 3, 5]] = matrix_factor[:, [1, 3, 5]] * -1
-    obstacles_true = obstacles + matrix_factor
+        # true obstacles (non-enhanced): their width are 0.5 smaller and height 0.5 smaller than the ones in the config file
+        rm = 0.25
+        offset = offset + rm
+        matrix_factor = np.ones(obstacles.shape) * rm
+        matrix_factor[:, [1, 3, 5]] = matrix_factor[:, [1, 3, 5]] * -1
+        obstacles_true = obstacles + matrix_factor
 
-    # ensure z_min is 0 if z_min=0.25
-    obstacles_true[:, 4] = np.where(obstacles_true[:, 4] == 0.25, 0, obstacles_true[:, 4])
+        # ensure z_min is 0 if z_min=0.25
+        obstacles_true[:, 4] = np.where(obstacles_true[:, 4] == 0.25, 0, obstacles_true[:, 4])
 
-    for obstacle in obstacles_true:
-        xx, yy, zz = (
-            np.mgrid[obstacle[0]+offset:obstacle[1]:1,
-                     obstacle[2]+offset:obstacle[3]:1,
-                     obstacle[4]+offset-rm:obstacle[5]:1]
-        )
-        mlab.points3d(xx, yy, zz, color=(1, 0, 0), scale_factor=1, mode='cube', opacity=1)
+        for obstacle in obstacles_true:
+            xx, yy, zz = (
+                np.mgrid[obstacle[0]+offset:obstacle[1]:1,
+                         obstacle[2]+offset:obstacle[3]:1,
+                         obstacle[4]+offset-rm:obstacle[5]:1]
+            )
+            mlab.points3d(xx, yy, zz, color=(1, 0, 0), scale_factor=1, mode='cube', opacity=1)
 
-    # Nodes in the tree
-    for node in rrt.all_nodes:
-        mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1, resolution=60)
+    if draw_nodes:
+        # filter out half the nodes (for better visualization)
+        n = 2
+        for node in rrt.all_nodes[::n]:
+            mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1, resolution=60)
 
-    # Edges in the tree
-    for connected_node in rrt.connected_nodes:
-        node1, node2 = connected_node
-        mlab.plot3d(
-            [node1[0], node2[0]], [node1[1], node2[1]], [node1[2], node2[2]], color=(0, 0, 0), tube_radius=0.01)
+        # Edges in the tree
+        for connected_node in rrt.connected_nodes[::n]:
+            node1, node2 = connected_node
+            mlab.plot3d(
+                [node1[0], node2[0]], [node1[1], node2[1]], [node1[2], node2[2]], color=(0, 0, 0), tube_radius=0.01)
 
     # Path found
     path = rrt.get_path()
@@ -114,6 +117,7 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, delay=60):
                 yield
 
         anim()
+
     mlab.show()
 
 
@@ -181,4 +185,4 @@ if __name__ == "__main__":
         logging.info(f"{mode} completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
 
 
-    plot_trajectory(config, rrt, optim, state_history, animate=True, delay=50)
+    plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes=False, draw_obstacles=True)

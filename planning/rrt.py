@@ -28,6 +28,7 @@ class RRT:
         """
         Run the RRT algorithm
         """
+        msg = "No path found!"
         for i in range(self.max_iterations):
             self._generate_random_node()
             self._find_candidate_node()
@@ -35,8 +36,12 @@ class RRT:
             self._update_tree()
             self.connected_nodes.append([self.candidate_node, self.random_node])
 
-            if self._is_path_found() and self._is_valid_connection():
+            if self._is_path_found() and self._is_valid_connection() and i > self.max_iterations/2:
+                msg = "Path found!"
                 break
+
+        if msg == "No path found!":
+            raise Exception(msg)
 
 
     def _generate_random_node(self):
@@ -175,7 +180,7 @@ class RRT:
         self.nearest_node_to_goal = self.all_nodes[np.argmin(distances)]
 
         # if the nearest node to the goal is within 1m, we have found a path, return true
-        if np.min(distances) <= 1:
+        if np.min(distances) <= self.max_distance:
             self.all_nodes.append(self.goal)
             self.connected_nodes.append([self.nearest_node_to_goal, self.goal])
             return True
