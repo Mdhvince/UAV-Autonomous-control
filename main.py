@@ -76,16 +76,13 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes
             mlab.points3d(xx, yy, zz, color=(1, 0, 0), scale_factor=1, mode='cube', opacity=1)
 
     if draw_nodes:
-        # filter out half the nodes (for better visualization)
-        n = 2
-        for node in rrt.all_nodes[::n]:
-            mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1, resolution=60)
-
-        # Edges in the tree
-        for connected_node in rrt.connected_nodes[::n]:
-            node1, node2 = connected_node
+        for node, parent in rrt.tree.items():
+            node = np.array(eval(node))
+            # plot the nodes and connections between the nodes and their parents
+            mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1)
+            mlab.points3d(parent[0], parent[1], parent[2], color=(0, 0, 1), scale_factor=.1)
             mlab.plot3d(
-                [node1[0], node2[0]], [node1[1], node2[1]], [node1[2], node2[2]], color=(0, 0, 0), tube_radius=0.01)
+                [node[0], parent[0]], [node[1], parent[1]], [node[2], parent[2]], color=(0, 0, 0),tube_radius=0.01)
 
     # Path found
     path = rrt.get_path()
@@ -185,4 +182,4 @@ if __name__ == "__main__":
         logging.info(f"{mode} completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
 
 
-    plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes=False, draw_obstacles=True)
+    plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes=True, draw_obstacles=True)
