@@ -12,7 +12,7 @@ class RRTStar:
         self.step_size = max_distance
         self.max_iterations = max_iterations
         self.obstacles = obstacles
-        self.epsilon = 0.2
+        self.epsilon = 0.01
 
         self.neighborhood_radius = 2 * max_distance
         self.all_nodes = [start]
@@ -40,9 +40,8 @@ class RRTStar:
             # TODO: Review the condition. It could be good to keep iterating even if the goal is found. We may find a
             #  better path
             if self._is_path_found():
-                print("Path found after {} iterations".format(it))
+                print("Path found after {} iterations... continuing".format(it))
                 break
-
 
 
     def _generate_random_node(self):
