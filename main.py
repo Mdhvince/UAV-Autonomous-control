@@ -46,7 +46,7 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes
 
     if draw_obstacles:
         # obstacles
-        obstacles = np.array(eval(config["SIM_FLIGHT"].get("coord_obstacles")))[1:, :]  # ignore the floor
+        obstacles = np.array(eval(config["SIM_FLIGHT"].get("coord_obstacles")))[1:-2, :]  # ignore the floor and ceiling
         offset = 0.5  # need to offset the obstacle by 0.5 due to mayavi way of plotting cubes
 
         for obstacle in obstacles:
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     combined_desired_trajectory = np.empty((0, 11))
 
     rrt = None
-    min_distance_target = .5  # minimum distance to target to consider it reached
+    min_distance_target = .8  # minimum distance to target to consider it reached
     optim = None
 
     for mode in modes:

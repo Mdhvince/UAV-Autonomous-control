@@ -1,5 +1,5 @@
 import numpy as np
-from planning.rrt import RRT
+from planning.rrt import RRTStar
 
 
 class MinimumSnap:
@@ -280,7 +280,7 @@ class MinimumSnap:
 
             # find waypoints using RRT algorithm
             start_loc = np.array([0., 0., takeoff_height])
-            rrt = RRT(space_limits, start_loc, goal_loc, max_distance, max_iterations, self.coord_obstacles, use_star)
+            rrt = RRTStar(space_limits, start_loc, goal_loc, max_distance, max_iterations, self.coord_obstacles)
             rrt.run()
             path = rrt.get_path()
 
