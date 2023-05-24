@@ -24,9 +24,6 @@ https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/2dcca69f-2981
 ### Controller response
 ![Controller response](docs/controller_response.png "")
 
-### 3D snap
-![3D snap](docs/min_snap2.png "")
-
 
 ### 1. Control  
 
