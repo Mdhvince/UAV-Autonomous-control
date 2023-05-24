@@ -5,7 +5,10 @@
 - [x] From hardcoded waypoints, generate an optimal trajectory (minimum snap)  
 - [x] From hardcoded waypoints and hardcoded obstacles, generate an optimal trajectory (minimum snap + collision-free)  
 - [x] Generate waypoints from a path planning algorithm (RRT*), given hardcoded obstacles and generate an optimal trajectory (minimum snap + collision-free)  
-- [ ] Automatically detect obstacles (vision-based) and generate a 3D map (SLAM)  
+- [x] Dead-reckon the UAV position, by predicting the position using the controller and the last known position (In simulation: Quadrotor class) - This approach works on short timeframe
+but the error can grow over time due to the fact that we are estimating the position relative (i.e. IMU) to the last known position, not relative to the environment (i.e. GPS, maps etc).  
+- [ ] Localize the UAV using a Map
+- [ ] Localize the UAV and build a map (SLAM)
 - [ ] Handle dynamic obstacles   
 
 
