@@ -31,7 +31,7 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
     return state_history, omega_history
 
 def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes=False, draw_obstacles=False, delay=60):
-    f = mlab.figure(size=(1920, 1080), bgcolor=(.9, .9, .9))
+    mlab.figure(size=(1920, 1080), bgcolor=(.9, .9, .9))
 
     # start and goal points (static)
     takeoff_height = eval(config["SIM_TAKEOFF"].get("height"))
@@ -79,14 +79,14 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes
         for node, parent in rrt.tree.items():
             node = np.array(eval(node))
             # plot the nodes and connections between the nodes and their parents
-            mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1)
-            mlab.points3d(parent[0], parent[1], parent[2], color=(0, 0, 1), scale_factor=.1)
-            mlab.plot3d(
-                [node[0], parent[0]], [node[1], parent[1]], [node[2], parent[2]], color=(0, 0, 0),tube_radius=0.01)
+            mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1, opacity=0.1)
+            mlab.points3d(parent[0], parent[1], parent[2], color=(0, 0, 1), scale_factor=.1, opacity=0.1)
+            mlab.plot3d([node[0], parent[0]], [node[1], parent[1]], [node[2], parent[2]],
+                        color=(0, 0, 0),tube_radius=0.01, opacity=0.1)
 
     # Path found
     path = rrt.get_path()
-    mlab.plot3d(path[:, 0], path[:, 1], path[:, 2], color=(0, 1, 1), tube_radius=0.02)
+    mlab.plot3d(path[:, 0], path[:, 1], path[:, 2], color=(1, 1, 0), tube_radius=0.02)
 
     # Optimal trajectory
     mlab.plot3d(optim[:, 0], optim[:, 1], optim[:, 2], tube_radius=0.02, color=(1, 0, 1))
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     combined_desired_trajectory = np.empty((0, 11))
 
     rrt = None
-    min_distance_target = .8  # minimum distance to target to consider it reached
+    min_distance_target = .6  # minimum distance to target to consider it reached
     optim = None
 
     for mode in modes:

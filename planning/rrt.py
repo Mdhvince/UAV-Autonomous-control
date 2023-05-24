@@ -12,9 +12,9 @@ class RRTStar:
         self.step_size = max_distance
         self.max_iterations = max_iterations
         self.obstacles = obstacles
-        self.epsilon = 0.01
+        self.epsilon = 0.1
 
-        self.neighborhood_radius = 2 * max_distance
+        self.neighborhood_radius = 1.5 * max_distance
         self.all_nodes = [start]
 
         self.tree = {}
@@ -37,11 +37,13 @@ class RRTStar:
             # among the neighbors, find if linking to the new node is better than the current parent (re-wire)
             self._rewire_safely(neighbors, new_node)
 
-            # TODO: Review the condition. It could be good to keep iterating even if the goal is found. We may find a
-            #  better path
-            if self._is_path_found():
-                print("Path found after {} iterations... continuing".format(it))
-                break
+            # TODO: if path found, calculate the cost of the path and store it in a list. then continue. if the cost of
+            #  the path is lower than the cost of the best path, update the best path and the best cost. if the cost of
+            #  the path stay lower than the best cost for a certain number of iterations, stop the algorithm and return
+            #  the best path
+
+        if not self._is_path_found():
+            raise Exception("No path found")
 
 
     def _generate_random_node(self):
