@@ -6,7 +6,7 @@
 - [x] From hardcoded waypoints and hardcoded obstacles, generate an optimal trajectory (minimum snap + collision-free)  
 - [x] Generate waypoints from a path planning algorithm (RRT*), given hardcoded obstacles and generate an optimal trajectory (minimum snap + collision-free)  
 - [ ] Automatically detect obstacles (vision-based) and generate a 3D map (SLAM)  
-- [ ] Handle dynamic obstacles  
+- [ ] Handle dynamic obstacles   
 
 
 ### Result
