@@ -9,6 +9,7 @@ from mayavi import mlab
 from control.quadrotor import Quadrotor
 from control.controller import CascadedController
 from planning.minimum_snap import MinimumSnap
+from planning.rrt import RRTStar
 
 warnings.filterwarnings('ignore')
 
@@ -30,34 +31,29 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
 
     return state_history, omega_history
 
-def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes=False, draw_obstacles=False, delay=60):
-    mlab.figure(size=(1920, 1080), bgcolor=(.9, .9, .9))
+def plot_trajectory(rrt, optimal_trajectory, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=False, delay=60):
+    mlab.figure(size=(1920, 1080), bgcolor=(.3, .3, .3))
 
     # start and goal points (static)
-    takeoff_height = eval(config["SIM_TAKEOFF"].get("height"))
-    start = np.array([0., 0., takeoff_height])
-    goal = np.array(eval(config["SIM_FLIGHT"].get("goal_loc")))
-    goal_land = np.array([goal[0], goal[1], 0.])
+    start = rrt.start
+    goal = rrt.goal
 
-    mlab.points3d(0., 0., 0., color=(1, 0, 0), scale_factor=0.2, resolution=60)
-    mlab.points3d(start[0], start[1], start[2], color=(1, 0, 0), scale_factor=0.2, resolution=60)
-    mlab.points3d(goal[0], goal[1], goal[2], color=(0, 1, 0), scale_factor=0.2, resolution=60)
-    mlab.points3d(goal_land[0], goal_land[1], goal_land[2], color=(0, 1, 0), scale_factor=0.2, resolution=60)
+    mlab.points3d(*start, color=(1, 0, 0), scale_factor=0.2, resolution=60)
+    mlab.points3d(*goal, color=(0, 1, 0), scale_factor=0.2, resolution=60)
 
     if draw_obstacles:
         # obstacles
-        obstacles = np.array(eval(config["SIM_FLIGHT"].get("coord_obstacles")))[1:-2, :]  # ignore the floor and ceiling
+        obstacles = np.array(obstacles)[1:-2, :]  # ignore the floor and ceiling
         offset = 0.5  # need to offset the obstacle by 0.5 due to mayavi way of plotting cubes
 
         for obstacle in obstacles:
-            xx, yy, zz = np.mgrid[
-                         obstacle[0] + offset:obstacle[1]:1,
-                         obstacle[2] + offset:obstacle[3]:1,
-                         obstacle[4] + offset:obstacle[5]:1
-                         ]
+            xx, yy, zz = np.mgrid[obstacle[0] + offset:obstacle[1]:1,
+                                  obstacle[2] + offset:obstacle[3]:1,
+                                  obstacle[4] + offset:obstacle[5]:1]
             mlab.points3d(xx, yy, zz, color=(.6, .6, .6), scale_factor=1, mode='cube', opacity=0.2)
 
-        # true obstacles (non-enhanced): their width are 0.5 smaller and height 0.5 smaller than the ones in the config file
+        # true obstacles (non-enhanced):
+        # their width are 0.5 smaller and height 0.5 smaller than the ones in the config file
         rm = 0.25
         offset = offset + rm
         matrix_factor = np.ones(obstacles.shape) * rm
@@ -76,7 +72,7 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes
             mlab.points3d(xx, yy, zz, color=(1, 0, 0), scale_factor=1, mode='cube', opacity=1)
 
     if draw_nodes:
-        for node, parent in rrt.tree.items():
+        for node, parent in rrt.best_tree.items():
             node = np.array(eval(node))
             # plot the nodes and connections between the nodes and their parents
             mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1, opacity=0.1)
@@ -85,11 +81,11 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes
                         color=(0, 0, 0),tube_radius=0.01, opacity=0.1)
 
     # Path found
-    path = rrt.get_path()
+    path = rrt.best_path
     mlab.plot3d(path[:, 0], path[:, 1], path[:, 2], color=(1, 1, 0), tube_radius=0.02)
 
     # Optimal trajectory
-    mlab.plot3d(optim[:, 0], optim[:, 1], optim[:, 2], tube_radius=0.02, color=(1, 0, 1))
+    mlab.plot3d(optimal_trajectory[:, 0], optimal_trajectory[:, 1], optimal_trajectory[:, 2], tube_radius=0.02, color=(1, 0, 1))
 
     if animate:
         # quad position (to animate)
@@ -118,7 +114,6 @@ def plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes
     mlab.show()
 
 
-
 if __name__ == "__main__":
 
     logging.basicConfig(
@@ -130,56 +125,67 @@ if __name__ == "__main__":
     config.read(config_file)
 
     cfg = config["DEFAULT"]
+    cfg_flight = config["SIM_FLIGHT"]
+    cfg_rrt = config["RRT"]
+
+    dt = cfg.getfloat("dt")
     frequency = cfg.getint("frequency")
+
+    # FLIGHT
+    velocity = cfg_flight.getfloat("velocity")
+    obstacles = np.array(eval(cfg_flight.get("coord_obstacles")))
+    goal_loc = np.array(eval(cfg_flight.get("goal_loc")))
+    start_loc = np.array([0., 0., 1.0])
+
+    # RRT
+    space_limits = np.array(eval(cfg_rrt.get("space_limits")))
+    max_distance = cfg_rrt.getfloat("max_distance")
+    max_iterations = cfg_rrt.getint("max_iterations")
 
     ctrl = CascadedController(config)
     quad = Quadrotor(config)
     state_history, omega_history = quad.X, quad.omega
 
-    modes = ["takeoff", "flight", "landing"]
     total_timesteps = 0
     combined_desired_trajectory = np.empty((0, 11))
-
-    rrt = None
-    min_distance_target = .6  # minimum distance to target to consider it reached
-    optim = None
-
-    for mode in modes:
-        logging.info(f"Starting {mode} mode...")
-        T = MinimumSnap(config, mode)
-        desired_trajectory = T.get_trajectory()
-
-        if mode == "flight":
-            rrt = T.rrt
-            optim = desired_trajectory
-
-        logging.info("Optimized trajectory successfully generated")
-
-        total_timesteps += desired_trajectory.shape[0]
-        combined_desired_trajectory = np.vstack((combined_desired_trajectory, desired_trajectory))
-
-        while True:
-
-            des_x = desired_trajectory[0, [0, 3, 6]]
-            des_y = desired_trajectory[0, [1, 4, 7]]
-            des_z = desired_trajectory[0, [2, 5, 8]]
-            des_yaw = desired_trajectory[0, 9]
-
-            state_history, omega_history = fly(
-                state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
-            )
-
-            target_has_been_reached = np.linalg.norm(quad.X[:3] - desired_trajectory[0, :3]) < min_distance_target
-
-            if target_has_been_reached:
-                desired_trajectory = np.delete(desired_trajectory, 0, axis=0)  # remove current waypoint from desired
-                logging.info(f"Waypoint {round(des_x[0], 1), round(des_y[0], 1), round(des_z[0], 1)} visited.")
-
-            # if all waypoints have been visited
-            if desired_trajectory.shape[0] == 0:
-                break
-
-        logging.info(f"{mode} completed.: Quadrotor at XYZ: {np.round(quad.X[:3], 2)}")
+    min_distance_target = .4  # minimum distance to target to consider it reached
 
 
-    plot_trajectory(config, rrt, optim, state_history, animate=False, draw_nodes=True, draw_obstacles=True)
+    ################## Starting here, things can change over time ##################
+
+    rrt = RRTStar(space_limits, start_loc, goal_loc, max_distance, max_iterations, obstacles)
+    rrt.run()
+    path = rrt.best_path
+
+    min_snap = MinimumSnap(path, obstacles, velocity, dt)
+    desired_trajectory = min_snap.get_trajectory()
+
+    total_timesteps += desired_trajectory.shape[0]
+    combined_desired_trajectory = np.vstack((combined_desired_trajectory, desired_trajectory))
+
+    while True:
+
+        des_x = desired_trajectory[0, [0, 3, 6]]
+        des_y = desired_trajectory[0, [1, 4, 7]]
+        des_z = desired_trajectory[0, [2, 5, 8]]
+        des_yaw = desired_trajectory[0, 9]
+
+        state_history, omega_history = fly(
+            state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
+        )
+
+        target_has_been_reached = np.linalg.norm(quad.X[:3] - desired_trajectory[0, :3]) < min_distance_target
+
+        if target_has_been_reached:
+            desired_trajectory = np.delete(desired_trajectory, 0, axis=0)  # remove current waypoint from desired
+            logging.info(f"Waypoint {round(des_x[0], 1), round(des_y[0], 1), round(des_z[0], 1)} visited.")
+
+        # if all waypoints have been visited
+        if desired_trajectory.shape[0] == 0:
+            break
+
+
+    plot_trajectory(
+        rrt, combined_desired_trajectory, obstacles, state_history,
+        animate=False, draw_nodes=False, draw_obstacles=True
+    )
