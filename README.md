@@ -1,5 +1,14 @@
 ## 3D UAV simulation and autonomous control for path tracking
 
+[x] Build a controller to follow a trajectory  
+[x] Follow hardcoded waypoints  
+[x] From hardcoded waypoints, generate an optimal trajectory (minimum snap)  
+[x] From hardcoded waypoints and hardcoded obstacles, generate an optimal trajectory (minimum snap + collision-free)  
+[x] Generate waypoints from a path planning algorithm (RRT*), given hardcoded obstacles and generate an optimal trajectory (minimum snap + collision-free)  
+[ ] Automatically detect obstacles (vision-based) and generate a 3D map (SLAM)  
+[ ] Handle dynamic obstacles  
+
+
 ### Result
 
 https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6dff700c-9ed4-4d6f-b976-8f42022d5d80
