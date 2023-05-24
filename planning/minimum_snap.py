@@ -3,16 +3,17 @@ from planning.rrt import RRTStar
 
 
 class MinimumSnap:
-    def __init__(self, config, mode):
-
-        cfg = config["DEFAULT"]
-        sim_cfg = MinimumSnap._choose_simulation_config(config, mode)
-
-        self.coord_obstacles = None
-        self.waypoints, self.rrt = self._find_path(config, mode)
-
-        self.velocity = sim_cfg.getfloat("velocity")
-        self.dt = cfg.getfloat("dt")
+    def __init__(self, path, obstacles, velocity=1.0, dt=0.01):
+        """
+        :param path: list of waypoints to generate the trajectory from
+        :param obstacles: list of obstacles to avoid
+        :param velocity: velocity of the trajectory (avg)
+        :param dt: time step between each point of the generated trajectory
+        """
+        self.coord_obstacles = obstacles
+        self.waypoints = path
+        self.velocity = velocity
+        self.dt = dt
 
         self.times = []                          # will hold the time between segment based on the velocity
         self.spline_id = []                      # identify on which spline the newly generated point belongs to
@@ -93,6 +94,7 @@ class MinimumSnap:
         for it in range(self.nb_splines):
             timeT = self.times[it]
 
+            # here we generate the trajectory for each spline from t=0 to t=timeT at a rate of dt (unit: s)
             for t in np.arange(0.0, timeT, self.dt):
                 position = self.polynom(self.n_coeffs, order=0, t=t) @ self.coeffs[
                                                                        it * self.n_coeffs: self.n_coeffs * (it + 1)]
@@ -239,61 +241,6 @@ class MinimumSnap:
 
         return polynomial.T
 
-    @staticmethod
-    def _choose_simulation_config(config, mode):
-        """
-        This function chooses the simulation configuration depending on the mode.
-        """
-        if mode == "takeoff":
-            sim_cfg = config["SIM_TAKEOFF"]
-        elif mode == "landing":
-            sim_cfg = config["SIM_LANDING"]
-        elif mode == "flight":
-            sim_cfg = config["SIM_FLIGHT"]
-        else:
-            raise ValueError(f"Invalid mode, expected 'takeoff', 'landing' or 'flight', got {mode}")
-
-        return sim_cfg
-
-    def _find_path(self, config, mode):
-        """
-        Find the path depending on the mode using RRT algorithm.
-        """
-        cfg_rrt = config["RRT"]
-        use_star = cfg_rrt.getboolean("use_star")
-        cfg_flight = config["SIM_FLIGHT"]
-        goal_loc = np.array(eval(cfg_flight.get("goal_loc")))
-
-        # last_flight_wp = waypoints[-1]
-        takeoff_height = config["SIM_TAKEOFF"].getfloat("height")
-        waypoints = None
-        rrt = None
-
-        if mode == "takeoff":
-            waypoints = np.array([[0., 0., 0.], [0., 0., takeoff_height]])
-        if mode == "flight":
-
-            self.coord_obstacles = np.array(eval(cfg_flight.get("coord_obstacles")))
-            space_limits = np.array(eval(cfg_rrt.get("space_limits")))
-            max_distance = cfg_rrt.getfloat("max_distance")
-            max_iterations = cfg_rrt.getint("max_iterations")
-
-            # find waypoints using RRT algorithm
-            start_loc = np.array([0., 0., takeoff_height])
-            rrt = RRTStar(space_limits, start_loc, goal_loc, max_distance, max_iterations, self.coord_obstacles)
-            rrt.run()
-            path = rrt.get_path()
-
-            # insert the last takeoff waypoint at the beginning of the waypoints array
-            waypoints = np.insert(path, 0, [0., 0., takeoff_height], axis=0)
-
-        elif mode == "landing":
-            # insert the last flight waypoint at the beginning of the waypoints array
-            waypoints = np.array([
-                [goal_loc[0], goal_loc[1], goal_loc[2]],
-                [goal_loc[0], goal_loc[1], 0.]
-            ])
-        return waypoints, rrt
 
     def _setup(self):
         self._generate_waypoints()
@@ -331,20 +278,6 @@ class MinimumSnap:
     def _generate_waypoints(self):
         # while waiting for the algorithm to generate them
         self.nb_splines = self.waypoints.shape[0] - 1
-
-    @staticmethod
-    def is_collision(point, vertices):
-        """
-        :param point: row numpy vector representing (x, y, z) coordinates of a point
-        :param vertices: list of (x, y, z) coordinates of the vertices of obstacles cubes
-        """
-        x, y, z = point
-        try:
-            xs, ys, zs = zip(*vertices)
-        except ValueError:
-            return False
-
-        return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys) and min(zs) <= z <= max(zs)
 
 
     @staticmethod
