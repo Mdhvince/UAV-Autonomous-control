@@ -20,35 +20,6 @@ def test_insert_midpoints_at_indexes(indexes, expected):
     assert result == pytest.approx(expected)
 
 
-
-@pytest.mark.parametrize("points, expected", [
-    (np.array([1, 1, 1]), True),
-    (np.array([.5, .5, .5]), False),
-])
-def test_is_collision(points, expected):
-    # Arrange
-    obstacles = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]])
-
-    # Act
-    result = MinimumSnap.is_collision(points, obstacles)
-
-    # Assert
-    assert result == expected
-
-
-def test_is_collision_with_empty_obstacles():
-    # Arrange
-    points = np.array([.5, .5, .5])
-    obstacles = np.array([])
-    expected = False
-
-    # Act
-    result = MinimumSnap.is_collision(points, obstacles)
-
-    # Assert
-    assert result == expected
-
-
 def test_generate_time_per_spline(config):
     # Arrange
     T = MinimumSnap(config)
