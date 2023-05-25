@@ -115,11 +115,6 @@ def plot_trajectory(rrt, optimal_trajectory, obstacles, state_history, animate=F
 
 
 if __name__ == "__main__":
-
-    logging.basicConfig(
-        filename="logs/sim.log", filemode="w", format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
-    )
-
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = Path("/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini")
     config.read(config_file)
@@ -148,7 +143,7 @@ if __name__ == "__main__":
 
     total_timesteps = 0
     combined_desired_trajectory = np.empty((0, 11))
-    min_distance_target = .4  # minimum distance to target to consider it reached
+    min_distance_target = .6  # minimum distance to target to consider it reached
 
 
     ################## Starting here, things can change over time ##################
@@ -163,6 +158,7 @@ if __name__ == "__main__":
     total_timesteps += desired_trajectory.shape[0]
     combined_desired_trajectory = np.vstack((combined_desired_trajectory, desired_trajectory))
 
+    print("Starting flight...\n")
     while True:
 
         des_x = desired_trajectory[0, [0, 3, 6]]
@@ -178,12 +174,13 @@ if __name__ == "__main__":
 
         if target_has_been_reached:
             desired_trajectory = np.delete(desired_trajectory, 0, axis=0)  # remove current waypoint from desired
-            logging.info(f"Waypoint {round(des_x[0], 1), round(des_y[0], 1), round(des_z[0], 1)} visited.")
 
         # if all waypoints have been visited
         if desired_trajectory.shape[0] == 0:
             break
 
+
+    print("\nFlight finished.")
 
     plot_trajectory(
         rrt, combined_desired_trajectory, obstacles, state_history,

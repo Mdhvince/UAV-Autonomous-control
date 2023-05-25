@@ -15,7 +15,7 @@ class RRTStar:
         self.step_size = max_distance
         self.max_iterations = max_iterations
         self.obstacles = obstacles
-        self.epsilon = 0.1
+        self.epsilon = 0.15
 
         self.neighborhood_radius = 1.5 * max_distance
         self.all_nodes = [self.start]
@@ -35,6 +35,7 @@ class RRTStar:
         dynamic_break_at = self.max_iterations / 10
 
         for it in range(self.max_iterations):
+
             new_node = self._generate_random_node()
             nearest_node = self._find_nearest_node(new_node)
             new_node = self._adapt_random_node_position(new_node, nearest_node)
@@ -44,36 +45,42 @@ class RRTStar:
 
             best_neighbor = self._find_best_neighbor(neighbors)
             self._update_tree(best_neighbor, new_node)
-            self._rewire_safely(neighbors, new_node)
-
+            has_rewired = self._rewire_safely(neighbors, new_node)
 
             if self._is_path_found():
-                path = self.get_path()
-                cost = RRTStar.path_cost(path)
+                path, cost = self.get_path(self.tree)
+
+                if has_rewired and cost > old_cost:
+                    raise Exception("Cost increased after rewiring")
 
                 if cost < old_cost:
-                    print(f"Iteration {it}: cost = {cost}")
+                    print("Iteration: {} | Cost: {}".format(it, cost))
+                    self.store_best_tree()
                     old_cost = cost
-                    self.best_path = path
-
-                    # deepcopy is very important here, otherwise it is just a reference. copy is enough for the
-                    # dictionary, but not for the numpy arrays (values of the dictionary) because they are mutable.
-                    self.best_tree = copy.deepcopy(self.tree)
-
                     dynamic_it_counter = 0
                 else:
                     dynamic_it_counter += 1
-
-                print("\rDynamic counter percentage: {}%".format(round(dynamic_it_counter / dynamic_break_at * 100, 2)), end="\t")
+                    print(
+                        "\r Percentage to stop unless better path is found: {}%".format(
+                            np.round(dynamic_it_counter / dynamic_break_at * 100, 2)), end="\t")
 
                 if dynamic_it_counter >= dynamic_break_at:
                     break
 
-
         if not self._is_path_found():
             raise Exception("No path found")
 
-        print("Path found")
+        self.best_path, cost = self.get_path(self.best_tree)
+        print("\nBest path found with cost: {}".format(cost))
+
+
+    def store_best_tree(self):
+        """
+        Update the best tree with the current tree if the cost is lower
+        """
+        # deepcopy is very important here, otherwise it is just a reference. copy is enough for the
+        # dictionary, but not for the numpy arrays (values of the dictionary) because they are mutable.
+        self.best_tree = copy.deepcopy(self.tree)
 
 
     @staticmethod
@@ -98,12 +105,14 @@ class RRTStar:
         random_node = np.round(np.array([x_rand, y_rand, z_rand]), 2)
         return random_node
 
+
     def _find_nearest_node(self, new_node):
         distances = []
         for node in self.all_nodes:
             distances.append(np.linalg.norm(new_node - node))
         nearest_node = self.all_nodes[np.argmin(distances)]
         return nearest_node
+
 
     def _adapt_random_node_position(self, new_node, nearest_node):
         """
@@ -115,6 +124,7 @@ class RRTStar:
             new_node = np.round(new_node, 2)
         return new_node
 
+
     def _find_valid_neighbors(self, new_node):
         neighbors = []
         for node in self.all_nodes:
@@ -122,6 +132,7 @@ class RRTStar:
             if node_in_radius and self._is_valid_connection(node, new_node):
                 neighbors.append(node)
         return neighbors
+
 
     def _find_best_neighbor(self, neighbors):
         """
@@ -134,6 +145,7 @@ class RRTStar:
 
         best_neighbor = neighbors[np.argmin(costs)]
         return best_neighbor
+
 
     def _update_tree(self, node, new_node):
         """
@@ -149,6 +161,7 @@ class RRTStar:
         if not np.array_equal(node_parent, new_node):
             self.tree[node_key] = node_parent
 
+
     def _rewire_safely(self, neighbors, new_node):
         """
         Among the neighbors (without the already linked neighbor), find if linking to the new node is better than the
@@ -161,13 +174,20 @@ class RRTStar:
 
             if self._is_valid_connection(neighbor, new_node):
                 current_parent = self.tree[str(np.round(neighbor, 2).tolist())]
-                current_cost = np.linalg.norm(current_parent - self.start)
-                potential_new_cost = np.linalg.norm(new_node - self.start)
+
+                # cost to arrive to the neighbor
+                current_cost = np.linalg.norm(neighbor - self.start)
+
+                # cost to arrive to the neighbor through the new node
+                potential_new_cost = np.linalg.norm(new_node - self.start) + np.linalg.norm(neighbor - new_node)
 
                 if potential_new_cost < current_cost:
-                    # if the new node is closer to the start node than the current parent, re-wire (the parent of the
-                    # neighbor becomes the new node)
+                    # if it is cheaper to arrive to the neighbor through the new node, re-wire (update the parent of the
+                    # neighbor to the new node)
                     self.tree[str(np.round(neighbor, 2).tolist())] = new_node
+                    return True
+        return False
+
 
 
     def _is_valid_connection(self, node, new_node):
@@ -199,6 +219,7 @@ class RRTStar:
 
         return True
 
+
     def _is_path_found(self):
         """
         Check if the goal node is in the tree as a child of another node
@@ -207,18 +228,25 @@ class RRTStar:
         return goal_node_key in self.tree.keys()
 
 
-    def get_path(self):
+    def get_path(self, tree):
         """
-        Get the path from the goal node to the start node
+        Get the path from the goal node to the start node and compute its cost
         """
+
         path = [self.goal]
         node = self.goal
 
+        s_time = time.time()
+
         while not np.array_equal(node, self.start):
-            node = self.tree[str(np.round(node, 2).tolist())]
+            node = tree[str(np.round(node, 2).tolist())]
             path.append(node)
 
-        return np.array(path[::-1]).reshape(-1, 3)
+            if time.time() - s_time > 5:
+                raise Exception("A problem occurred while computing the path.")
+
+        cost = RRTStar.path_cost(path)
+        return np.array(path[::-1]).reshape(-1, 3), cost
 
 
 
