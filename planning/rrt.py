@@ -1,3 +1,4 @@
+import copy
 import time
 
 import numpy as np
@@ -14,7 +15,7 @@ class RRTStar:
         self.step_size = max_distance
         self.max_iterations = max_iterations
         self.obstacles = obstacles
-        self.epsilon = 0.15
+        self.epsilon = 0.1
 
         self.neighborhood_radius = 1.5 * max_distance
         self.all_nodes = [self.start]
@@ -31,38 +32,40 @@ class RRTStar:
     def run(self):
         old_cost = np.inf
         dynamic_it_counter = 0
-        dynamic_break_at = self.max_iterations / 8
+        dynamic_break_at = self.max_iterations / 10
 
         for it in range(self.max_iterations):
             new_node = self._generate_random_node()
             nearest_node = self._find_nearest_node(new_node)
             new_node = self._adapt_random_node_position(new_node, nearest_node)
             neighbors = self._find_valid_neighbors(new_node)
+
+            if len(neighbors) == 0: continue
+
             best_neighbor = self._find_best_neighbor(neighbors)
-
-            if best_neighbor is None:
-                continue
-
             self._update_tree(best_neighbor, new_node)
-
-            # among the neighbors, find if linking to the new node is better than the current parent (re-wire)
-            _ = self._rewire_safely(neighbors, new_node)
+            self._rewire_safely(neighbors, new_node)
 
 
             if self._is_path_found():
                 path = self.get_path()
                 cost = RRTStar.path_cost(path)
-                # print cost if different from previous cost
+
                 if cost < old_cost:
                     print(f"Iteration {it}: cost = {cost}")
                     old_cost = cost
                     self.best_path = path
-                    self.best_tree = self.tree
+
+                    # deepcopy is very important here, otherwise it is just a reference. copy is enough for the
+                    # dictionary, but not for the numpy arrays (values of the dictionary) because they are mutable.
+                    self.best_tree = copy.deepcopy(self.tree)
+
                     dynamic_it_counter = 0
                 else:
                     dynamic_it_counter += 1
 
-                print(f"Dynamic counter percentage: {round(dynamic_it_counter / dynamic_break_at * 100, 2)}%")
+                print("\rDynamic counter percentage: {}%".format(round(dynamic_it_counter / dynamic_break_at * 100, 2)), end="\t")
+
                 if dynamic_it_counter >= dynamic_break_at:
                     break
 
@@ -124,9 +127,6 @@ class RRTStar:
         """
         Find the neighbor with the lowest cost. The cost is the distance from the start node to the neighbor
         """
-        if len(neighbors) == 0:
-            return None
-
         costs = []
         for neighbor in neighbors:
             cost = np.linalg.norm(neighbor - self.start)
@@ -154,7 +154,6 @@ class RRTStar:
         Among the neighbors (without the already linked neighbor), find if linking to the new node is better than the
         current parent (re-wire).
         """
-        rewire_status = False
         for neighbor in neighbors:
             if np.array_equal(neighbor, self.tree[str(np.round(new_node, 2).tolist())]):
                 # if the neighbor is already the parent of the new node, skip
@@ -169,9 +168,7 @@ class RRTStar:
                     # if the new node is closer to the start node than the current parent, re-wire (the parent of the
                     # neighbor becomes the new node)
                     self.tree[str(np.round(neighbor, 2).tolist())] = new_node
-                    rewire_status = True
 
-        return rewire_status
 
     def _is_valid_connection(self, node, new_node):
         """
@@ -217,26 +214,11 @@ class RRTStar:
         path = [self.goal]
         node = self.goal
 
-        s_time = time.time()
-
         while not np.array_equal(node, self.start):
-            # if this takes too long, there is a problem, so raise an exception and print the value of
-            # node, start, and tree
-            if time.time() - s_time > 10:
-                print("node: ", node)
-                print("start: ", self.start)
-                print("tree: ", self.tree)
-                raise Exception("Path finding took too long")
-
-
             node = self.tree[str(np.round(node, 2).tolist())]
             path.append(node)
 
         return np.array(path[::-1]).reshape(-1, 3)
-
-
-
-
 
 
 
