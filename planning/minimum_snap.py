@@ -1,5 +1,4 @@
 import numpy as np
-from planning.rrt import RRTStar
 
 
 class MinimumSnap:
@@ -104,6 +103,7 @@ class MinimumSnap:
                                                                            it * self.n_coeffs: self.n_coeffs * (it + 1)]
                 # jerk = self.polynom(8, order=3, t=t) @ self.coeffs[it*self.n_coeffs : self.n_coeffs*(it+1)]
                 # snap = self.polynom(8, order=4, t=t) @ self.coeffs[it*self.n_coeffs : self.n_coeffs*(it+1)]
+
 
                 self.positions.append(position)
                 self.velocities.append(velocity)

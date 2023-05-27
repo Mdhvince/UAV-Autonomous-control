@@ -1,6 +1,5 @@
 import copy
 import time
-
 import numpy as np
 from mayavi import mlab
 
@@ -50,7 +49,7 @@ class RRTStar:
             if self._is_path_found():
                 path, cost = self.get_path(self.tree)
 
-                if has_rewired and cost > old_cost:
+                if has_rewired and cost > old_cost:  # sanity check
                     raise Exception("Cost increased after rewiring")
 
                 if cost < old_cost:
@@ -261,7 +260,7 @@ if __name__ == "__main__":
         space_limits,
         start=start,
         goal=goal,
-        max_distance=2,
+        max_distance=3,
         max_iterations=1000,
         obstacles=None,
     )
@@ -271,13 +270,13 @@ if __name__ == "__main__":
     mlab.points3d(start[0], start[1], start[2], color=(1, 0, 0), scale_factor=.2, resolution=60)
     mlab.points3d(goal[0], goal[1], goal[2], color=(0, 1, 0), scale_factor=.2, resolution=60)
 
-    tree = rrt.tree
-    # for node, parent in tree.items():
-    #     node = np.array(eval(node))
-    #     # plot the nodes and connections between the nodes and their parents
-    #     mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1)
-    #     mlab.points3d(parent[0], parent[1], parent[2], color=(0, 0, 1), scale_factor=.1)
-    #     mlab.plot3d([node[0], parent[0]], [node[1], parent[1]], [node[2], parent[2]], color=(0, 0, 0), tube_radius=0.01)
+    tree = rrt.best_tree
+    for node, parent in tree.items():
+        node = np.array(eval(node))
+        # plot the nodes and connections between the nodes and their parents
+        mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1)
+        mlab.points3d(parent[0], parent[1], parent[2], color=(0, 0, 1), scale_factor=.1)
+        mlab.plot3d([node[0], parent[0]], [node[1], parent[1]], [node[2], parent[2]], color=(0, 0, 0), tube_radius=0.01)
 
 
     # find the path from the start node to the goal node

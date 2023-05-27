@@ -1,35 +1,37 @@
 import math
 import numpy as np
 
+import utils
+
 
 class Quadrotor:
-    def __init__(self, config):
-        self.g = config["DEFAULT"].getfloat("g")
-        self.dt = config["DEFAULT"].getfloat("dt") / config["DEFAULT"].getint("frequency")
-        quad_params = config["VEHICLE"]
+    def __init__(self):
+        cfg, _, _, cfg_vehicle, _ = utils.get_config()
+        self.g = cfg.getfloat("g")
+        self.dt = cfg.getfloat("dt") / cfg.getint("frequency")
 
-        L = quad_params.getfloat("distance_rotor_to_rotor")
+        L = cfg_vehicle.getfloat("distance_rotor_to_rotor")
         self.l = L / math.sqrt(2)                                                      # distance from center to rotor
-        self.m = quad_params.getfloat("mass")
+        self.m = cfg_vehicle.getfloat("mass")
 
-        self.kf = quad_params.getfloat("kf")
-        self.km = quad_params.getfloat("km")
+        self.kf = cfg_vehicle.getfloat("kf")
+        self.km = cfg_vehicle.getfloat("km")
 
-        self.i_x = quad_params.getfloat("Ix")
-        self.i_y = quad_params.getfloat("Iy")
-        self.i_z = quad_params.getfloat("Iz")
+        self.i_x = cfg_vehicle.getfloat("Ix")
+        self.i_y = cfg_vehicle.getfloat("Iy")
+        self.i_z = cfg_vehicle.getfloat("Iz")
 
-        self.max_thrust = quad_params.getfloat("max_thrust")
-        self.min_thrust = quad_params.getfloat("min_thrust")
-        self.max_torque = quad_params.getfloat("max_torque")
+        self.max_thrust = cfg_vehicle.getfloat("max_thrust")
+        self.min_thrust = cfg_vehicle.getfloat("min_thrust")
+        self.max_torque = cfg_vehicle.getfloat("max_torque")
 
-        self.kappa = quad_params.getfloat("kappa")                                      # drag-thrust ratio
+        self.kappa = cfg_vehicle.getfloat("kappa")                                      # drag-thrust ratio
 
-        self.max_ascent_rate = quad_params.getfloat("max_ascent_rate")
-        self.max_descent_rate = quad_params.getfloat("max_descent_rate")
-        self.max_speed_xy = quad_params.getfloat("max_speed_xy")
-        self.max_horiz_accel = quad_params.getfloat("max_horiz_accel")
-        self.max_tilt_angle = quad_params.getfloat("max_tilt_angle")
+        self.max_ascent_rate = cfg_vehicle.getfloat("max_ascent_rate")
+        self.max_descent_rate = cfg_vehicle.getfloat("max_descent_rate")
+        self.max_speed_xy = cfg_vehicle.getfloat("max_speed_xy")
+        self.max_horiz_accel = cfg_vehicle.getfloat("max_horiz_accel")
+        self.max_tilt_angle = cfg_vehicle.getfloat("max_tilt_angle")
 
 
         # State (position, euler angles world, velocity, angular velocity body)

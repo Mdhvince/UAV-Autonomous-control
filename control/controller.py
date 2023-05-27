@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
+import utils
 from control.quadrotor import Quadrotor
 
 
@@ -11,27 +12,28 @@ class CascadedController:
     """
     Cascaded controller from the paper: https://www.dynsyslab.org/wp-content/papercite-data/pdf/lupashin-mech14.pdf
     """
-    def __init__(self, config):
-        self.g = config["DEFAULT"].getfloat("g")
-        self.dt = config["DEFAULT"].getfloat("dt")
-        controller = config["CONTROLLER"]
+    def __init__(self):
+        cfg, _, _, _, cfg_controller = utils.get_config()
 
-        self.kp_z = controller.getfloat("kp_z")
-        self.kd_z = controller.getfloat("kd_z")
+        self.g = cfg.getfloat("g")
+        self.dt = cfg.getfloat("dt")
 
-        self.kp_x = controller.getfloat("kp_xy")
-        self.kd_x = controller.getfloat("kd_xy")
+        self.kp_z = cfg_controller.getfloat("kp_z")
+        self.kd_z = cfg_controller.getfloat("kd_z")
 
-        self.kp_y = controller.getfloat("kp_xy")
-        self.kd_y = controller.getfloat("kd_xy")
+        self.kp_x = cfg_controller.getfloat("kp_xy")
+        self.kd_x = cfg_controller.getfloat("kd_xy")
 
-        self.ki_z = controller.getfloat("ki_z")
-        self.kp_roll = controller.getfloat("kp_roll")
-        self.kp_pitch = controller.getfloat("kp_pitch")
-        self.kp_yaw = controller.getfloat("kp_yaw")
-        self.kp_p = controller.getfloat("kp_p")
-        self.kp_q = controller.getfloat("kp_q")
-        self.kp_r = controller.getfloat("kp_r")
+        self.kp_y = cfg_controller.getfloat("kp_xy")
+        self.kd_y = cfg_controller.getfloat("kd_xy")
+
+        self.ki_z = cfg_controller.getfloat("ki_z")
+        self.kp_roll = cfg_controller.getfloat("kp_roll")
+        self.kp_pitch = cfg_controller.getfloat("kp_pitch")
+        self.kp_yaw = cfg_controller.getfloat("kp_yaw")
+        self.kp_p = cfg_controller.getfloat("kp_p")
+        self.kp_q = cfg_controller.getfloat("kp_q")
+        self.kp_r = cfg_controller.getfloat("kp_r")
 
         self.integral_error = 0
 
@@ -202,6 +204,9 @@ class CascadedController:
         i_term = ki * i_error
         return p_term + i_term + d_term + des
     
+
+
+
 
 if __name__ == "__main__":
     config = configparser.ConfigParser(inline_comment_prefixes="#")
