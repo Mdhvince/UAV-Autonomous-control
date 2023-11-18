@@ -72,7 +72,6 @@ class RRTStar:
         self.best_path, cost = self.get_path(self.best_tree)
         print("\nBest path found with cost: {}".format(cost))
 
-
     def store_best_tree(self):
         """
         Update the best tree with the current tree if the cost is lower
@@ -80,7 +79,6 @@ class RRTStar:
         # deepcopy is very important here, otherwise it is just a reference. copy is enough for the
         # dictionary, but not for the numpy arrays (values of the dictionary) because they are mutable.
         self.best_tree = copy.deepcopy(self.tree)
-
 
     @staticmethod
     def path_cost(path):
@@ -91,7 +89,6 @@ class RRTStar:
         for i in range(len(path) - 1):
             cost += np.linalg.norm(path[i + 1] - path[i])
         return cost
-
 
     def _generate_random_node(self):
         # with probability epsilon, sample the goal
@@ -104,14 +101,12 @@ class RRTStar:
         random_node = np.round(np.array([x_rand, y_rand, z_rand]), 2)
         return random_node
 
-
     def _find_nearest_node(self, new_node):
         distances = []
         for node in self.all_nodes:
             distances.append(np.linalg.norm(new_node - node))
         nearest_node = self.all_nodes[np.argmin(distances)]
         return nearest_node
-
 
     def _adapt_random_node_position(self, new_node, nearest_node):
         """
@@ -123,7 +118,6 @@ class RRTStar:
             new_node = np.round(new_node, 2)
         return new_node
 
-
     def _find_valid_neighbors(self, new_node):
         neighbors = []
         for node in self.all_nodes:
@@ -131,7 +125,6 @@ class RRTStar:
             if node_in_radius and self._is_valid_connection(node, new_node):
                 neighbors.append(node)
         return neighbors
-
 
     def _find_best_neighbor(self, neighbors):
         """
@@ -144,7 +137,6 @@ class RRTStar:
 
         best_neighbor = neighbors[np.argmin(costs)]
         return best_neighbor
-
 
     def _update_tree(self, node, new_node):
         """
@@ -159,7 +151,6 @@ class RRTStar:
 
         if not np.array_equal(node_parent, new_node):
             self.tree[node_key] = node_parent
-
 
     def _rewire_safely(self, neighbors, new_node):
         """
@@ -186,8 +177,6 @@ class RRTStar:
                     self.tree[str(np.round(neighbor, 2).tolist())] = new_node
                     return True
         return False
-
-
 
     def _is_valid_connection(self, node, new_node):
         """
@@ -218,14 +207,12 @@ class RRTStar:
 
         return True
 
-
     def _is_path_found(self, tree):
         """
         Check if the goal node is in the tree as a child of another node
         """
         goal_node_key = str(np.round(self.goal, 2).tolist())
         return goal_node_key in tree.keys()
-
 
     def get_path(self, tree):
         """
