@@ -1,7 +1,5 @@
 import time
 import warnings
-import configparser
-from pathlib import Path
 
 import numpy as np
 from mayavi import mlab
@@ -33,7 +31,7 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
 
     return state_history, omega_history
 
-def plot_trajectory(rrt, optimal_trajectory, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=False, delay=60):
+def plot(rrt, optimal_trajectory, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=False, delay=60):
     rrt_plotter = RRTPlotter(rrt, optimal_trajectory, state_history)
 
     rrt_plotter.plot_start_and_goal()
@@ -53,7 +51,57 @@ def plot_trajectory(rrt, optimal_trajectory, obstacles, state_history, animate=F
             state_history[0, 0], state_history[0, 1], state_history[0, 2], color=(1, 1, 0), scale_factor=0.2)
         rrt_plotter.animate_point(quad_pos, delay=delay)
 
+    mlab.orientation_axes()
     mlab.show()
+
+
+def receding_horizon(
+        lt_path, current_position, horizon, max_distance, max_iterations, obstacles, velocity, dt):
+    """
+    :param lt_path: long-term path
+    :param current_position: current position of the quadrotor
+    :param horizon: length of the horizon in meters
+    :param max_distance: maximum distance of a newly sampled node to the nearest node in the tree
+    :param max_iterations: maximum number of iterations to run RRT
+    :param obstacles: obstacles in the environment
+    :param velocity: velocity of the quadrotor
+    :param dt: time step
+    :return: new trajectory
+    """
+
+    is_last = False
+    lt_path = lt_path[:, :3]
+    start_index = np.argmin(np.linalg.norm(lt_path - current_position, axis=1))
+    lt_path = lt_path[start_index:, :]  # remove the waypoints that have already been reached
+
+    distances = np.linalg.norm(lt_path - current_position, axis=1)
+
+    # Index of the waypoint that is horizon meters far from the current position (last waypoint if not found)
+    try:
+        index = np.where(distances >= horizon)[0][0]
+    except IndexError:
+        index = -1
+        is_last = True
+
+    goal = lt_path[index, :]
+
+    freedom = .1  # the quad can move freedom cm in any direction to avoid unexpected obstacles (env changes)
+    space_limits = np.array([
+        [current_position[0] - freedom, current_position[1] - freedom, current_position[2] - freedom],
+        [goal[0] + freedom, goal[1] + freedom, goal[2] + freedom]
+    ])
+
+    print("Current position: ", np.round(current_position, 2))
+    print("Goal: ", np.round(goal, 2))
+
+    rrt = RRTStar(space_limits, current_position, goal, max_distance, max_iterations, obstacles)
+    rrt.dynamic_break_at = max_iterations
+    rrt.run()
+    st_path = rrt.best_path  # short-term path
+    min_snap = MinimumSnap(st_path, obstacles, velocity, dt)
+    return min_snap.get_trajectory(), is_last
+
+
 
 
 
@@ -80,40 +128,33 @@ if __name__ == "__main__":
     quad.X[:3] = start_loc
     state_history, omega_history = quad.X, quad.omega
 
-    total_timesteps = 0
-    combined_desired_trajectory = np.empty((0, 11))
-
-
     ################## Starting here, things can change over time ##################
 
     rrt = RRTStar(space_limits, start_loc, goal_loc, max_distance, max_iterations, obstacles)
     rrt.run()
-    path = rrt.best_path
+    global_path = rrt.best_path  # long-term path
 
-    min_snap = MinimumSnap(path, obstacles, velocity, dt)
-    desired_trajectory = min_snap.get_trajectory()
-
-    total_timesteps += desired_trajectory.shape[0]
-    combined_desired_trajectory = np.vstack((combined_desired_trajectory, desired_trajectory))
+    min_snap = MinimumSnap(global_path, obstacles, velocity, dt)
+    global_trajectory = min_snap.get_trajectory()  # long-term trajectory
+    global_trajectory_plot = np.copy(global_trajectory)
 
     start_time = time.time()
 
-    print("Starting flight...\n")
     while True:
+        des_x = global_trajectory[0, [0, 3, 6]]
+        des_y = global_trajectory[0, [1, 4, 7]]
+        des_z = global_trajectory[0, [2, 5, 8]]
+        des_yaw = global_trajectory[0, 9]
 
-        des_x = desired_trajectory[0, [0, 3, 6]]
-        des_y = desired_trajectory[0, [1, 4, 7]]
-        des_z = desired_trajectory[0, [2, 5, 8]]
-        des_yaw = desired_trajectory[0, 9]
 
         state_history, omega_history = fly(
             state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
         )
 
-        target_has_been_reached = np.linalg.norm(quad.X[:3] - desired_trajectory[0, :3]) < min_distance_target
+        target_has_been_reached = np.linalg.norm(quad.X[:3] - global_trajectory[0, :3]) < min_distance_target
 
         if target_has_been_reached:
-            desired_trajectory = np.delete(desired_trajectory, 0, axis=0)  # remove current waypoint from desired
+            global_trajectory = np.delete(global_trajectory, 0, axis=0)  # remove current waypoint from desired
             start_time = time.time()
 
 
@@ -122,22 +163,8 @@ if __name__ == "__main__":
             print("Took too long to reach target. Program will terminate.")
 
         # if all waypoints have been visited or issue reaching target, then break
-        if desired_trajectory.shape[0] == 0 or too_long:
+        if global_trajectory.shape[0] == 0 or too_long:
             break
 
 
-    plot_trajectory(
-        rrt, combined_desired_trajectory, obstacles, state_history,
-        animate=True, draw_nodes=False, draw_obstacles=True
-    )
-
-
-    #  if target has been reached and no change in the current obstacle configuration has been detected, then we can
-    #  continue with the same trajectory. Otherwise, we need to recompute from the current state, the Path (RRT*) and
-    #  the trajectory (Minimum Snap). But this should be done in a separate thread, so that the quadrotor can continue
-    #  hovering while the new trajectory is being computed.
-    #
-    #  Other thoughts:
-    #  1 - Compute a global trajectory (RRT* + Minimum Snap) from start to goal
-    #  While the goal has not been reached:
-    #  2 - Compute a local trajectory (RRT* + Minimum Snap) from current position to some point on the global trajectory
+    plot(rrt, global_trajectory_plot, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=True)

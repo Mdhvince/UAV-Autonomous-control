@@ -23,15 +23,15 @@ class RRTStar:
         self.best_path = None
         self.best_tree = None
 
-        assert self.neighborhood_radius > self.step_size, "Neighborhood radius must be larger than step size"
-        assert self.space_limits_up[2] > self.start[2], "Upper limit on z must be > than the z location of the start"
-        assert self.space_limits_up[2] > self.goal[2], "Upper limit on z must be > than the z location of the goal"
+        self.dynamic_it_counter = 0
+        self.dynamic_break_at = self.max_iterations / 10
 
+        # assert self.neighborhood_radius > self.step_size, "Neighborhood radius must be larger than step size"
+        # assert self.space_limits_up[2] > self.start[2], "Upper limit on z must be > than the z location of the start"
+        # assert self.space_limits_up[2] > self.goal[2], "Upper limit on z must be > than the z location of the goal"
 
     def run(self):
         old_cost = np.inf
-        dynamic_it_counter = 0
-        dynamic_break_at = self.max_iterations / 10
 
         for it in range(self.max_iterations):
 
@@ -46,7 +46,7 @@ class RRTStar:
             self._update_tree(best_neighbor, new_node)
             has_rewired = self._rewire_safely(neighbors, new_node)
 
-            if self._is_path_found():
+            if self._is_path_found(self.tree):
                 path, cost = self.get_path(self.tree)
 
                 if has_rewired and cost > old_cost:  # sanity check
@@ -56,17 +56,17 @@ class RRTStar:
                     print("Iteration: {} | Cost: {}".format(it, cost))
                     self.store_best_tree()
                     old_cost = cost
-                    dynamic_it_counter = 0
+                    self.dynamic_it_counter = 0
                 else:
-                    dynamic_it_counter += 1
+                    self.dynamic_it_counter += 1
                     print(
                         "\r Percentage to stop unless better path is found: {}%".format(
-                            np.round(dynamic_it_counter / dynamic_break_at * 100, 2)), end="\t")
+                            np.round(self.dynamic_it_counter / self.dynamic_break_at * 100, 2)), end="\t")
 
-                if dynamic_it_counter >= dynamic_break_at:
+                if self.dynamic_it_counter >= self.dynamic_break_at:
                     break
 
-        if not self._is_path_found():
+        if not self._is_path_found(self.best_tree):
             raise Exception("No path found")
 
         self.best_path, cost = self.get_path(self.best_tree)
@@ -219,12 +219,12 @@ class RRTStar:
         return True
 
 
-    def _is_path_found(self):
+    def _is_path_found(self, tree):
         """
         Check if the goal node is in the tree as a child of another node
         """
         goal_node_key = str(np.round(self.goal, 2).tolist())
-        return goal_node_key in self.tree.keys()
+        return goal_node_key in tree.keys()
 
 
     def get_path(self, tree):
@@ -242,7 +242,10 @@ class RRTStar:
             path.append(node)
 
             if time.time() - s_time > 5:
-                raise Exception("A problem occurred while computing the path.")
+                # restart
+                print("Restarting...")
+                self.run()
+                # raise Exception("A problem occurred while computing the path.")
 
         cost = RRTStar.path_cost(path)
         return np.array(path[::-1]).reshape(-1, 3), cost
