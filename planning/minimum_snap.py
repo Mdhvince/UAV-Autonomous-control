@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 
 
@@ -260,8 +262,6 @@ class MinimumSnap:
 
         Total number of constraints: 2(m-1) + 6 + 6(m-2)
         expected number of unknown coefficients: 8 * m-1 or 8 * number of splines
-
-
         """
         self.A = np.zeros((self.n_coeffs * self.nb_splines, self.n_coeffs * self.nb_splines))
         self.b = np.zeros((self.n_coeffs * self.nb_splines, len(self.waypoints[0])))
@@ -281,9 +281,37 @@ class MinimumSnap:
 
 
     @staticmethod
-    def is_collisionCuboid(x, y, z, cuboid_params):
+    def is_collisionCuboid(x: float, y: float, z: float, cuboid_params: np.ndarray) -> bool:
         """
-        Check if a point collides with a cuboid
+        Checks if a point (x, y, z) collides or intersects with a given cuboid.
+
+        This method checks if the provided point is within the bounds of the cuboid,
+        indicating a collision or intersection.
+
+        Parameters
+        ----------
+        x : float
+            The x-coordinate of the point.
+        y : float
+            The y-coordinate of the point.
+        z : float
+            The z-coordinate of the point.
+        cuboid_params : np.ndarray
+            A 1D array containing six elements array([x_min, x_max, y_min, y_max, z_min, z_max])
+            that represent the bounds of the cuboid.
+
+        Returns
+        -------
+        bool
+            Return True if the point collides with the cuboid. False otherwise.
+
+        Example
+        --------
+        >>> MinimumSnap.is_collisionCuboid(2, 3, 4, np.array([1, 5, 2, 6, 3, 7]))
+        True
+
+        >>> MinimumSnap.is_collisionCuboid(0, 0, 0, np.array([1, 5, 2, 6, 3, 7]))
+        False
         """
         x_min, x_max, y_min, y_max, z_min, z_max = cuboid_params
         x_collision = x_min <= x <= x_max
@@ -295,13 +323,37 @@ class MinimumSnap:
 
 
     @staticmethod
-    def insert_midpoints_at_indexes(points, indexes):
+    def insert_midpoints_at_indexes(points: np.ndarray, indexes: List[int]) -> np.ndarray:
         """
-        :param points: 2D numpy array of shape (n, 3) where n is the number of points and 3 is the dimension (x, y, z)
-        :param indexes: list of indexes where to insert the midpoints (between which points we want to insert midpoints)
-        the index is the index of the last point of the segment. So if we want to insert a midpoint at "index" we need
-        to insert it between points[index-1] and points[index].
-        :return: a 2D numpy array of shape (n + len(indexes), 3) where n is the number of points and 3 is the dimension
+        Inserts midpoints in `points` numpy array at specified `indexes`.
+
+        This method calculates midpoint between two points in an array and inserts these midpoints at
+        the specified indexes. The calculation of midpoint between two points `p1` and `p2` is done by
+        `(p1 + p2) / 2`. Midpoints will only be inserted at the positions specified in `indexes`.
+
+        Parameters
+        ----------
+        points : np.ndarray
+            A numpy array of points/coordinates where midpoints will be inserted.
+        indexes : List[int]
+            A list of integer indexes specifying where in `points` array to insert the midpoints.
+
+        Returns
+        -------
+        np.ndarray
+            A new numpy array with inserted midpoints at specified indexes.
+
+        Example
+        -------
+        >>> points = np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]])
+        >>> indexes = [1, 3]
+        >>> MinimumSnap.insert_midpoints_at_indexes(points, indexes)
+        array([[0. , 0. , 0. ],
+               [0.5, 0.5, 0.5],
+               [1. , 1. , 1. ],
+               [2. , 2. , 2. ],
+               [2.5, 2.5, 2.5],
+               [3. , 3. , 3. ]])
         """
         result = []
         i = 0

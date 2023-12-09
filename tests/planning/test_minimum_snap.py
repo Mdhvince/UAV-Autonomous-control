@@ -76,3 +76,20 @@ def test_polynom_at_t3(order, expected):
 
     # Assert
     assert result == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "x, y, z, cuboid_params,expected", [
+        (2, 3, 4, np.array([1, 5, 2, 6, 3, 7]), True),
+        (0, 0, 0, np.array([1, 5, 2, 6, 3, 7]), False),
+        (1, 6, 3, np.array([1, 5, 2, 6, 3, 7]), True),
+        (5, 2, 8, np.array([1, 5, 2, 6, 3, 7]), False)
+    ]
+)
+def test_is_collisionCuboid(x, y, z, cuboid_params, expected):
+    # Arrange
+    # Act
+    result = MinimumSnap.is_collisionCuboid(x, y, z, cuboid_params)
+
+    # Assert
+    assert result == expected
