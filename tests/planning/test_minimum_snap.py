@@ -89,7 +89,7 @@ def test_polynom_at_t3(order, expected):
 def test_is_collisionCuboid(x, y, z, cuboid_params, expected):
     # Arrange
     # Act
-    result = MinimumSnap.is_collisionCuboid(x, y, z, cuboid_params)
+    result = MinimumSnap.is_collision_cuboid(x, y, z, cuboid_params)
 
     # Assert
     assert result == expected

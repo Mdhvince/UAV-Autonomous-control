@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Set
 
 import numpy as np
 
@@ -33,7 +33,6 @@ class MinimumSnap:
         self.A = None
         self.b = None
         self.coeffs = None                       # will hold the coefficients of the trajectory
-
 
     def reset(self):
         self.times = []
@@ -77,7 +76,7 @@ class MinimumSnap:
 
                     id_spline_to_correct = set([])
                     for n, point in enumerate(traj[:, :3]):
-                        if MinimumSnap.is_collisionCuboid(*point, coord):
+                        if MinimumSnap.is_collision_cuboid(*point, coord):
                             spline_id = traj[n, -1]
                             id_spline_to_correct.add(spline_id + 1)
 
@@ -279,9 +278,8 @@ class MinimumSnap:
         # while waiting for the algorithm to generate them
         self.nb_splines = self.waypoints.shape[0] - 1
 
-
     @staticmethod
-    def is_collisionCuboid(x: float, y: float, z: float, cuboid_params: np.ndarray) -> bool:
+    def is_collision_cuboid(x: float, y: float, z: float, cuboid_params: np.ndarray) -> bool:
         """
         Checks if a point (x, y, z) collides or intersects with a given cuboid.
 
@@ -304,14 +302,6 @@ class MinimumSnap:
         -------
         bool
             Return True if the point collides with the cuboid. False otherwise.
-
-        Example
-        --------
-        >>> MinimumSnap.is_collisionCuboid(2, 3, 4, np.array([1, 5, 2, 6, 3, 7]))
-        True
-
-        >>> MinimumSnap.is_collisionCuboid(0, 0, 0, np.array([1, 5, 2, 6, 3, 7]))
-        False
         """
         x_min, x_max, y_min, y_max, z_min, z_max = cuboid_params
         x_collision = x_min <= x <= x_max
@@ -320,10 +310,8 @@ class MinimumSnap:
 
         return x_collision and y_collision and z_collision
 
-
-
     @staticmethod
-    def insert_midpoints_at_indexes(points: np.ndarray, indexes: List[int]) -> np.ndarray:
+    def insert_midpoints_at_indexes(points: np.ndarray, indexes: List[int] | Set[int]) -> np.ndarray:
         """
         Inserts midpoints in `points` numpy array at specified `indexes`.
 
@@ -342,18 +330,6 @@ class MinimumSnap:
         -------
         np.ndarray
             A new numpy array with inserted midpoints at specified indexes.
-
-        Example
-        -------
-        >>> points = np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]])
-        >>> indexes = [1, 3]
-        >>> MinimumSnap.insert_midpoints_at_indexes(points, indexes)
-        array([[0. , 0. , 0. ],
-               [0.5, 0.5, 0.5],
-               [1. , 1. , 1. ],
-               [2. , 2. , 2. ],
-               [2.5, 2.5, 2.5],
-               [3. , 3. , 3. ]])
         """
         result = []
         i = 0
