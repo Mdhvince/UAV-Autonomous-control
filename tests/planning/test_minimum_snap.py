@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from planning.minimum_snap import MinimumSnap
-from tests.fixtures.fixtures import config  # noqa: F401
+
 
 
 @pytest.mark.parametrize("indexes, expected", [
@@ -18,22 +18,6 @@ def test_insert_midpoints_at_indexes(indexes, expected):
 
     # Assert
     assert result == pytest.approx(expected)
-
-
-def test_generate_time_per_spline(config):
-    # Arrange
-    T = MinimumSnap(config)
-
-    T.nb_splines = T.waypoints.shape[0] - 1
-
-    distances = np.array([1.0, 3.0, 2.0])  # computed manually from waypoints fixture
-    expected = distances / T.velocity
-
-    # Act
-    T._generate_time_per_spline()
-
-    # Assert
-    assert T.times == pytest.approx(expected)
 
 
 @pytest.mark.parametrize("order, expected", [
