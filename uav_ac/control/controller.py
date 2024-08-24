@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import utils
-from control.quadrotor import Quadrotor
+from uav_ac.control.quadrotor import Quadrotor
 
 
 class CascadedController:
@@ -210,7 +210,7 @@ class CascadedController:
 
 if __name__ == "__main__":
     config = configparser.ConfigParser(inline_comment_prefixes="#")
-    config_file = Path("/home/medhyvinceslas/Documents/programming/quad3d_sim/config.ini")
+    config_file = Path("/config.ini")
     config.read(config_file)
     cfg = config["DEFAULT"]
     frequency = cfg.getint("frequency")

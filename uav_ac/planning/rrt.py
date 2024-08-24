@@ -1,12 +1,14 @@
 import copy
 import time
 import numpy as np
-from mayavi import mlab
+import plotly.graph_objects as go
+
 
 class RRTStar:
     """
     Rapidly-exploring Random Tree (RRT*) algorithm
     """
+
     def __init__(self, space_limits, start, goal, max_distance, max_iterations, obstacles=None):
         self.space_limits_lw, self.space_limits_up = space_limits[0], space_limits[1]
         self.start = np.round(start, 2)
@@ -190,14 +192,12 @@ class RRTStar:
             xmin, xmax, ymin, ymax, zmin, zmax = obstacle
             node1, node2 = node, new_node
 
-
             direction = node2 - node1
             # Calculate the parameter t for the line equation: line = node1 + t * direction
             t = np.linspace(0, 1, 100)
 
             # Points along the line
             points = np.outer(t, direction) + node1
-
 
             # Check if any of the points lie within the obstacle
             if np.any((points[:, 0] >= xmin) & (points[:, 0] <= xmax) &
@@ -238,7 +238,6 @@ class RRTStar:
         return np.array(path[::-1]).reshape(-1, 3), cost
 
 
-
 if __name__ == "__main__":
 
     start = np.array([0, 0, 0])
@@ -256,26 +255,21 @@ if __name__ == "__main__":
     )
     rrt.run()
 
+    fig = go.Figure()
+
     # plot start and goal nodes in red and green
-    mlab.points3d(start[0], start[1], start[2], color=(1, 0, 0), scale_factor=.2, resolution=60)
-    mlab.points3d(goal[0], goal[1], goal[2], color=(0, 1, 0), scale_factor=.2, resolution=60)
+    fig.add_trace(go.Scatter3d(x=[start[0]], y=[start[1]], z=[start[2]], mode='markers', marker=dict(size=5, color='red')))
+    fig.add_trace(go.Scatter3d(x=[goal[0]], y=[goal[1]], z=[goal[2]], mode='markers', marker=dict(size=5, color='green')))
 
     tree = rrt.best_tree
     for node, parent in tree.items():
         node = np.array(eval(node))
-        # plot the nodes and connections between the nodes and their parents
-        mlab.points3d(node[0], node[1], node[2], color=(0, 0, 1), scale_factor=.1)
-        mlab.points3d(parent[0], parent[1], parent[2], color=(0, 0, 1), scale_factor=.1)
-        mlab.plot3d([node[0], parent[0]], [node[1], parent[1]], [node[2], parent[2]], color=(0, 0, 0), tube_radius=0.01)
-
+        fig.add_trace(go.Scatter3d(x=[node[0], parent[0]], y=[node[1], parent[1]], z=[node[2], parent[2]], mode='lines', line=dict(width=1, color='blue')))
 
     # find the path from the start node to the goal node
     path = rrt.best_path
 
     # Plot the paths
-    mlab.plot3d(path[:, 0], path[:, 1], path[:, 2], color=(1, 1, 0), tube_radius=0.05)
+    fig.add_trace(go.Scatter3d(x=path[:, 0], y=path[:, 1], z=path[:, 2], mode='lines', line=dict(width=5, color='yellow')))
 
-    mlab.show()
-
-
-
+    fig.show()

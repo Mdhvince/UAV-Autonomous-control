@@ -2,7 +2,6 @@ import time
 import warnings
 
 import numpy as np
-from mayavi import mlab
 
 import utils
 from control.quadrotor import Quadrotor
@@ -31,7 +30,9 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
 
     return state_history, omega_history
 
-def plot(rrt, optimal_trajectory, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=False, delay=60):
+
+def plot(rrt, optimal_trajectory, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=False,
+         delay=60):
     rrt_plotter = RRTPlotter(rrt, optimal_trajectory, state_history)
 
     rrt_plotter.plot_start_and_goal()
@@ -46,13 +47,7 @@ def plot(rrt, optimal_trajectory, obstacles, state_history, animate=False, draw_
     if draw_nodes:
         rrt_plotter.plot_tree()
 
-    if animate:
-        quad_pos = mlab.points3d(
-            state_history[0, 0], state_history[0, 1], state_history[0, 2], color=(1, 1, 0), scale_factor=0.2)
-        rrt_plotter.animate_point(quad_pos, delay=delay)
-
-    mlab.orientation_axes()
-    mlab.show()
+    rrt_plotter.show()
 
 
 def receding_horizon(
@@ -102,9 +97,6 @@ def receding_horizon(
     return min_snap.get_trajectory(), is_last
 
 
-
-
-
 if __name__ == "__main__":
     cfg, cfg_rrt, cfg_flight, cfg_vehicle, cfg_controller = utils.get_config()
 
@@ -128,8 +120,6 @@ if __name__ == "__main__":
     quad.X[:3] = start_loc
     state_history, omega_history = quad.X, quad.omega
 
-    ################## Starting here, things can change over time ##################
-
     rrt = RRTStar(space_limits, start_loc, goal_loc, max_distance, max_iterations, obstacles)
     rrt.run()
     global_path = rrt.best_path  # long-term path
@@ -146,7 +136,6 @@ if __name__ == "__main__":
         des_z = global_trajectory[0, [2, 5, 8]]
         des_yaw = global_trajectory[0, 9]
 
-
         state_history, omega_history = fly(
             state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
         )
@@ -157,7 +146,6 @@ if __name__ == "__main__":
             global_trajectory = np.delete(global_trajectory, 0, axis=0)  # remove current waypoint from desired
             start_time = time.time()
 
-
         too_long = time.time() - start_time > 5
         if too_long:
             print("Took too long to reach target. Program will terminate.")
@@ -165,6 +153,5 @@ if __name__ == "__main__":
         # if all waypoints have been visited or issue reaching target, then break
         if global_trajectory.shape[0] == 0 or too_long:
             break
-
 
     plot(rrt, global_trajectory_plot, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=True)

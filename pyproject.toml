@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "quad3d-sim"
+version = "0.1.0"
+description = ""
+authors = ["mdhvince <vinceslas.medhy@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pytest = "^8.3.2"
+pytest-cov = "^5.0.0"
+coverage-badge = "^1.1.2"
+matplotlib = "^3.9.2"
+plotly = "^5.23.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

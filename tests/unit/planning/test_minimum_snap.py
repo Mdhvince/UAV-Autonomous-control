@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from planning.minimum_snap import MinimumSnap
+from uav_ac.planning.minimum_snap import MinimumSnap
 
 
 

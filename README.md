@@ -1,4 +1,5 @@
 ## 3D UAV simulation and autonomous control for path tracking
+![coverage](docs/coverage.svg)
 
 - [x] Build a controller to follow a trajectory  
 - [x] Follow hardcoded waypoints  
