@@ -28,9 +28,9 @@ class RRTStar:
         self.dynamic_it_counter = 0
         self.dynamic_break_at = self.max_iterations / 10
 
-        # assert self.neighborhood_radius > self.step_size, "Neighborhood radius must be larger than step size"
-        # assert self.space_limits_up[2] > self.start[2], "Upper limit on z must be > than the z location of the start"
-        # assert self.space_limits_up[2] > self.goal[2], "Upper limit on z must be > than the z location of the goal"
+        assert self.neighborhood_radius > self.step_size, "Neighborhood radius must be larger than step size"
+        assert self.space_limits_up[2] > self.start[2], "Upper limit on z must be > than the z location of the start"
+        assert self.space_limits_up[2] > self.goal[2], "Upper limit on z must be > than the z location of the goal"
 
     def run(self):
         old_cost = np.inf
