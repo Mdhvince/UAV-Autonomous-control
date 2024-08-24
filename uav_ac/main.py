@@ -31,8 +31,7 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
     return state_history, omega_history
 
 
-def plot(rrt, optimal_trajectory, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=False,
-         delay=60):
+def plot(rrt, optimal_trajectory, obstacles, state_history, draw_nodes=False, draw_obstacles=False):
     rrt_plotter = RRTPlotter(rrt, optimal_trajectory, state_history)
 
     rrt_plotter.plot_start_and_goal()
@@ -154,4 +153,4 @@ if __name__ == "__main__":
         if global_trajectory.shape[0] == 0 or too_long:
             break
 
-    plot(rrt, global_trajectory_plot, obstacles, state_history, animate=False, draw_nodes=False, draw_obstacles=True)
+    plot(rrt, global_trajectory_plot, obstacles, state_history, draw_nodes=False, draw_obstacles=True)
