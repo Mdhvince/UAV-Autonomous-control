@@ -15,13 +15,6 @@ def test_path_cost():
 
 
 def test__generate_random_node_in_limits(rrt_object):
-    # Arrange
-    rrt = RRTStar(space_limits=np.array([[0, 0, 0], [10, 10, 10]]),
-                  start=np.array([0, 0, 0]),
-                  goal=np.array([8, 8, 8]),
-                  max_distance=1,
-                  max_iterations=1)
-
     # Act
     result = rrt_object._generate_random_node()
 
