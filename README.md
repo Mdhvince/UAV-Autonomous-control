@@ -304,6 +304,10 @@ c = \begin{bmatrix}
                                     \end{bmatrix}
 $$
 
-:rocket:
 
-
+## Installation
+- clone the repository and cd into it
+- install poetry
+- run `poetry install`
+- run `poetry run pytest`
+- run `poetry run python uav_ac/main.py`
