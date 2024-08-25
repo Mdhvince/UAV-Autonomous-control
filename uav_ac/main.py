@@ -114,8 +114,8 @@ if __name__ == "__main__":
     max_distance = cfg_rrt.getfloat("max_distance")
     max_iterations = cfg_rrt.getint("max_iterations")
 
-    ctrl = CascadedController()
-    quad = Quadrotor()
+    ctrl = CascadedController(cfg, cfg_controller)
+    quad = Quadrotor(cfg, cfg_vehicle)
     quad.X[:3] = start_loc
     state_history, omega_history = quad.X, quad.omega
 

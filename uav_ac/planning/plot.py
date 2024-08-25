@@ -1,11 +1,9 @@
 import numpy as np
 import plotly.graph_objects as go
 
-from planning.rrt import RRTStar
-
 
 class RRTPlotter:
-    def __init__(self, rrt: RRTStar, optimal_trajectory, state_history):
+    def __init__(self, rrt, optimal_trajectory, state_history):
         self.fig = go.Figure()
         self.rrt = rrt
         self.optimal_trajectory = optimal_trajectory
