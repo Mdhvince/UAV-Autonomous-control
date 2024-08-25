@@ -1,7 +1,7 @@
 import numpy as np
 import plotly.graph_objects as go
 
-from uav_ac.planning.rrt import RRTStar
+from planning.rrt import RRTStar
 
 
 class RRTPlotter:

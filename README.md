@@ -307,7 +307,8 @@ $$
 
 ## Installation
 - clone the repository and cd into it
-- install poetry
-- run `poetry install`
-- run `poetry run pytest`
-- run `poetry run python uav_ac/main.py`
+- install [poetry](https://python-poetry.org/)
+- `poetry install`
+- `poetry run pytest`
+- `poetry run python uav_ac/planning/rrt.py` to run an example of the RRT* algorithm
+- `poetry run python uav_ac/main.py`

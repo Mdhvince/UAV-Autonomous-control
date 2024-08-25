@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import utils
-from uav_ac.control.quadrotor import Quadrotor
+from control.quadrotor import Quadrotor
 
 
 class CascadedController:

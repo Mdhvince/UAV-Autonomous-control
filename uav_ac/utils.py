@@ -7,7 +7,7 @@ def get_config():
     :return: config object (default, rrt, flight, vehicle, controller)
     """
     config = configparser.ConfigParser(inline_comment_prefixes="#")
-    config_file = Path("config.ini")
+    config_file = Path(Path(__file__).parent, "config.ini")
     config.read(config_file)
 
     cfg = config["DEFAULT"]
