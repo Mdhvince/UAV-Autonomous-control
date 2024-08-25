@@ -153,4 +153,4 @@ if __name__ == "__main__":
         if global_trajectory.shape[0] == 0 or too_long:
             break
 
-    plot(rrt, global_trajectory_plot, obstacles, state_history, draw_nodes=False, draw_obstacles=True)
+    plot(rrt, global_trajectory_plot, obstacles, state_history, draw_nodes=True, draw_obstacles=True)

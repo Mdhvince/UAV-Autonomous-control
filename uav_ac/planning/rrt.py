@@ -229,10 +229,7 @@ class RRTStar:
             path.append(node)
 
             if time.time() - s_time > 5:
-                # restart
-                print("Restarting...")
-                self.run()
-                # raise Exception("A problem occurred while computing the path.")
+                raise Exception("A problem occurred while computing the path, please restart the algorithm")
 
         cost = RRTStar.path_cost(path)
         return np.array(path[::-1]).reshape(-1, 3), cost
