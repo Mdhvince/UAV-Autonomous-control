@@ -4,7 +4,6 @@ import pytest
 from uav_ac.planning.minimum_snap import MinimumSnap
 
 
-
 @pytest.mark.parametrize("indexes, expected", [
     ([1, 3], np.array([[0, 0, 0], [.5, .5, .5], [1, 1, 1], [2, 2, 2], [2.5, 2.5, 2.5], [3, 3, 3]])),
     ([], np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]])),

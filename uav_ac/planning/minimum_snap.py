@@ -16,23 +16,23 @@ class MinimumSnap:
         self.velocity = velocity
         self.dt = dt
 
-        self.times = []                          # will hold the time between segment based on the velocity
-        self.spline_id = []                      # identify on which spline the newly generated point belongs to
-        self.nb_splines = None                   # number of splines in the trajectory
-        self.n_coeffs = 8                        # number of boundary conditions per spline to respect minimum snap
+        self.times = []  # will hold the time between segment based on the velocity
+        self.spline_id = []  # identify on which spline the newly generated point belongs to
+        self.nb_splines = None  # number of splines in the trajectory
+        self.n_coeffs = 8  # number of boundary conditions per spline to respect minimum snap
 
-        self.positions = []                      # will hold the desired positions of the trajectory
-        self.velocities = []                     # will hold the desired velocities of the trajectory
-        self.accelerations = []                  # will hold the desired accelerations of the trajectory
-        self.yaws = []                           # will hold the desired yaws of the trajectory (yaw is hard coded to 0)
-        self.jerks = []                          # will hold the desired jerks of the trajectory
-        self.snap = []                           # will hold the desired snap of the trajectory
+        self.positions = []  # will hold the desired positions of the trajectory
+        self.velocities = []  # will hold the desired velocities of the trajectory
+        self.accelerations = []  # will hold the desired accelerations of the trajectory
+        self.yaws = []  # will hold the desired yaws of the trajectory (yaw is hard coded to 0)
+        self.jerks = []  # will hold the desired jerks of the trajectory
+        self.snap = []  # will hold the desired snap of the trajectory
 
-        self.full_trajectory = None              # will hold the full trajectory
-        self.row_counter = 0                     # keep track of the current row being filled in the A matrix
+        self.full_trajectory = None  # will hold the full trajectory
+        self.row_counter = 0  # keep track of the current row being filled in the A matrix
         self.A = None
         self.b = None
-        self.coeffs = None                       # will hold the coefficients of the trajectory
+        self.coeffs = None  # will hold the coefficients of the trajectory
 
     def reset(self):
         self.times = []
@@ -56,7 +56,7 @@ class MinimumSnap:
 
     def _generate_collision_free_trajectory(self):
         """
-        Generate a collision free trajectory. The trajectory is generated in two steps:
+        Generate a collision-free trajectory. The trajectory is generated in two steps:
         1. Generate a minimum snap trajectory
         2. Correct the trajectory to avoid collision with obstacles:
         - if the trajectory goes through an obstacle, create a mid-point in the spline that goes through the obstacle
@@ -105,7 +105,6 @@ class MinimumSnap:
                 # jerk = self.polynom(8, order=3, t=t) @ self.coeffs[it*self.n_coeffs : self.n_coeffs*(it+1)]
                 # snap = self.polynom(8, order=4, t=t) @ self.coeffs[it*self.n_coeffs : self.n_coeffs*(it+1)]
 
-
                 self.positions.append(position)
                 self.velocities.append(velocity)
                 self.accelerations.append(acceleration)
@@ -134,13 +133,13 @@ class MinimumSnap:
 
     def _generate_continuity_constraints(self):
         """
-        This function populate the A and b matrices with constraints on intermediate splines in order to ensure
+        This function populates the A and b matrices with constraints on intermediate splines to ensure
         continuity, hence smoothness.
 
-        - Constraints up to the 6th derivative at t=0 should be the same at t=T. For example no change of velocity
+        - Constraints up to the sixth derivative at t=0 should be the same at t=T. For example, no change of velocity
         between the end of a spline (polyT) and the start of the next spline (poly0)
 
-        We have 1 constraint for each derivatives(6).
+        We have one constraint for each derivative(6).
         """
 
         N_SPLINES = self.nb_splines
@@ -156,7 +155,7 @@ class MinimumSnap:
 
     def _generate_start_and_goal_constraints(self):
         """
-        This function populate the A and b matrices with constraints on the starting and ending splines.
+        This function populates the A and b matrices with constraints on the starting and ending splines.
 
         - Starting spline constraint: Velocity/Acceleration/Jerk should be 0
         - Ending spline constraint: Velocity/Acceleration/Jerk should be 0
@@ -181,7 +180,7 @@ class MinimumSnap:
 
     def _generate_position_constraints(self):
         """
-        This function populate the A and b matrices with constraints on positions.
+        This function populates the A and b matrices with constraints on positions.
 
         - The first position constraint is on every start of splines : every start of splines should
         be at a particular waypoint (Last waypoint is excluded since it is not a start of spline)
@@ -241,7 +240,6 @@ class MinimumSnap:
             polynomial[i] = polynomial[i] * t ** derivative[i]
 
         return polynomial.T
-
 
     def _setup(self):
         self._generate_waypoints()
