@@ -193,3 +193,106 @@ class CascadedController:
         d_term = kd * error_dot
         i_term = ki * i_error
         return p_term + i_term + d_term + des
+
+
+if __name__ == "__main__":
+    from uav_ac.utils import get_config
+    from uav_ac.control.quadrotor import Quadrotor
+    import matplotlib.pyplot as plt
+
+    # Load configuration
+    cfg, _cfg_rrt, _cfg_flight, cfg_vehicle, cfg_controller = get_config()
+
+    # Initialize quadrotor and controller
+    quad = Quadrotor(cfg, cfg_vehicle)
+    ctrl = CascadedController(cfg, cfg_controller)
+
+    z_set = 7.0
+    des_x = np.array([0.0, 5.0, 0.0])
+    des_y = np.array([0.0, 0.0, 4.0])
+    psi_des = 10.0
+
+    # Simulation horizon
+    T = 20.0  # seconds
+    dt = quad.dt  # integration step defined by vehicle dynamics
+    n_steps = int(T / dt)
+
+    # Histories for plotting
+    t_hist = []
+    x_hist = []
+    y_hist = []
+    z_hist = []
+    psi_hist = []
+
+    x_des_hist = []
+    y_des_hist = []
+    z_des_hist = []
+    psi_des_hist = []
+
+    thrust_hist = []
+
+    t = 0.0
+    for k in range(n_steps):
+        R = quad.R()
+        des_z = np.array([z_set, 0.0, 0.0])
+        F_cmd = ctrl.altitude(quad, des_z, R)
+        bxy_cmd = ctrl.lateral(quad, des_x, des_y, F_cmd)
+        pqr_cmd = ctrl.reduced_attitude(quad, bxy_cmd, psi_des, R)
+        moment_cmd = ctrl.body_rate_controller(quad, pqr_cmd)
+
+        # Apply commands and integrate one timestep
+        quad.set_propeller_speed(F_cmd, moment_cmd)
+        quad.update_state()
+
+        # Log
+        t_hist.append(t)
+        x_hist.append(quad.x)
+        y_hist.append(quad.y)
+        z_hist.append(quad.z)
+        psi_hist.append(quad.psi)
+
+        x_des_hist.append(des_x[0])
+        y_des_hist.append(des_y[0])
+        z_des_hist.append(z_set)
+        psi_des_hist.append(psi_des)
+
+        thrust_hist.append(F_cmd)
+        t += dt
+
+    # Plot subplots for x, y, z, and yaw
+    fig, axes = plt.subplots(2, 2, figsize=(10, 6), sharex=True)
+
+    ax = axes[0, 0]
+    ax.plot(t_hist, x_hist, label="x (actual)")
+    ax.plot(t_hist, x_des_hist, "--", label="x (desired)")
+    ax.set_ylabel("x [m]")
+    ax.grid(True)
+    ax.legend(loc="best")
+
+    ax = axes[0, 1]
+    ax.plot(t_hist, y_hist, label="y (actual)")
+    ax.plot(t_hist, y_des_hist, "--", label="y (desired)")
+    ax.set_ylabel("y [m]")
+    ax.grid(True)
+    ax.legend(loc="best")
+
+    ax = axes[1, 0]
+    ax.plot(t_hist, z_hist, label="z (actual)")
+    ax.plot(t_hist, z_des_hist, "--", label="z (desired)")
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel("z [m]")
+    ax.grid(True)
+    ax.legend(loc="best")
+
+    ax = axes[1, 1]
+    ax.plot(t_hist, psi_hist, label="yaw (actual)")
+    ax.plot(t_hist, psi_des_hist, "--", label="yaw (desired)")
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel("yaw [rad]")
+    ax.grid(True)
+    ax.legend(loc="best")
+
+    fig.suptitle("Controller step response (x, y, z, yaw)")
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    plt.show()
