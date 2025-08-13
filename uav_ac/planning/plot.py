@@ -41,8 +41,8 @@ class RRTPlotter:
         offset = 0.5
         for obstacle in obstacles:
             xx, yy, zz = np.mgrid[obstacle[0] + offset:obstacle[1]:1,
-                         obstacle[2] + offset:obstacle[3]:1,
-                         obstacle[4] + offset:obstacle[5]:1]
+            obstacle[2] + offset:obstacle[3]:1,
+            obstacle[4] + offset:obstacle[5]:1]
 
             self.fig.add_trace(go.Scatter3d(
                 x=xx.flatten(), y=yy.flatten(), z=zz.flatten(),
@@ -92,8 +92,8 @@ class RRTPlotter:
 
         for obstacle in obstacles_true:
             xx, yy, zz = np.mgrid[obstacle[0] + offset:obstacle[1]:1,
-                         obstacle[2] + offset:obstacle[3]:1,
-                         obstacle[4] + offset - rm:obstacle[5]:1]
+            obstacle[2] + offset:obstacle[3]:1,
+            obstacle[4] + offset - rm:obstacle[5]:1]
 
             self.fig.add_trace(go.Scatter3d(
                 x=xx.flatten(), y=yy.flatten(), z=zz.flatten(),
@@ -152,6 +152,9 @@ class RRTPlotter:
 
     def show(self):
         self.fig.show()
+
+    def save(self, filename):
+        self.fig.write_html(filename)
 
 
 if __name__ == "__main__":

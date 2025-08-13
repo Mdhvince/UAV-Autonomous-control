@@ -11,8 +11,8 @@ pytest = "^8.3.2"
 pytest-cov = "^5.0.0"
 coverage-badge = "^1.1.2"
 matplotlib = "^3.9.2"
-plotly = "^5.23.0"
 kaleido = "^1.0.0"
+plotly = "^6.3.0"
 
 
 [build-system]

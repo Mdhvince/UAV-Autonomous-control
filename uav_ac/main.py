@@ -46,7 +46,7 @@ def plot(rrt, optimal_trajectory, obstacles, state_history, draw_nodes=False, dr
     if draw_nodes:
         rrt_plotter.plot_tree()
 
-    rrt_plotter.show()
+    rrt_plotter.save("plot.html")
 
 
 def receding_horizon(
