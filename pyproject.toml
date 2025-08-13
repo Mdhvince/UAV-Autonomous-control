@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["mdhvince <vinceslas.medhy@gmail.com>"]
 readme = "README.md"
+packages = [{ include = "uav_ac" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"

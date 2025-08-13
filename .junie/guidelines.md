@@ -11,6 +11,7 @@ This document captures project-specific practices to set up, test, and extend th
 - Core runtime deps used by the code and/or tests:
   - numpy, matplotlib, plotly, pytest, pytest-cov, coverage-badge.
 - Package name in pyproject: `quad3d-sim`; module path is `uav_ac`.
+- Poetry packaging: `[tool.poetry].packages = [{ include = "uav_ac" }]` to ensure CI can install the project.
 
 ## Configuration Notes
 - Project runtime parameters are in `uav_ac/config.ini`.
