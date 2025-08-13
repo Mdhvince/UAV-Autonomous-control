@@ -20,3 +20,4 @@ deprecated/
 youtube/
 crazyflie/*
 .coverage
+*.html
