@@ -21,3 +21,4 @@ youtube/
 crazyflie/*
 .coverage
 *.html
+.junie/

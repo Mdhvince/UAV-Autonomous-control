@@ -81,7 +81,7 @@ class CascadedController:
         # Get required acceleration
         vel_err = vel_des - quad.velocity[:2]
         pos_err = pos_des - quad.position[:2]
-        acc_cmd = CascadedController._pd(self.lateral_Pgain, self.lateral_Dgain, pos_err, vel_err, ff_acc)
+        acc_cmd = CascadedController._pd(self.lateral_p_gain, self.lateral_d_gain, pos_err, vel_err, ff_acc)
 
         # Scaling down the magnitude acceleration vector
         acc_mag = np.linalg.norm(acc_cmd)
@@ -134,7 +134,7 @@ class CascadedController:
         errors = bxy_cmd - b_xy
 
         # Desired angular velocities component of the rotation matrix
-        b_xy_cmd_dot = self.roll_pitch_Pgain * errors
+        b_xy_cmd_dot = self.roll_pitch_p_gain * errors
 
         # transform the desired angular velocities component of R: b_xy_cmd_dot (body frame)
         # to the roll and pitch rates p_c and q_c in the (body frame)
@@ -157,15 +157,15 @@ class CascadedController:
         return r_c
 
     @property
-    def lateral_Pgain(self):
+    def lateral_p_gain(self):
         return np.array([self.kp_x, self.kp_y])
 
     @property
-    def lateral_Dgain(self):
+    def lateral_d_gain(self):
         return np.array([self.kd_x, self.kd_y])
 
     @property
-    def roll_pitch_Pgain(self):
+    def roll_pitch_p_gain(self):
         return np.array([self.kp_roll, self.kp_pitch])
 
     @staticmethod
