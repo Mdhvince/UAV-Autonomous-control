@@ -6,6 +6,7 @@ import numpy as np
 import utils
 from control.quadrotor import Quadrotor
 from control.controller import CascadedController
+from control.response import plot_controller_response
 from planning.minimum_snap import MinimumSnap
 from planning.plot import RRTPlotter
 from planning.rrt import RRTStar
@@ -15,13 +16,13 @@ warnings.filterwarnings('ignore')
 
 def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des_yaw, frequency):
     R = quad.R()
-    F_cmd = controller.altitude(quad, des_z, R)
-    bxy_cmd = controller.lateral(quad, des_x, des_y, F_cmd)
-    pqr_cmd = controller.reduced_attitude(quad, bxy_cmd, des_yaw, R)
+    F_cmd = controller.altitude(quad, des_z, R, quad.kp_z, quad.kd_z, quad.ki_z)
+    bxy_cmd = controller.lateral(quad, des_x, des_y, F_cmd, quad.kp_xy, quad.kd_xy)
+    pqr_cmd = controller.reduced_attitude(quad, bxy_cmd, des_yaw, R, quad.kp_roll, quad.kp_pitch, quad.kp_yaw)
 
     for _ in range(frequency):
         # flight controller
-        moment_cmd = controller.body_rate_controller(quad, pqr_cmd)
+        moment_cmd = controller.body_rate_controller(quad, pqr_cmd, quad.kp_p, quad.kp_q, quad.kp_r)
         quad.set_propeller_speed(F_cmd, moment_cmd)
         quad.update_state()
 
@@ -46,7 +47,8 @@ def plot(rrt, optimal_trajectory, obstacles, state_history, draw_nodes=False, dr
     if draw_nodes:
         rrt_plotter.plot_tree()
 
-    rrt_plotter.save("plot.html")
+    # rrt_plotter.save("plot.html")
+    rrt_plotter.show()
 
 
 def receding_horizon(
@@ -97,7 +99,7 @@ def receding_horizon(
 
 
 if __name__ == "__main__":
-    cfg, cfg_rrt, cfg_flight, cfg_vehicle, cfg_controller = utils.get_config()
+    cfg, cfg_rrt, cfg_flight = utils.get_config()
 
     dt = cfg.getfloat("dt")
     frequency = cfg.getint("frequency")
@@ -114,8 +116,8 @@ if __name__ == "__main__":
     max_distance = cfg_rrt.getfloat("max_distance")
     max_iterations = cfg_rrt.getint("max_iterations")
 
-    ctrl = CascadedController(cfg, cfg_controller)
-    quad = Quadrotor(cfg, cfg_vehicle)
+    ctrl = CascadedController(cfg)
+    quad = Quadrotor(cfg)
     quad.X[:3] = start_loc
     state_history, omega_history = quad.X, quad.omega
 
@@ -128,6 +130,7 @@ if __name__ == "__main__":
     global_trajectory_plot = np.copy(global_trajectory)
 
     start_time = time.time()
+    desired_trajectory_history = []
 
     while True:
         des_x = global_trajectory[0, [0, 3, 6]]
@@ -138,6 +141,9 @@ if __name__ == "__main__":
         state_history, omega_history = fly(
             state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
         )
+        
+        # Track the desired trajectory point used for this fly() call
+        desired_trajectory_history.append(global_trajectory[0, :])
 
         target_has_been_reached = np.linalg.norm(quad.X[:3] - global_trajectory[0, :3]) < min_distance_target
 
@@ -152,5 +158,10 @@ if __name__ == "__main__":
         # if all waypoints have been visited or issue reaching target, then break
         if global_trajectory.shape[0] == 0 or too_long:
             break
+    
+    desired_trajectory_history = np.array(desired_trajectory_history)
 
-    plot(rrt, global_trajectory_plot, obstacles, state_history, draw_nodes=True, draw_obstacles=True)
+    # plot(rrt, global_trajectory_plot, obstacles, state_history[1:], draw_nodes=True, draw_obstacles=True)
+    
+    # Plot controller response
+    plot_controller_response(state_history[1:], desired_trajectory_history, dt)

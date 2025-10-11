@@ -4,7 +4,7 @@ from pathlib import Path
 
 def get_config():
     """
-    :return: config object (default, rrt, flight, vehicle, controller)
+    :return: config object (default, rrt, flight)
     """
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = Path(Path(__file__).parent, "config.ini")
@@ -13,7 +13,5 @@ def get_config():
     cfg = config["DEFAULT"]
     cfg_rrt = config["RRT"]
     cfg_flight = config["SIM_FLIGHT"]
-    cfg_vehicle = config["VEHICLE"]
-    cfg_controller = config["CONTROLLER"]
 
-    return cfg, cfg_rrt, cfg_flight, cfg_vehicle, cfg_controller
+    return cfg, cfg_rrt, cfg_flight
