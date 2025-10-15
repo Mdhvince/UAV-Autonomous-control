@@ -2,7 +2,7 @@ import math
 import numpy as np
 
 
-class Quadrotor:
+class Quad:
     def __init__(self, cfg):
         self.g = cfg.getfloat("g")
         self.dt = cfg.getfloat("dt") / cfg.getint("frequency")
@@ -74,7 +74,7 @@ class Quadrotor:
 
         u_bar = np.array([p_bar, q_bar, r_bar, c_bar])
 
-        self.omega = Quadrotor.propeller_coeffs() @ u_bar / 4
+        self.omega = Quad.propeller_coeffs() @ u_bar / 4
 
     def update_acceleration(self):  # used for state update
         """
@@ -119,7 +119,7 @@ class Quadrotor:
 
     def R(self):
         """Rotation matrix from quaternion"""
-        return Quadrotor.quat_to_rot(self.quaternion)
+        return Quad.quat_to_rot(self.quaternion)
 
     @staticmethod
     def quat_to_rot(q: np.ndarray) -> np.ndarray:

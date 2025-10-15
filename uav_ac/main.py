@@ -4,9 +4,8 @@ import warnings
 import numpy as np
 
 import utils
-from control.quadrotor import Quadrotor
+from quadrotor.quad import Quad
 from control.controller import CascadedController
-from control.response import plot_controller_response
 from planning.minimum_snap import MinimumSnap
 from planning.plot import RRTPlotter
 from planning.rrt import RRTStar
@@ -117,7 +116,7 @@ if __name__ == "__main__":
     max_iterations = cfg_rrt.getint("max_iterations")
 
     ctrl = CascadedController(cfg)
-    quad = Quadrotor(cfg)
+    quad = Quad(cfg)
     quad.X[:3] = start_loc
     state_history, omega_history = quad.X, quad.omega
 
