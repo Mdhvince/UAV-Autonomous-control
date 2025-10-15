@@ -162,6 +162,3 @@ if __name__ == "__main__":
     desired_trajectory_history = np.array(desired_trajectory_history)
 
     plot(rrt, global_trajectory_plot, obstacles, state_history[1:], draw_nodes=True, draw_obstacles=True)
-    
-    # Plot controller response
-    plot_controller_response(state_history[1:], desired_trajectory_history, dt)

@@ -59,9 +59,9 @@ class Quadrotor:
         since we can get the values from the sensors.
         """
         self.dX[:3] = self.velocity
-        self.get_quaternion_derivatives()
-        self.body_angular_acceleration()
-        self.linear_acceleration()
+        self.update_quaternion_derivatives()
+        self.update_body_angular_acceleration()
+        self.update_acceleration()
         self.X = self.X + self.dX * self.dt  # integrate using euler method
         # Normalize quaternion to prevent drift
         self.X[3:7] = self.X[3:7] / np.linalg.norm(self.X[3:7])
@@ -76,7 +76,7 @@ class Quadrotor:
 
         self.omega = Quadrotor.propeller_coeffs() @ u_bar / 4
 
-    def linear_acceleration(self):  # used for state update
+    def update_acceleration(self):  # used for state update
         """
         Convert the thrust body frame to world frame , divide by the mass and add the gravity
         in order to have the linear acceleration x_acc, y_acc, z_acc in the world frame
@@ -88,7 +88,7 @@ class Quadrotor:
         # linear accelerations along x, y, z
         self.dX[7:10] = G + np.matmul(R, F) / self.m
 
-    def body_angular_acceleration(self):  # used for state update
+    def update_body_angular_acceleration(self):  # used for state update
         """Angular acceleration in the body frame"""
         p_dot = (self.tau_x - self.r * self.q * (self.i_z - self.i_y)) / self.i_x
         q_dot = (self.tau_y - self.r * self.p * (self.i_x - self.i_z)) / self.i_y
@@ -96,7 +96,7 @@ class Quadrotor:
 
         self.dX[-3:] = np.array([p_dot, q_dot, r_dot])
 
-    def get_quaternion_derivatives(self):  # used for state update
+    def update_quaternion_derivatives(self):  # used for state update
         """Compute quaternion derivative from body angular velocities"""
         # Get body angular velocities
         p, q, r = self.p, self.q, self.r
