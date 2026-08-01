@@ -307,8 +307,8 @@ $$
 
 ## Installation
 - clone the repository and cd into it
-- install [poetry](https://python-poetry.org/)
-- `poetry install`
-- `poetry run pytest`
-- `poetry run python uav_ac/planning/rrt.py` to run an example of the RRT* algorithm
-- `poetry run python uav_ac/main.py`
+- install [uv](https://docs.astral.sh/uv/)
+- `uv sync`
+- `uv run pytest`
+- `uv run python uav_ac/planning/rrt.py` to run an example of the RRT* algorithm
+- `uv run python uav_ac/main.py`

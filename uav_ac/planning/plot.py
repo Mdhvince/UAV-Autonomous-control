@@ -1,3 +1,5 @@
+import ast
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -104,7 +106,7 @@ class RRTPlotter:
 
     def plot_tree(self, color_node='blue', color_edges='black'):
         for node, parent in self.rrt.best_tree.items():
-            node = np.array(eval(node))
+            node = np.array(ast.literal_eval(node))
             parent = np.array(parent)
             self.fig.add_trace(go.Scatter3d(
                 x=[node[0], parent[0]], y=[node[1], parent[1]], z=[node[2], parent[2]],

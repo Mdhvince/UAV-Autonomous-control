@@ -61,6 +61,65 @@ def test_polynom_at_t3(order, expected):
     assert result == pytest.approx(expected)
 
 
+def test_get_trajectory_passes_through_all_waypoints():
+    # Arrange
+    waypoints = np.array([[0., 0., 1.], [3., 0., 1.], [3., 3., 1.]])
+    minimum_snap = MinimumSnap(waypoints, None, velocity=2.0, dt=0.01)
+
+    # Act
+    trajectory = minimum_snap.get_trajectory()
+
+    # Assert
+    positions = trajectory[:, :3]
+    for waypoint in waypoints:
+        distances = np.linalg.norm(positions - waypoint, axis=1)
+        assert distances.min() == pytest.approx(0.0, abs=0.05)
+
+
+def test_get_trajectory_returns_positions_velocities_accelerations_yaw_and_spline_id():
+    # Arrange
+    waypoints = np.array([[0., 0., 1.], [3., 0., 1.]])
+    minimum_snap = MinimumSnap(waypoints, None, velocity=2.0, dt=0.01)
+
+    # Act
+    trajectory = minimum_snap.get_trajectory()
+
+    # Assert
+    assert trajectory.shape[1] == 11
+    assert np.all(trajectory[:, 9] == 0.0)  # yaw is hardcoded to 0
+    assert np.all(trajectory[:, 10] == 0.0)  # single spline
+
+
+def test_get_trajectory_velocity_is_continuous_across_splines():
+    # Arrange
+    waypoints = np.array([[0., 0., 1.], [3., 0., 1.], [3., 3., 1.]])
+    dt = 0.01
+    minimum_snap = MinimumSnap(waypoints, None, velocity=2.0, dt=dt)
+
+    # Act
+    trajectory = minimum_snap.get_trajectory()
+
+    # Assert
+    velocities = trajectory[:, 3:6]
+    velocity_jumps = np.linalg.norm(np.diff(velocities, axis=0), axis=1)
+    assert velocity_jumps.max() < 0.5  # no discontinuity, even at the spline junction
+
+
+def test_get_trajectory_corrects_splines_that_cut_through_an_obstacle():
+    # Arrange
+    waypoints = np.array([[0., 0., 1.], [3., 0., 1.], [3., 3., 1.]])
+    obstacle = np.array([[3.2, 4.0, 0.5, 1.5, 0., 2.]])  # sits in the corner-cut overshoot of the raw spline
+    raw_trajectory = MinimumSnap(waypoints, None, velocity=2.0, dt=0.01).get_trajectory()
+    assert any(MinimumSnap.is_collision_cuboid(*point, obstacle[0]) for point in raw_trajectory[:, :3])
+    minimum_snap = MinimumSnap(waypoints, obstacle, velocity=2.0, dt=0.01)
+
+    # Act
+    trajectory = minimum_snap.get_trajectory()
+
+    # Assert
+    assert not any(MinimumSnap.is_collision_cuboid(*point, obstacle[0]) for point in trajectory[:, :3])
+
+
 @pytest.mark.parametrize(
     "x, y, z, cuboid_params,expected", [
         (2, 3, 4, np.array([1, 5, 2, 6, 3, 7]), True),

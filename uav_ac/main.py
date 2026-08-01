@@ -1,4 +1,3 @@
-import time
 import warnings
 
 import numpy as np
@@ -46,118 +45,55 @@ def plot(rrt, optimal_trajectory, obstacles, state_history, draw_nodes=False, dr
     if draw_nodes:
         rrt_plotter.plot_tree()
 
-    # rrt_plotter.save("plot.html")
     rrt_plotter.show()
-
-
-def receding_horizon(
-        lt_path, current_position, horizon, max_distance, max_iterations, obstacles, velocity, dt):
-    """
-    :param lt_path: long-term path
-    :param current_position: current position of the quadrotor
-    :param horizon: length of the horizon in meters
-    :param max_distance: maximum distance of a newly sampled node to the nearest node in the tree
-    :param max_iterations: maximum number of iterations to run RRT
-    :param obstacles: obstacles in the environment
-    :param velocity: velocity of the quadrotor
-    :param dt: time step
-    :return: new trajectory
-    """
-
-    is_last = False
-    lt_path = lt_path[:, :3]
-    start_index = np.argmin(np.linalg.norm(lt_path - current_position, axis=1))
-    lt_path = lt_path[start_index:, :]  # remove the waypoints that have already been reached
-
-    distances = np.linalg.norm(lt_path - current_position, axis=1)
-
-    # Index of the waypoint that is horizon meters far from the current position (last waypoint if not found)
-    try:
-        index = np.where(distances >= horizon)[0][0]
-    except IndexError:
-        index = -1
-        is_last = True
-
-    goal = lt_path[index, :]
-
-    freedom = .1  # the quad can move freedom cm in any direction to avoid unexpected obstacles (env changes)
-    space_limits = np.array([
-        [current_position[0] - freedom, current_position[1] - freedom, current_position[2] - freedom],
-        [goal[0] + freedom, goal[1] + freedom, goal[2] + freedom]
-    ])
-
-    print("Current position: ", np.round(current_position, 2))
-    print("Goal: ", np.round(goal, 2))
-
-    rrt = RRTStar(space_limits, current_position, goal, max_distance, max_iterations, obstacles)
-    rrt.dynamic_break_at = max_iterations
-    rrt.run()
-    st_path = rrt.best_path  # short-term path
-    min_snap = MinimumSnap(st_path, obstacles, velocity, dt)
-    return min_snap.get_trajectory(), is_last
 
 
 if __name__ == "__main__":
     cfg, cfg_rrt, cfg_flight = utils.get_config()
 
+    g = cfg.getfloat("g")
     dt = cfg.getfloat("dt")
     frequency = cfg.getint("frequency")
 
     # FLIGHT
     velocity = cfg_flight.getfloat("velocity")
-    obstacles = np.array(eval(cfg_flight.get("coord_obstacles")))
+    obstacles = utils.parse_array(cfg_flight, "coord_obstacles")
     min_distance_target = cfg_flight.getfloat("min_dist_target")
-    goal_loc = np.array(eval(cfg_flight.get("goal_loc")))
+    goal_loc = utils.parse_array(cfg_flight, "goal_loc")
     start_loc = np.array([0., 0., 1.0])
 
     # RRT
-    space_limits = np.array(eval(cfg_rrt.get("space_limits")))
+    space_limits = utils.parse_array(cfg_rrt, "space_limits")
     max_distance = cfg_rrt.getfloat("max_distance")
     max_iterations = cfg_rrt.getint("max_iterations")
 
-    ctrl = CascadedController(cfg)
-    quad = Quad(cfg)
+    ctrl = CascadedController(g, dt)
+    quad = Quad(g, dt / frequency)
     quad.X[:3] = start_loc
     state_history, omega_history = quad.X, quad.omega
 
     rrt = RRTStar(space_limits, start_loc, goal_loc, max_distance, max_iterations, obstacles)
     rrt.run()
-    global_path = rrt.best_path  # long-term path
+    global_path = rrt.best_path
 
     min_snap = MinimumSnap(global_path, obstacles, velocity, dt)
-    global_trajectory = min_snap.get_trajectory()  # long-term trajectory
-    global_trajectory_plot = np.copy(global_trajectory)
+    global_trajectory = min_snap.get_trajectory()
 
-    start_time = time.time()
-    desired_trajectory_history = []
-
-    while True:
-        des_x = global_trajectory[0, [0, 3, 6]]
-        des_y = global_trajectory[0, [1, 4, 7]]
-        des_z = global_trajectory[0, [2, 5, 8]]
-        des_yaw = global_trajectory[0, 9]
+    # the trajectory is time-parameterized at dt per row and each fly() call spans dt,
+    # so following it in real time means consuming one row per control cycle
+    for target in global_trajectory:
+        des_x = target[[0, 3, 6]]
+        des_y = target[[1, 4, 7]]
+        des_z = target[[2, 5, 8]]
+        des_yaw = target[9]
 
         state_history, omega_history = fly(
             state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
         )
-        
-        # Track the desired trajectory point used for this fly() call
-        desired_trajectory_history.append(global_trajectory[0, :])
 
-        target_has_been_reached = np.linalg.norm(quad.X[:3] - global_trajectory[0, :3]) < min_distance_target
+    distance_to_goal = np.linalg.norm(quad.X[:3] - goal_loc)
+    goal_has_been_reached = distance_to_goal < min_distance_target
+    print(f"Flight finished {distance_to_goal:.2f} m away from the goal "
+          f"({'reached' if goal_has_been_reached else 'missed'}).")
 
-        if target_has_been_reached:
-            global_trajectory = np.delete(global_trajectory, 0, axis=0)  # remove current waypoint from desired
-            start_time = time.time()
-
-        too_long = time.time() - start_time > 5
-        if too_long:
-            print("Took too long to reach target. Program will terminate.")
-
-        # if all waypoints have been visited or issue reaching target, then break
-        if global_trajectory.shape[0] == 0 or too_long:
-            break
-    
-    desired_trajectory_history = np.array(desired_trajectory_history)
-
-    plot(rrt, global_trajectory_plot, obstacles, state_history[1:], draw_nodes=True, draw_obstacles=True)
+    plot(rrt, global_trajectory, obstacles, state_history[1:], draw_nodes=True, draw_obstacles=True)

@@ -1,10 +1,16 @@
 [project]
 name = "uav-autonomous-control"
 version = "0.1.0"
-description = "Add your description here"
+description = "3D UAV simulation and autonomous control: RRT* path planning, minimum snap trajectories and a cascaded flight controller"
 requires-python = ">=3.13"
 dependencies = [
     "matplotlib>=3.10.7",
     "numpy>=2.3.4",
     "plotly>=6.3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
 ]

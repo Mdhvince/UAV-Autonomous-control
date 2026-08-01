@@ -3,20 +3,24 @@ import numpy as np
 
 
 class Quad:
-    def __init__(self, cfg):
-        self.g = cfg.getfloat("g")
-        self.dt = cfg.getfloat("dt") / cfg.getint("frequency")
+    def __init__(self, g: float, dt: float):
+        """
+        :param g: gravity acceleration
+        :param dt: integration time step of the state update
+        """
+        self.g = g
+        self.dt = dt
 
         # Vehicle physical/geometrical properties (hardcoded)
         distance_rotor_to_rotor = 0.17  # [m]
         self.l = distance_rotor_to_rotor / math.sqrt(2)  # distance from center to rotor
         self.m = 0.5  # [kg]
         self.kf = 1.0
-        self.km = 1.0
+        self.kappa = 0.016  # drag/thrust ratio
+        self.km = self.kappa * self.kf  # reactive torque coefficient, tied to kappa so tau_z matches the command
         self.i_x = 0.0023  # [kg m2]
         self.i_y = 0.0023
         self.i_z = 0.0046
-        self.kappa = 0.016  # drag/thrust ratio
         self.max_thrust = 4.5  # N
         self.min_thrust = 0.1
         self.max_torque = 1.0  # Nm
@@ -26,18 +30,18 @@ class Quad:
         self.max_horiz_accel = 12
         self.max_tilt_angle = 0.7
 
-        # Controller gains (hardcoded)
-        self.kp_xy = 30
-        self.kd_xy = 12
-        self.kp_z = 11
-        self.kd_z = 9
+        # Controller gains (hardcoded), tuned on the step response of uav_ac/control/controller.py
+        self.kp_xy = 16
+        self.kd_xy = 7
+        self.kp_z = 22
+        self.kd_z = 8
         self.ki_z = 0.1
-        self.kp_roll = 10
-        self.kp_pitch = 10
-        self.kp_yaw = 2
-        self.kp_p = 95
-        self.kp_q = 95
-        self.kp_r = 6
+        self.kp_roll = 14
+        self.kp_pitch = 14
+        self.kp_yaw = 4
+        self.kp_p = 120
+        self.kp_q = 120
+        self.kp_r = 11
 
         # State (position, quaternion, velocity, angular velocity body)
         # x = [x, y, z, q0, q1, q2, q3, x_dot, y_dot, z_dot, p, q, r]
@@ -66,7 +70,12 @@ class Quad:
         # Normalize quaternion to prevent drift
         self.X[3:7] = self.X[3:7] / np.linalg.norm(self.X[3:7])
 
-    def set_propeller_speed(self, thrust_cmd, moment_cmd):
+    def set_propeller_speed(self, thrust_cmd: float, moment_cmd: np.ndarray):
+        """
+        Convert a collective thrust and body moment command into individual propeller speeds.
+        :param thrust_cmd: desired collective thrust [N]
+        :param moment_cmd: desired moments about the body axes [tau_x, tau_y, tau_z] [N m]
+        """
         c_bar = thrust_cmd
         p_bar = moment_cmd[0] / self.l
         q_bar = moment_cmd[1] / self.l
@@ -74,7 +83,10 @@ class Quad:
 
         u_bar = np.array([p_bar, q_bar, r_bar, c_bar])
 
-        self.omega = Quad.propeller_coeffs() @ u_bar / 4
+        rotor_forces = Quad.propeller_coeffs() @ u_bar / 4
+        # rotors cannot push downward: negative force demands are physically unreachable
+        rotor_forces = np.clip(rotor_forces, 0.0, None)
+        self.omega = np.sqrt(rotor_forces / self.kf)
 
     def update_acceleration(self):  # used for state update
         """
@@ -146,10 +158,14 @@ class Quad:
         return R
 
     @staticmethod
-    def propeller_coeffs():
+    def propeller_coeffs() -> np.ndarray:
+        """
+        Mixing matrix mapping [p_bar, q_bar, r_bar, c_bar] to the four rotor forces (after division by 4),
+        consistent with the moment definitions tau_x, tau_y, tau_z below.
+        """
         return np.array([[1, 1, 1, 1],  # front left
-                         [1, -1, 1, -1],  # front right
-                         [1, 1, -1, -1],  # rear left
+                         [-1, 1, -1, 1],  # front right
+                         [-1, -1, 1, 1],  # rear left
                          [1, -1, -1, 1]])  # rear right
 
     @property

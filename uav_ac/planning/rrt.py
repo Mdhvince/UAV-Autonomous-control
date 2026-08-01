@@ -1,5 +1,7 @@
+import ast
 import copy
 import time
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -44,7 +46,7 @@ class RRTStar:
 
             if len(neighbors) == 0: continue
 
-            best_neighbor = self._find_best_neighbor(neighbors)
+            best_neighbor = self._find_best_neighbor(neighbors, new_node)
             self._update_tree(best_neighbor, new_node)
             has_rewired = self._rewire_safely(neighbors, new_node)
 
@@ -128,13 +130,30 @@ class RRTStar:
                 neighbors.append(node)
         return neighbors
 
-    def _find_best_neighbor(self, neighbors):
+    @staticmethod
+    def _node_key(node: np.ndarray) -> str:
+        return str(np.round(node, 2).tolist())
+
+    def _cost_to_come(self, node: np.ndarray) -> float:
         """
-        Find the neighbor with the lowest cost. The cost is the distance from the start node to the neighbor
+        Cost of the path from the start to `node` following the tree edges.
+        """
+        cost = 0.0
+        current = node
+        while not np.array_equal(current, self.start):
+            parent = self.tree[RRTStar._node_key(current)]
+            cost += np.linalg.norm(np.asarray(current, dtype=float) - np.asarray(parent, dtype=float))
+            current = parent
+        return cost
+
+    def _find_best_neighbor(self, neighbors, new_node):
+        """
+        Find the neighbor that yields the cheapest path from the start to the new node, where the cost of a
+        neighbor is its cost-to-come through the tree plus the length of the edge to the new node.
         """
         costs = []
         for neighbor in neighbors:
-            cost = np.linalg.norm(neighbor - self.start)
+            cost = self._cost_to_come(neighbor) + np.linalg.norm(neighbor - new_node)
             costs.append(cost)
 
         best_neighbor = neighbors[np.argmin(costs)]
@@ -142,43 +161,48 @@ class RRTStar:
 
     def _update_tree(self, node, new_node):
         """
-        Update the tree with the new node
+        Link the new node to the tree with `node` as parent, unless the new node is already in the tree
+        with a cheaper cost-to-come.
         """
-        # add the new node to the list of all nodes
-        self.all_nodes.append(new_node)
-
-        # add the new node to the tree
-        node_key = str(np.round(new_node, 2).tolist())
+        node_key = RRTStar._node_key(new_node)
         node_parent = np.round(node, 2)
 
-        if not np.array_equal(node_parent, new_node):
-            self.tree[node_key] = node_parent
+        if np.array_equal(node_parent, new_node):
+            return
+
+        if node_key in self.tree:
+            current_cost = self._cost_to_come(new_node)
+            candidate_cost = self._cost_to_come(node_parent) + np.linalg.norm(new_node - node_parent)
+            if current_cost <= candidate_cost:
+                return
+
+        self.all_nodes.append(new_node)
+        self.tree[node_key] = node_parent
 
     def _rewire_safely(self, neighbors, new_node):
         """
-        Among the neighbors (without the already linked neighbor), find if linking to the new node is better than the
-        current parent (re-wire).
+        For every neighbor (except the parent of the new node and the start), re-wire it to the new node
+        if passing through the new node is cheaper than its current path.
         """
+        has_rewired = False
+        new_node_cost = self._cost_to_come(new_node)
+
         for neighbor in neighbors:
-            if np.array_equal(neighbor, self.tree[str(np.round(new_node, 2).tolist())]):
+            if np.array_equal(neighbor, self.start):
+                continue
+
+            if np.array_equal(neighbor, self.tree[RRTStar._node_key(new_node)]):
                 # if the neighbor is already the parent of the new node, skip
                 continue
 
-            if self._is_valid_connection(neighbor, new_node):
-                current_parent = self.tree[str(np.round(neighbor, 2).tolist())]
+            current_cost = self._cost_to_come(neighbor)
+            cost_through_new_node = new_node_cost + np.linalg.norm(neighbor - new_node)
 
-                # cost to arrive to the neighbor
-                current_cost = np.linalg.norm(neighbor - self.start)
+            if cost_through_new_node < current_cost:
+                self.tree[RRTStar._node_key(neighbor)] = np.round(new_node, 2)
+                has_rewired = True
 
-                # cost to arrive to the neighbor through the new node
-                potential_new_cost = np.linalg.norm(new_node - self.start) + np.linalg.norm(neighbor - new_node)
-
-                if potential_new_cost < current_cost:
-                    # if it is cheaper to arrive to the neighbor through the new node, re-wire (update the parent of the
-                    # neighbor to the new node)
-                    self.tree[str(np.round(neighbor, 2).tolist())] = new_node
-                    return True
-        return False
+        return has_rewired
 
     def _is_valid_connection(self, node, new_node):
         """
@@ -187,22 +211,39 @@ class RRTStar:
         if self.obstacles is None:
             return True
 
-        # check if the line connecting the nearest node and the random node intersects with any of the obstacles
         for obstacle in self.obstacles:
-            xmin, xmax, ymin, ymax, zmin, zmax = obstacle
-            node1, node2 = node, new_node
+            if RRTStar._segment_intersects_cuboid(node, new_node, obstacle):
+                return False
 
-            direction = node2 - node1
-            # Calculate the parameter t for the line equation: line = node1 + t * direction
-            t = np.linspace(0, 1, 100)
+        return True
 
-            # Points along the line
-            points = np.outer(t, direction) + node1
+    @staticmethod
+    def _segment_intersects_cuboid(node1: np.ndarray, node2: np.ndarray, cuboid: np.ndarray) -> bool:
+        """
+        Exact segment vs axis-aligned cuboid intersection test (slab method).
+        :param node1: segment start point [x, y, z]
+        :param node2: segment end point [x, y, z]
+        :param cuboid: bounds [x_min, x_max, y_min, y_max, z_min, z_max]
+        :return: True if the segment intersects the cuboid
+        """
+        direction = np.asarray(node2, dtype=float) - np.asarray(node1, dtype=float)
+        t_min, t_max = 0.0, 1.0
 
-            # Check if any of the points lie within the obstacle
-            if np.any((points[:, 0] >= xmin) & (points[:, 0] <= xmax) &
-                      (points[:, 1] >= ymin) & (points[:, 1] <= ymax) &
-                      (points[:, 2] >= zmin) & (points[:, 2] <= zmax)):
+        for axis in range(3):
+            low, high = cuboid[2 * axis], cuboid[2 * axis + 1]
+            if abs(direction[axis]) < 1e-12:
+                if node1[axis] < low or node1[axis] > high:
+                    return False
+                continue
+
+            t_low = (low - node1[axis]) / direction[axis]
+            t_high = (high - node1[axis]) / direction[axis]
+            if t_low > t_high:
+                t_low, t_high = t_high, t_low
+
+            t_min = max(t_min, t_low)
+            t_max = min(t_max, t_high)
+            if t_min > t_max:
                 return False
 
         return True
@@ -260,7 +301,7 @@ if __name__ == "__main__":
 
     tree = rrt.best_tree
     for node, parent in tree.items():
-        node = np.array(eval(node))
+        node = np.array(ast.literal_eval(node))
         fig.add_trace(go.Scatter3d(x=[node[0], parent[0]], y=[node[1], parent[1]], z=[node[2], parent[2]], mode='lines', line=dict(width=1, color='blue')))
 
     # find the path from the start node to the goal node

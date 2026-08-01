@@ -1,5 +1,8 @@
+import ast
 import configparser
 from pathlib import Path
+
+import numpy as np
 
 
 def get_config():
@@ -15,3 +18,12 @@ def get_config():
     cfg_flight = config["SIM_FLIGHT"]
 
     return cfg, cfg_rrt, cfg_flight
+
+
+def parse_array(section: configparser.SectionProxy, key: str) -> np.ndarray:
+    """
+    :param section: config section holding the entry
+    :param key: name of the entry containing a Python list literal
+    :return: the parsed entry as a numpy array
+    """
+    return np.array(ast.literal_eval(section.get(key)))
