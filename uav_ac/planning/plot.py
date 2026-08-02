@@ -11,6 +11,14 @@ class RRTPlotter:
         self.optimal_trajectory = optimal_trajectory
         self.state_history = state_history
 
+        # Data is in NED (z down). Reversing BOTH y and z display axes is a proper
+        # rotation (not a mirror), so the scene shows altitude upward without
+        # misrepresenting the state.
+        self.fig.update_layout(scene=dict(
+            yaxis=dict(autorange="reversed"),
+            zaxis=dict(autorange="reversed"),
+        ))
+
     def plot_executed_trajectory(self):
         self.fig.add_trace(go.Scatter3d(
             x=self.state_history[:, 0],
@@ -90,7 +98,8 @@ class RRTPlotter:
         matrix_factor = np.ones(obstacles.shape) * rm if rm > 0 else np.ones(obstacles.shape)
         matrix_factor[:, [1, 3, 5]] *= -1
         obstacles_true = obstacles + matrix_factor
-        obstacles_true[:, 4] = np.where(obstacles_true[:, 4] == rm, 0, obstacles_true[:, 4])
+        # NED: ground-attached obstacles have z_max = 0; keep them touching the ground after shrinking
+        obstacles_true[:, 5] = np.where(obstacles_true[:, 5] == -rm, 0, obstacles_true[:, 5])
 
         for obstacle in obstacles_true:
             xx, yy, zz = np.mgrid[obstacle[0] + offset:obstacle[1]:1,

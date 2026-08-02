@@ -31,8 +31,10 @@ class RRTStar:
         self.dynamic_break_at = self.max_iterations / 10
 
         assert self.neighborhood_radius > self.step_size, "Neighborhood radius must be larger than step size"
-        assert self.space_limits_up[2] > self.start[2], "Upper limit on z must be > than the z location of the start"
-        assert self.space_limits_up[2] > self.goal[2], "Upper limit on z must be > than the z location of the goal"
+        assert self.space_limits_lw[2] <= self.start[2] <= self.space_limits_up[2], \
+            "The z location of the start must be within the z space limits"
+        assert self.space_limits_lw[2] <= self.goal[2] <= self.space_limits_up[2], \
+            "The z location of the goal must be within the z space limits"
 
     def run(self):
         old_cost = np.inf
@@ -278,10 +280,11 @@ class RRTStar:
 
 if __name__ == "__main__":
 
+    # NED frame: z points down, so flying 7 m above ground means z = -7
     start = np.array([0, 0, 0])
-    goal = np.array([7, 7, 7])
+    goal = np.array([7, 7, -7])
 
-    space_limits = np.array([[0., 0., 0.9], [10., 10., 10.]])
+    space_limits = np.array([[0., 0., -10.], [10., 10., 0.]])
 
     rrt = RRTStar(
         space_limits,

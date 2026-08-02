@@ -29,7 +29,8 @@ class CascadedController:
         :param kd_z: Derivative gain for altitude control
         :param ki_z: Integral gain for altitude control
         """
-        des_climb_rate = np.clip(des_z[1], -quad.max_descent_rate, quad.max_ascent_rate)
+        # NED: climbing means negative z_dot, so the ascent limit bounds the negative side
+        des_climb_rate = np.clip(des_z[1], -quad.max_ascent_rate, quad.max_descent_rate)
 
         error = des_z[0] - quad.z
         error_dot = des_climb_rate - quad.z_vel
@@ -205,9 +206,9 @@ if __name__ == "__main__":
 
     controller = CascadedController(g, dt)
     quad = Quad(g, dt / frequency)
-    quad.X[:3] = np.array([0.0, 0.0, 1.0])
+    quad.X[:3] = np.array([0.0, 0.0, -1.0])
 
-    setpoint_position = np.array([1.0, -1.0, 2.0])
+    setpoint_position = np.array([1.0, -1.0, -2.0])
     setpoint_yaw = 0.8
 
     des_x = np.array([setpoint_position[0], 0.0, 0.0])

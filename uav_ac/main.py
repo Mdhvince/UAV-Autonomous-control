@@ -8,6 +8,7 @@ from control.controller import CascadedController
 from planning.minimum_snap import MinimumSnap
 from planning.plot import RRTPlotter
 from planning.rrt import RRTStar
+from visualization.flight_animator import FlightAnimator
 
 warnings.filterwarnings('ignore')
 
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     obstacles = utils.parse_array(cfg_flight, "coord_obstacles")
     min_distance_target = cfg_flight.getfloat("min_dist_target")
     goal_loc = utils.parse_array(cfg_flight, "goal_loc")
-    start_loc = np.array([0., 0., 1.0])
+    start_loc = np.array([0., 0., -1.0])  # NED: 1 m above ground
 
     # RRT
     space_limits = utils.parse_array(cfg_rrt, "space_limits")
@@ -97,3 +98,6 @@ if __name__ == "__main__":
           f"({'reached' if goal_has_been_reached else 'missed'}).")
 
     plot(rrt, global_trajectory, obstacles, state_history[1:], draw_nodes=True, draw_obstacles=True)
+
+    animator = FlightAnimator(quad, state_history[1:], omega_history[1:], global_trajectory, dt)
+    animator.show()

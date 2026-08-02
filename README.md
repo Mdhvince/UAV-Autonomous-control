@@ -1,6 +1,12 @@
 ## 3D UAV simulation and autonomous control for path tracking
 ![coverage](docs/coverage.svg)
 
+The whole project (dynamics, controller, planner, config) uses the aerospace NED
+convention, as on real flight controllers (PX4/ArduPilot): world x forward, y right,
+z DOWN - an altitude of h meters is z = -h. The 3D views reverse the y and z display
+axes (a proper rotation, not a mirror) so altitude reads upward on screen while the
+plotted coordinates and the rendered attitude stay true to the NED state.
+
 - [x] Build a controller to follow a trajectory  
 - [x] Follow hardcoded waypoints  
 - [x] From hardcoded waypoints, generate an optimal trajectory (minimum snap)  
@@ -16,6 +22,17 @@
 https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6dff700c-9ed4-4d6f-b976-8f42022d5d80
 
 https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/2dcca69f-2981-4cef-a6e1-313b70ec2882
+
+### 3D flight animation
+
+Running `main.py` also opens an interactive 3D animation of the flight, rendered by
+`FlightAnimator` (`uav_ac/visualization/flight_animator.py`): the drone frame placed and
+oriented from the simulated attitude quaternion, the four propellers spinning in their
+physical direction at the recorded speeds, the body axes attached to the drone, and the
+executed trajectory against the minimum snap reference. Playback is controlled with
+Play/Pause buttons and a time slider; the title displays time, roll/pitch/yaw and
+propeller speeds. The drone geometry is visually magnified (`drone_scale`) for
+readability in the large scene; position, attitude and speeds are untouched.
 
 ### Vanilla RRT
 ![Vanilla RRT](docs/rrt_classic.png "")  

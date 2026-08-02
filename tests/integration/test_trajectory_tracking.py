@@ -32,7 +32,8 @@ def fly_one_cycle(controller: CascadedController, quad: Quad, target: np.ndarray
 
 def test_quad_follows_minimum_snap_trajectory_in_real_time():
     # Arrange
-    waypoints = np.array([[0., 0., 1.], [2., 1., 1.5], [4., 0., 2.], [5., 2., 2.]])
+    # NED: z negative means above ground
+    waypoints = np.array([[0., 0., -1.], [2., 1., -1.5], [4., 0., -2.], [5., 2., -2.]])
     trajectory = MinimumSnap(waypoints, None, velocity=2.0, dt=DT).get_trajectory()
     controller = CascadedController(g=G, dt=DT)
     quad = Quad(g=G, dt=DT / FREQUENCY)

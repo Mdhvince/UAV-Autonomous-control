@@ -3,6 +3,12 @@ import numpy as np
 
 
 class Quad:
+    """
+    Quadrotor model in the NED convention: world x forward, y right, z DOWN.
+    Gravity acts along +z, collective thrust along -z of the body frame, and
+    altitude h above ground maps to z = -h.
+    """
+
     def __init__(self, g: float, dt: float):
         """
         :param g: gravity acceleration

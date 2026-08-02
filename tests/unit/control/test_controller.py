@@ -91,8 +91,26 @@ def test_altitude_limits_commanded_descent_rate(quad):
     controller_excessive = CascadedController(g=G, dt=DT)
     controller_at_limit = CascadedController(g=G, dt=DT)
     rot_mat = np.eye(3)
+    # NED: descending means positive z_dot
+    des_z_excessive = np.array([quad.z, 100.0, 0.0])
+    des_z_at_limit = np.array([quad.z, quad.max_descent_rate, 0.0])
+
+    # Act
+    thrust_excessive = controller_excessive.altitude(quad, des_z_excessive, rot_mat, quad.kp_z, quad.kd_z, quad.ki_z)
+    thrust_at_limit = controller_at_limit.altitude(quad, des_z_at_limit, rot_mat, quad.kp_z, quad.kd_z, quad.ki_z)
+
+    # Assert
+    assert thrust_excessive == pytest.approx(thrust_at_limit)
+
+
+def test_altitude_limits_commanded_ascent_rate(quad):
+    # Arrange
+    controller_excessive = CascadedController(g=G, dt=DT)
+    controller_at_limit = CascadedController(g=G, dt=DT)
+    rot_mat = np.eye(3)
+    # NED: climbing means negative z_dot
     des_z_excessive = np.array([quad.z, -100.0, 0.0])
-    des_z_at_limit = np.array([quad.z, -quad.max_descent_rate, 0.0])
+    des_z_at_limit = np.array([quad.z, -quad.max_ascent_rate, 0.0])
 
     # Act
     thrust_excessive = controller_excessive.altitude(quad, des_z_excessive, rot_mat, quad.kp_z, quad.kd_z, quad.ki_z)

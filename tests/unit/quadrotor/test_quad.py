@@ -147,3 +147,46 @@ def test_update_state_keeps_quaternion_normalized(quad):
 
     # Assert
     assert np.linalg.norm(quad.quaternion) == pytest.approx(1.0)
+
+
+def test_update_state_free_fall_drifts_toward_positive_z(quad):
+    # Arrange
+    quad.X[:3] = np.array([0.0, 0.0, -5.0])  # NED: 5 m above ground
+    quad.omega = np.zeros(4)
+
+    # Act
+    for _ in range(1000):
+        quad.update_state()
+
+    # Assert
+    assert quad.z > -5.0  # NED: falling means z increases (toward the ground)
+
+
+def test_update_state_positive_roll_at_hover_accelerates_toward_positive_y(quad):
+    # Arrange
+    half_roll = np.radians(10) / 2
+    quad.X[3:7] = np.array([np.cos(half_roll), np.sin(half_roll), 0.0, 0.0])
+    hover_force_per_rotor = quad.m * G / 4
+    quad.omega = np.sqrt(hover_force_per_rotor / quad.kf) * np.ones(4)
+
+    # Act
+    for _ in range(1000):
+        quad.update_state()
+
+    # Assert
+    assert quad.y_vel > 0.0  # NED: roll right pushes the drone to the right (+y)
+
+
+def test_update_state_positive_pitch_at_hover_accelerates_toward_negative_x(quad):
+    # Arrange
+    half_pitch = np.radians(10) / 2
+    quad.X[3:7] = np.array([np.cos(half_pitch), 0.0, np.sin(half_pitch), 0.0])
+    hover_force_per_rotor = quad.m * G / 4
+    quad.omega = np.sqrt(hover_force_per_rotor / quad.kf) * np.ones(4)
+
+    # Act
+    for _ in range(1000):
+        quad.update_state()
+
+    # Assert
+    assert quad.x_vel < 0.0  # NED: pitch up tilts the thrust backward (-x)
