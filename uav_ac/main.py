@@ -6,9 +6,8 @@ import utils
 from quadrotor.quad import Quad
 from control.controller import CascadedController
 from planning.minimum_snap import MinimumSnap
-from planning.plot import RRTPlotter
 from planning.rrt import RRTStar
-from visualization.flight_animator import FlightAnimator
+from visualization.flight_dashboard import FlightDashboard
 
 warnings.filterwarnings('ignore')
 
@@ -29,24 +28,6 @@ def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des
     omega_history = np.vstack((omega_history, quad.omega))
 
     return state_history, omega_history
-
-
-def plot(rrt, optimal_trajectory, obstacles, state_history, draw_nodes=False, draw_obstacles=False):
-    rrt_plotter = RRTPlotter(rrt, optimal_trajectory, state_history)
-
-    rrt_plotter.plot_start_and_goal()
-    rrt_plotter.plot_path()
-    rrt_plotter.plot_trajectory()
-    rrt_plotter.plot_executed_trajectory()
-
-    if draw_obstacles:
-        obstacles = np.array(obstacles)[1:-2, :]  # ignore the floor and ceiling
-        rrt_plotter.plot_obstacles(obstacles)
-
-    if draw_nodes:
-        rrt_plotter.plot_tree()
-
-    rrt_plotter.show()
 
 
 if __name__ == "__main__":
@@ -97,7 +78,11 @@ if __name__ == "__main__":
     print(f"Flight finished {distance_to_goal:.2f} m away from the goal "
           f"({'reached' if goal_has_been_reached else 'missed'}).")
 
-    plot(rrt, global_trajectory, obstacles, state_history[1:], draw_nodes=True, draw_obstacles=True)
-
-    animator = FlightAnimator(quad, state_history[1:], omega_history[1:], global_trajectory, dt)
-    animator.show()
+    # single cockpit view: animated 3D scene + in-flight controller response.
+    # Only the floor and the pillars are rendered: the perimeter walls and the
+    # ceiling would visually bury the flight (collisions still use all of them).
+    dashboard = FlightDashboard(
+        quad, state_history[1:], omega_history[1:], global_trajectory, dt,
+        obstacles=np.array(obstacles)[:5], planned_path=rrt.best_path,
+    )
+    dashboard.show()

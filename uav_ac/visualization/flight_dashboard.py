@@ -1,18 +1,21 @@
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
-class FlightAnimator:
+class FlightDashboard:
     """
-    Interactive 3D animation of the simulated quadrotor flight, rendered with plotly.
+    Single-view cockpit dashboard of the simulated quadrotor flight, rendered with plotly.
 
-    At every rendered time step the figure shows:
-    - the drone frame (arms and rotor hubs) placed and oriented from the simulated
-      position and attitude quaternion,
-    - the four propellers, each spinning in its physical direction at the speed
-      recorded in the propeller speed history,
-    - the body axes attached to the drone center,
-    - the executed trajectory trail against the minimum snap reference trajectory.
+    Left: interactive 3D animation on a clean background (no grid) showing the drone
+    frame placed and oriented from the simulated attitude quaternion, the four
+    propellers spinning in their physical direction at the recorded speeds, the body
+    axes, the executed trajectory against the minimum snap reference, and optionally
+    the obstacles and the RRT path.
+
+    Right: the in-flight controller response as three time series synchronized with
+    the animation through a moving time cursor: position tracking per axis versus
+    the reference, attitude angles, and propeller speeds.
 
     The animation is played with the Play/Pause buttons or scrubbed with the time
     slider, and the title displays time, roll/pitch/yaw and propeller speeds.
@@ -27,12 +30,18 @@ class FlightAnimator:
     EXECUTED_TRAJECTORY_COLOR = "#D55E00"
     PROPELLER_POSITIVE_SPIN_COLOR = "#009E73"
     PROPELLER_NEGATIVE_SPIN_COLOR = "#8E5AC8"
+    PROPELLER_POSITIVE_SPIN_LIGHT_COLOR = "#5BC8A7"
+    PROPELLER_NEGATIVE_SPIN_LIGHT_COLOR = "#BFA1E8"
     STRUCTURE_COLOR = "#333333"
+    OBSTACLE_COLOR = "#9AA0A6"
+    PLANNED_PATH_COLOR = "#8C8C8C"
+    TIME_CURSOR_COLOR = "#7F7F7F"
     BODY_AXIS_COLORS = ("#D62728", "#2CA02C", "#1F77B4")  # x, y, z (robotics RGB convention)
 
     def __init__(self, quad, state_history: np.ndarray, omega_history: np.ndarray,
                  reference_trajectory: np.ndarray, dt: float,
-                 frame_step: int = 5, drone_scale: float = 6.0):
+                 frame_step: int = 5, drone_scale: float = 3.0,
+                 obstacles: np.ndarray = None, planned_path: np.ndarray = None):
         """
         :param quad: simulated Quad instance, source of the geometry (arm length) and
                      of the quaternion to rotation matrix conversion
@@ -43,7 +52,10 @@ class FlightAnimator:
         :param dt: time elapsed between two consecutive history rows [s]
         :param frame_step: number of history rows between two rendered frames
         :param drone_scale: visual magnification of the drone geometry, for visibility in a
-                            large scene (position, attitude and propeller speeds are untouched)
+                            large scene; 1.0 renders the true size (position, attitude and
+                            propeller speeds are untouched)
+        :param obstacles: optional (K, 6) cuboids [xmin, xmax, ymin, ymax, zmin, zmax] to render
+        :param planned_path: optional (P, 3) waypoints of the global path (e.g. RRT) to render
         """
         if len(state_history) != len(omega_history):
             raise ValueError(
@@ -58,6 +70,8 @@ class FlightAnimator:
         self._reference = reference_trajectory[:, :3]
         self._dt = dt
         self._frame_step = frame_step
+        self._obstacles = obstacles
+        self._planned_path = planned_path
 
         self._arm_half_length = quad.l * drone_scale
         self._propeller_radius = 0.75 * quad.l * drone_scale
@@ -66,18 +80,23 @@ class FlightAnimator:
         # Blade angle is the integral of the propeller speed, signed by spin direction
         self._blade_angles = np.cumsum(omega_history * dt, axis=0) * self.ROTOR_SPIN_DIRECTIONS
         self._frame_indices = np.arange(0, len(state_history), frame_step)
+
+        self._times = np.arange(len(state_history)) * dt
+        self._reference_times = np.arange(len(reference_trajectory)) * dt
+        self._euler_history_deg = self._euler_angles_deg(self._quaternions)
+        self._response_y_ranges = self._compute_response_y_ranges()
         self._fig = None
 
     def figure(self) -> go.Figure:
         """
-        :return: the animated figure, built on first call then cached
+        :return: the dashboard figure, built on first call then cached
         """
         if self._fig is None:
             self._fig = self._build_figure()
         return self._fig
 
     def show(self):
-        """Open the animation in the browser, paused on the first frame."""
+        """Open the dashboard in the browser, paused on the first frame."""
         self.figure().show(auto_play=False)
 
     def save(self, filename: str):
@@ -87,14 +106,36 @@ class FlightAnimator:
         self.figure().write_html(filename, auto_play=False)
 
     def _build_figure(self) -> go.Figure:
-        static_traces = self._static_traces()
-        first_index = int(self._frame_indices[0])
-        dynamic_traces = self._drone_traces(first_index)
-        dynamic_trace_ids = list(range(len(static_traces), len(static_traces) + len(dynamic_traces)))
+        fig = make_subplots(
+            rows=3, cols=2,
+            column_widths=[0.62, 0.38],
+            specs=[[{"type": "scene", "rowspan": 3}, {"type": "xy"}],
+                   [None, {"type": "xy"}],
+                   [None, {"type": "xy"}]],
+            subplot_titles=("", "Position [m] (NED)", "Attitude [deg]", "Propeller speed [rad/s]"),
+            horizontal_spacing=0.05,
+            vertical_spacing=0.1,
+            shared_xaxes=True,
+        )
 
-        frames = [
+        for trace in self._static_scene_traces():
+            fig.add_trace(trace, row=1, col=1)
+        for trace, row in self._response_traces():
+            fig.add_trace(trace, row=row, col=2)
+
+        first_index = int(self._frame_indices[0])
+        dynamic_traces = self._dynamic_traces(first_index)
+        dynamic_trace_ids = list(range(len(fig.data), len(fig.data) + len(dynamic_traces)))
+        drone_trace_count = len(dynamic_traces) - 3  # the last 3 traces are the time cursors
+        fig.add_traces(
+            [trace for trace, _, _ in dynamic_traces],
+            rows=[row for _, row, _ in dynamic_traces],
+            cols=[col for _, _, col in dynamic_traces],
+        )
+
+        fig.frames = [
             go.Frame(
-                data=self._drone_traces(int(index)),
+                data=[trace for trace, _, _ in self._dynamic_traces(int(index))],
                 traces=dynamic_trace_ids,
                 name=self._frame_name(int(index)),
                 layout=go.Layout(title=dict(text=self._frame_title(int(index)))),
@@ -102,26 +143,35 @@ class FlightAnimator:
             for index in self._frame_indices
         ]
 
-        fig = go.Figure(data=static_traces + dynamic_traces, frames=frames)
+        # Hide grid, background panes and ticks of the 3D scene but keep the axes
+        # objects alive: the y and z display reversals below must stay in effect.
+        hidden_axis = dict(showbackground=False, showgrid=False, zeroline=False,
+                           showticklabels=False, showspikes=False, title=dict(text=""))
         fig.update_layout(
             title=dict(text=self._frame_title(first_index), font=dict(size=13)),
             # Data is in NED (z down). Reversing BOTH y and z display axes is a proper
             # rotation (not a mirror), so the scene shows altitude upward while keeping
-            # true NED coordinates on the axes and a physically correct attitude.
+            # a physically correct attitude.
             scene=dict(
                 aspectmode="data",
-                xaxis_title="x [m]",
-                yaxis=dict(autorange="reversed", title=dict(text="y [m]")),
-                zaxis=dict(autorange="reversed", title=dict(text="z [m] (NED, down)")),
+                xaxis=hidden_axis,
+                yaxis=dict(autorange="reversed", **hidden_axis),
+                zaxis=dict(autorange="reversed", **hidden_axis),
             ),
-            legend=dict(x=0.99, y=0.99, xanchor="right"),
+            legend=dict(x=0.0, y=0.99, xanchor="left", font=dict(size=11)),
             updatemenus=[self._play_controls()],
             sliders=[self._time_slider()],
+            height=820,
+            plot_bgcolor="white",
         )
+        # response subplots: light grid on white, in line with the clean 3D scene
+        fig.update_xaxes(showgrid=True, gridcolor="#E6E6E6", zeroline=False)
+        fig.update_yaxes(showgrid=True, gridcolor="#E6E6E6", zeroline=False)
+        fig.update_xaxes(title_text="t [s]", row=3, col=2)
         return fig
 
-    def _static_traces(self) -> list:
-        return [
+    def _static_scene_traces(self) -> list:
+        traces = [
             go.Scatter3d(
                 x=self._reference[:, 0], y=self._reference[:, 1], z=self._reference[:, 2],
                 mode="lines",
@@ -148,22 +198,103 @@ class FlightAnimator:
                 name="Goal",
             ),
         ]
+        if self._planned_path is not None:
+            traces.append(go.Scatter3d(
+                x=self._planned_path[:, 0], y=self._planned_path[:, 1], z=self._planned_path[:, 2],
+                mode="lines+markers",
+                line=dict(color=self.PLANNED_PATH_COLOR, width=2, dash="dot"),
+                marker=dict(size=3, color=self.PLANNED_PATH_COLOR),
+                name="RRT path",
+            ))
+        if self._obstacles is not None:
+            for obstacle_id, bounds in enumerate(self._obstacles):
+                traces.append(self._cuboid_mesh_trace(
+                    bounds, self.OBSTACLE_COLOR, opacity=0.1,
+                    name="Obstacles", showlegend=obstacle_id == 0,
+                ))
+        return traces
 
-    def _drone_traces(self, index: int) -> list:
+    def _response_traces(self) -> list:
+        """Time series of the in-flight controller response, as (trace, subplot row) pairs."""
+        traces = []
+        axis_labels = ("x", "y", "z")
+        for axis_id, label in enumerate(axis_labels):
+            color = self.BODY_AXIS_COLORS[axis_id]
+            traces.append((go.Scatter(
+                x=self._reference_times, y=self._reference[:, axis_id],
+                mode="lines", line=dict(color=color, width=1, dash="dash"),
+                name=f"{label} reference", showlegend=False,
+            ), 1))
+            traces.append((go.Scatter(
+                x=self._times, y=self._positions[:, axis_id],
+                mode="lines", line=dict(color=color, width=1.5),
+                name=f"{label} actual", showlegend=False,
+            ), 1))
+
+        for angle_id, label in enumerate(("roll", "pitch", "yaw")):
+            traces.append((go.Scatter(
+                x=self._times, y=self._euler_history_deg[:, angle_id],
+                mode="lines", line=dict(color=self.BODY_AXIS_COLORS[angle_id], width=1.5),
+                name=label, showlegend=False,
+            ), 2))
+
+        propeller_colors = (self.PROPELLER_POSITIVE_SPIN_COLOR, self.PROPELLER_NEGATIVE_SPIN_COLOR,
+                            self.PROPELLER_POSITIVE_SPIN_LIGHT_COLOR, self.PROPELLER_NEGATIVE_SPIN_LIGHT_COLOR)
+        for rotor_id in range(4):
+            traces.append((go.Scatter(
+                x=self._times, y=self._omega_history[:, rotor_id],
+                mode="lines", line=dict(color=propeller_colors[rotor_id], width=1.5),
+                name=f"omega {rotor_id + 1}", showlegend=False,
+            ), 3))
+        return traces
+
+    def _compute_response_y_ranges(self) -> list:
+        """Vertical extent of each response subplot, used to draw the time cursors."""
+        ranges = []
+        for values in (
+            np.concatenate((self._positions.ravel(), self._reference.ravel())),
+            self._euler_history_deg.ravel(),
+            self._omega_history.ravel(),
+        ):
+            low, high = float(np.min(values)), float(np.max(values))
+            margin = 0.05 * (high - low) if high > low else 1.0
+            ranges.append((low - margin, high + margin))
+        return ranges
+
+    def _dynamic_traces(self, index: int) -> list:
+        """All animated traces for one time step, as (trace, row, col) tuples."""
         rotation = self._rotations[index]
         position = self._positions[index]
         rotors_world = self._to_world(self._rotor_positions_body(), rotation, position)
 
         traces = [
-            self._trail_trace(index),
-            self._structure_trace(rotors_world, position),
-            self._propeller_trace(index, rotation, position, rotor_ids=(0, 2),
-                                  color=self.PROPELLER_POSITIVE_SPIN_COLOR, name="Propellers 1 and 3 (+z_b spin)"),
-            self._propeller_trace(index, rotation, position, rotor_ids=(1, 3),
-                                  color=self.PROPELLER_NEGATIVE_SPIN_COLOR, name="Propellers 2 and 4 (-z_b spin)"),
+            (self._trail_trace(index), 1, 1),
+            (self._structure_trace(rotors_world, position), 1, 1),
+            (self._propeller_trace(index, rotation, position, rotor_ids=(0, 2),
+                                   color=self.PROPELLER_POSITIVE_SPIN_COLOR,
+                                   name="Propellers 1 and 3 (+z_b spin)"), 1, 1),
+            (self._propeller_trace(index, rotation, position, rotor_ids=(1, 3),
+                                   color=self.PROPELLER_NEGATIVE_SPIN_COLOR,
+                                   name="Propellers 2 and 4 (-z_b spin)"), 1, 1),
         ]
-        traces.extend(self._body_axes_traces(rotation, position))
+        traces.extend((trace, 1, 1) for trace in self._body_axes_traces(rotation, position))
+        traces.extend(
+            (self._time_cursor_trace(index, subplot_id), subplot_id + 1, 2)
+            for subplot_id in range(3)
+        )
         return traces
+
+    def _time_cursor_trace(self, index: int, subplot_id: int) -> go.Scatter:
+        t = index * self._dt
+        low, high = self._response_y_ranges[subplot_id]
+        return go.Scatter(
+            x=[t, t], y=[low, high],
+            mode="lines",
+            line=dict(color=self.TIME_CURSOR_COLOR, width=1),
+            name="t",
+            showlegend=False,
+            hoverinfo="skip",
+        )
 
     def _rotor_positions_body(self) -> np.ndarray:
         """
@@ -276,7 +407,7 @@ class FlightAnimator:
 
     def _frame_title(self, index: int) -> str:
         t = index * self._dt
-        phi, theta, psi = self._euler_angles_deg(self._quaternions[index])
+        phi, theta, psi = self._euler_history_deg[index]
         w = self._omega_history[index]
         return (f"t = {t:6.2f} s | roll = {phi:+6.1f} deg, pitch = {theta:+6.1f} deg, "
                 f"yaw = {psi:+6.1f} deg | prop speed [rad/s] = "
@@ -284,11 +415,38 @@ class FlightAnimator:
 
     @staticmethod
     def _euler_angles_deg(q: np.ndarray) -> np.ndarray:
-        """Roll, pitch, yaw [deg] from a quaternion, same convention as Quad.phi/theta/psi."""
-        phi = np.arctan2(2 * (q[0] * q[1] + q[2] * q[3]), 1 - 2 * (q[1] ** 2 + q[2] ** 2))
-        theta = np.arcsin(np.clip(2 * (q[0] * q[2] - q[3] * q[1]), -1.0, 1.0))
-        psi = np.arctan2(2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2] ** 2 + q[3] ** 2))
-        return np.degrees([phi, theta, psi])
+        """
+        Roll, pitch, yaw [deg] from quaternions, same convention as Quad.phi/theta/psi.
+        :param q: quaternion array of shape (..., 4) with the scalar part first
+        :return: angles array of shape (..., 3)
+        """
+        q0, q1, q2, q3 = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
+        phi = np.arctan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1 ** 2 + q2 ** 2))
+        theta = np.arcsin(np.clip(2 * (q0 * q2 - q3 * q1), -1.0, 1.0))
+        psi = np.arctan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2 ** 2 + q3 ** 2))
+        return np.degrees(np.stack((phi, theta, psi), axis=-1))
+
+    @staticmethod
+    def _cuboid_mesh_trace(bounds: np.ndarray, color: str, opacity: float,
+                           name: str, showlegend: bool) -> go.Mesh3d:
+        """
+        :param bounds: cuboid bounds [x_min, x_max, y_min, y_max, z_min, z_max]
+        """
+        x_min, x_max, y_min, y_max, z_min, z_max = bounds
+        return go.Mesh3d(
+            x=[x_min, x_max, x_max, x_min, x_min, x_max, x_max, x_min],
+            y=[y_min, y_min, y_max, y_max, y_min, y_min, y_max, y_max],
+            z=[z_min, z_min, z_min, z_min, z_max, z_max, z_max, z_max],
+            i=[0, 0, 4, 4, 0, 0, 3, 3, 0, 0, 1, 1],
+            j=[1, 2, 6, 7, 4, 5, 2, 6, 3, 7, 5, 6],
+            k=[2, 3, 5, 6, 5, 1, 6, 7, 7, 4, 6, 2],
+            color=color,
+            opacity=opacity,
+            flatshading=True,
+            name=name,
+            showlegend=showlegend,
+            hoverinfo="skip",
+        )
 
     @staticmethod
     def _to_world(points_body: np.ndarray, rotation: np.ndarray, position: np.ndarray) -> np.ndarray:
