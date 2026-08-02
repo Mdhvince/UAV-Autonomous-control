@@ -4,6 +4,11 @@ import numpy as np
 
 
 class MinimumSnap:
+    # Extra time granted to the first and last splines. They start and end at rest,
+    # so at constant time allocation they would concentrate the strongest
+    # accelerations (hence the largest commanded tilts) of the whole trajectory.
+    START_END_TIME_FACTOR = 1.5
+
     def __init__(self, path, obstacles, velocity=1.0, dt=0.01):
         """
         :param path: list of waypoints to generate the trajectory from
@@ -270,6 +275,9 @@ class MinimumSnap:
         for i in range(self.nb_splines):
             distance = np.linalg.norm(self.waypoints[i + 1] - self.waypoints[i])
             time = distance / self.velocity
+            is_boundary_spline = i in (0, self.nb_splines - 1)
+            if is_boundary_spline:
+                time *= MinimumSnap.START_END_TIME_FACTOR
             self.times.append(time)
 
     def _generate_waypoints(self):

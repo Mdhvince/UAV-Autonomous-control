@@ -25,20 +25,29 @@ https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/2dcca69f-2981
 
 ### Flight dashboard
 
+![Flight dashboard](docs/flight_dashboard.png "")
+
 Running `main.py` opens a single cockpit view, rendered by `FlightDashboard`
 (`uav_ac/visualization/flight_dashboard.py`). On the left, an interactive 3D animation
 on a clean background (no grid): the drone frame placed and oriented from the simulated
 attitude quaternion, the four propellers spinning in their physical direction at the
 recorded speeds, the body axes attached to the drone, the executed trajectory against
 the minimum snap reference, the RRT path, and the obstacles as translucent boxes (the
-perimeter walls and the ceiling are not rendered, they would bury the scene). On the
-right, the in-flight controller response as three time series synchronized with the
-animation through a moving time cursor: position per axis versus the reference,
-attitude angles, and propeller speeds. Playback is controlled with Play/Pause buttons
+perimeter walls and the ceiling are not rendered, they would bury the scene). With
+`follow_drone=True` (the default in `main.py`) the camera chases the drone during
+playback; the view stays freely rotatable while paused. On the right, the in-flight
+controller response as four time series synchronized with the animation through a
+moving time cursor: position per axis versus the reference, attitude angles, propeller
+speeds, and position tracking error. Playback is controlled with Play/Pause buttons
 and a time slider; the title displays time, roll/pitch/yaw and propeller speeds. The
 drone geometry is visually magnified (`drone_scale`, 1.0 renders the true size);
 position, attitude and speeds are untouched. The step-response tuning tool remains
 available separately: `python uav_ac/control/controller.py`.
+
+The minimum snap time allocation grants extra time to the first and last splines
+(`MinimumSnap.START_END_TIME_FACTOR`): they start and end at rest, so this keeps the
+required accelerations, hence the commanded tilt angles, moderate at takeoff and
+arrival.
 
 ### Vanilla RRT
 ![Vanilla RRT](docs/rrt_classic.png "")  

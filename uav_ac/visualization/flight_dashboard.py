@@ -13,12 +13,14 @@ class FlightDashboard:
     axes, the executed trajectory against the minimum snap reference, and optionally
     the obstacles and the RRT path.
 
-    Right: the in-flight controller response as three time series synchronized with
+    Right: the in-flight controller response as four time series synchronized with
     the animation through a moving time cursor: position tracking per axis versus
-    the reference, attitude angles, and propeller speeds.
+    the reference, attitude angles, propeller speeds, and position tracking error.
 
     The animation is played with the Play/Pause buttons or scrubbed with the time
-    slider, and the title displays time, roll/pitch/yaw and propeller speeds.
+    slider, and the title displays time, roll/pitch/yaw and propeller speeds. With
+    follow_drone=True the camera tracks the drone during playback (chase view); the
+    view can still be rotated freely while paused.
     """
 
     # Spin direction of each rotor about the body z axis. Derived from the reactive
@@ -38,10 +40,16 @@ class FlightDashboard:
     TIME_CURSOR_COLOR = "#7F7F7F"
     BODY_AXIS_COLORS = ("#D62728", "#2CA02C", "#1F77B4")  # x, y, z (robotics RGB convention)
 
+    RESPONSE_SUBPLOT_COUNT = 4
+
+    # Chase camera offset from the drone, in normalized scene coordinates
+    CHASE_CAMERA_OFFSET = np.array([0.65, 0.65, 0.4])
+
     def __init__(self, quad, state_history: np.ndarray, omega_history: np.ndarray,
                  reference_trajectory: np.ndarray, dt: float,
                  frame_step: int = 5, drone_scale: float = 3.0,
-                 obstacles: np.ndarray = None, planned_path: np.ndarray = None):
+                 obstacles: np.ndarray = None, planned_path: np.ndarray = None,
+                 follow_drone: bool = False):
         """
         :param quad: simulated Quad instance, source of the geometry (arm length) and
                      of the quaternion to rotation matrix conversion
@@ -56,6 +64,7 @@ class FlightDashboard:
                             propeller speeds are untouched)
         :param obstacles: optional (K, 6) cuboids [xmin, xmax, ymin, ymax, zmin, zmax] to render
         :param planned_path: optional (P, 3) waypoints of the global path (e.g. RRT) to render
+        :param follow_drone: when True the camera tracks the drone during playback (chase view)
         """
         if len(state_history) != len(omega_history):
             raise ValueError(
@@ -84,7 +93,13 @@ class FlightDashboard:
         self._times = np.arange(len(state_history)) * dt
         self._reference_times = np.arange(len(reference_trajectory)) * dt
         self._euler_history_deg = self._euler_angles_deg(self._quaternions)
+        common_length = min(len(self._positions), len(self._reference))
+        self._tracking_errors = np.linalg.norm(
+            self._positions[:common_length] - self._reference[:common_length], axis=1)
         self._response_y_ranges = self._compute_response_y_ranges()
+
+        self._follow_drone = follow_drone
+        self._scene_ranges, self._scene_aspect_ratio = self._compute_scene_ranges()
         self._fig = None
 
     def figure(self) -> go.Figure:
@@ -107,14 +122,16 @@ class FlightDashboard:
 
     def _build_figure(self) -> go.Figure:
         fig = make_subplots(
-            rows=3, cols=2,
+            rows=4, cols=2,
             column_widths=[0.62, 0.38],
-            specs=[[{"type": "scene", "rowspan": 3}, {"type": "xy"}],
+            specs=[[{"type": "scene", "rowspan": 4}, {"type": "xy"}],
+                   [None, {"type": "xy"}],
                    [None, {"type": "xy"}],
                    [None, {"type": "xy"}]],
-            subplot_titles=("", "Position [m] (NED)", "Attitude [deg]", "Propeller speed [rad/s]"),
+            subplot_titles=("", "Position [m] (NED)", "Attitude [deg]",
+                            "Propeller speed [rad/s]", "Tracking error [m]"),
             horizontal_spacing=0.05,
-            vertical_spacing=0.1,
+            vertical_spacing=0.08,
             shared_xaxes=True,
         )
 
@@ -126,7 +143,6 @@ class FlightDashboard:
         first_index = int(self._frame_indices[0])
         dynamic_traces = self._dynamic_traces(first_index)
         dynamic_trace_ids = list(range(len(fig.data), len(fig.data) + len(dynamic_traces)))
-        drone_trace_count = len(dynamic_traces) - 3  # the last 3 traces are the time cursors
         fig.add_traces(
             [trace for trace, _, _ in dynamic_traces],
             rows=[row for _, row, _ in dynamic_traces],
@@ -138,7 +154,7 @@ class FlightDashboard:
                 data=[trace for trace, _, _ in self._dynamic_traces(int(index))],
                 traces=dynamic_trace_ids,
                 name=self._frame_name(int(index)),
-                layout=go.Layout(title=dict(text=self._frame_title(int(index)))),
+                layout=self._frame_layout(int(index)),
             )
             for index in self._frame_indices
         ]
@@ -147,17 +163,27 @@ class FlightDashboard:
         # objects alive: the y and z display reversals below must stay in effect.
         hidden_axis = dict(showbackground=False, showgrid=False, zeroline=False,
                            showticklabels=False, showspikes=False, title=dict(text=""))
+        x_range, y_range, z_range = self._scene_ranges
+        scene = dict(
+            # explicit ranges (instead of autorange) so the chase camera can map the
+            # drone position to normalized scene coordinates deterministically
+            aspectmode="manual",
+            aspectratio=dict(x=self._scene_aspect_ratio[0],
+                             y=self._scene_aspect_ratio[1],
+                             z=self._scene_aspect_ratio[2]),
+            # Data is in NED (z down). Reversing BOTH y and z display axes (descending
+            # ranges) is a proper rotation (not a mirror), so the scene shows altitude
+            # upward while keeping a physically correct attitude.
+            xaxis=dict(range=list(x_range), **hidden_axis),
+            yaxis=dict(range=list(y_range), **hidden_axis),
+            zaxis=dict(range=list(z_range), **hidden_axis),
+        )
+        if self._follow_drone:
+            scene["camera"] = self._chase_camera(first_index)
+
         fig.update_layout(
             title=dict(text=self._frame_title(first_index), font=dict(size=13)),
-            # Data is in NED (z down). Reversing BOTH y and z display axes is a proper
-            # rotation (not a mirror), so the scene shows altitude upward while keeping
-            # a physically correct attitude.
-            scene=dict(
-                aspectmode="data",
-                xaxis=hidden_axis,
-                yaxis=dict(autorange="reversed", **hidden_axis),
-                zaxis=dict(autorange="reversed", **hidden_axis),
-            ),
+            scene=scene,
             legend=dict(x=0.0, y=0.99, xanchor="left", font=dict(size=11)),
             updatemenus=[self._play_controls()],
             sliders=[self._time_slider()],
@@ -167,8 +193,62 @@ class FlightDashboard:
         # response subplots: light grid on white, in line with the clean 3D scene
         fig.update_xaxes(showgrid=True, gridcolor="#E6E6E6", zeroline=False)
         fig.update_yaxes(showgrid=True, gridcolor="#E6E6E6", zeroline=False)
-        fig.update_xaxes(title_text="t [s]", row=3, col=2)
+        fig.update_xaxes(title_text="t [s]", row=self.RESPONSE_SUBPLOT_COUNT, col=2)
         return fig
+
+    def _frame_layout(self, index: int) -> go.Layout:
+        layout = go.Layout(title=dict(text=self._frame_title(index)))
+        if self._follow_drone:
+            layout.scene = dict(camera=self._chase_camera(index))
+        return layout
+
+    def _compute_scene_ranges(self) -> tuple:
+        """
+        Fixed display ranges and aspect ratio of the 3D scene, covering every plotted
+        element. The y and z ranges are descending on purpose (NED display rotation).
+        :return: ((x_range, y_range, z_range), aspect_ratio) with spans-proportional ratio
+        """
+        points = [self._positions, self._reference]
+        if self._planned_path is not None:
+            points.append(self._planned_path)
+        if self._obstacles is not None:
+            corners_low = self._obstacles[:, [0, 2, 4]]
+            corners_high = self._obstacles[:, [1, 3, 5]]
+            points.extend([corners_low, corners_high])
+        stacked = np.vstack(points)
+
+        low = stacked.min(axis=0)
+        high = stacked.max(axis=0)
+        # a flat axis (e.g. constant altitude) would make the camera normalization
+        # divide by zero: give it a minimal 1 m extent
+        is_flat_axis = (high - low) < 1e-9
+        low = np.where(is_flat_axis, low - 0.5, low)
+        high = np.where(is_flat_axis, high + 0.5, high)
+        margin = 0.05 * (high - low)
+        low, high = low - margin, high + margin
+
+        ranges = ((low[0], high[0]), (high[1], low[1]), (high[2], low[2]))
+        spans = high - low
+        aspect_ratio = spans / spans.max()
+        return ranges, aspect_ratio
+
+    def _normalized_scene_position(self, position: np.ndarray) -> np.ndarray:
+        """Map a NED point to the normalized scene coordinates used by the camera."""
+        normalized = np.zeros(3)
+        for axis_id in range(3):
+            range_start, range_end = self._scene_ranges[axis_id]
+            fraction = (position[axis_id] - range_start) / (range_end - range_start)
+            normalized[axis_id] = (fraction - 0.5) * self._scene_aspect_ratio[axis_id]
+        return normalized
+
+    def _chase_camera(self, index: int) -> dict:
+        center = self._normalized_scene_position(self._positions[index])
+        eye = center + self.CHASE_CAMERA_OFFSET
+        return dict(
+            center=dict(x=center[0], y=center[1], z=center[2]),
+            eye=dict(x=eye[0], y=eye[1], z=eye[2]),
+            up=dict(x=0, y=0, z=1),
+        )
 
     def _static_scene_traces(self) -> list:
         traces = [
@@ -246,6 +326,12 @@ class FlightDashboard:
                 mode="lines", line=dict(color=propeller_colors[rotor_id], width=1.5),
                 name=f"omega {rotor_id + 1}", showlegend=False,
             ), 3))
+
+        traces.append((go.Scatter(
+            x=self._times[:len(self._tracking_errors)], y=self._tracking_errors,
+            mode="lines", line=dict(color=self.EXECUTED_TRAJECTORY_COLOR, width=1.5),
+            name="tracking error", showlegend=False,
+        ), 4))
         return traces
 
     def _compute_response_y_ranges(self) -> list:
@@ -255,6 +341,7 @@ class FlightDashboard:
             np.concatenate((self._positions.ravel(), self._reference.ravel())),
             self._euler_history_deg.ravel(),
             self._omega_history.ravel(),
+            self._tracking_errors,
         ):
             low, high = float(np.min(values)), float(np.max(values))
             margin = 0.05 * (high - low) if high > low else 1.0
@@ -280,7 +367,7 @@ class FlightDashboard:
         traces.extend((trace, 1, 1) for trace in self._body_axes_traces(rotation, position))
         traces.extend(
             (self._time_cursor_trace(index, subplot_id), subplot_id + 1, 2)
-            for subplot_id in range(3)
+            for subplot_id in range(self.RESPONSE_SUBPLOT_COUNT)
         )
         return traces
 

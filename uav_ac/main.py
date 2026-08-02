@@ -84,5 +84,6 @@ if __name__ == "__main__":
     dashboard = FlightDashboard(
         quad, state_history[1:], omega_history[1:], global_trajectory, dt,
         obstacles=np.array(obstacles)[:5], planned_path=rrt.best_path,
+        follow_drone=True,
     )
     dashboard.show()

@@ -9,7 +9,7 @@ G = 9.81
 DT = 0.01
 N_STEPS = 12
 FRAME_STEP = 4
-DYNAMIC_TRACE_COUNT = 10  # 7 drone traces + 3 time cursors
+DYNAMIC_TRACE_COUNT = 11  # 7 drone traces + 4 time cursors
 
 
 @pytest.fixture
@@ -152,10 +152,11 @@ def test_figure_reverses_y_and_z_display_axes_for_ned(dashboard):
     fig = dashboard.figure()
 
     # Assert
-    # Reversing both axes is a proper rotation of the view: NED data shows altitude
-    # upward without mirroring the attitude
-    assert fig.layout.scene.yaxis.autorange == "reversed"
-    assert fig.layout.scene.zaxis.autorange == "reversed"
+    # Reversing both axes (descending ranges) is a proper rotation of the view:
+    # NED data shows altitude upward without mirroring the attitude
+    assert fig.layout.scene.yaxis.range[0] > fig.layout.scene.yaxis.range[1]
+    assert fig.layout.scene.zaxis.range[0] > fig.layout.scene.zaxis.range[1]
+    assert fig.layout.scene.xaxis.range[0] < fig.layout.scene.xaxis.range[1]
 
 
 def test_figure_hides_scene_grid_and_background(dashboard):
@@ -181,3 +182,32 @@ def test_merge_segments_separates_segments_with_none():
     assert xs == [1.0, 4.0, None, 7.0, None]
     assert ys == [2.0, 5.0, None, 8.0, None]
     assert zs == [3.0, 6.0, None, 9.0, None]
+
+
+def test_figure_contains_tracking_error_series(dashboard):
+    # Arrange / Act
+    fig = dashboard.figure()
+
+    # Assert
+    trace_names = [trace.name for trace in fig.data]
+    assert "tracking error" in trace_names
+
+
+def test_chase_camera_follows_the_drone_across_frames(quad):
+    # Arrange
+    state_history = np.zeros((N_STEPS, 13))
+    state_history[:, 0] = np.linspace(0.0, 5.0, N_STEPS)
+    state_history[:, 3] = 1.0
+    omega_history = np.ones((N_STEPS, 4))
+    reference_trajectory = np.zeros((N_STEPS, 10))
+    dashboard = FlightDashboard(quad, state_history, omega_history, reference_trajectory,
+                                DT, frame_step=FRAME_STEP, follow_drone=True)
+
+    # Act
+    fig = dashboard.figure()
+
+    # Assert
+    first_center = fig.frames[0].layout.scene.camera.center
+    last_center = fig.frames[-1].layout.scene.camera.center
+    assert last_center.x > first_center.x  # the camera moved with the drone along x
+    assert fig.layout.scene.camera.center.x == pytest.approx(first_center.x)

@@ -135,3 +135,19 @@ def test_is_collisionCuboid(x, y, z, cuboid_params, expected):
 
     # Assert
     assert result == expected
+
+
+def test_generate_time_per_spline_slows_down_first_and_last_splines():
+    # Arrange
+    waypoints = np.array([[0., 0., -1.], [2., 0., -1.], [4., 0., -1.], [6., 0., -1.]])
+    minimum_snap = MinimumSnap(waypoints, None, velocity=2.0, dt=0.01)
+    nominal_time = 1.0  # 2 m between waypoints at 2 m/s
+
+    # Act
+    minimum_snap._setup()
+
+    # Assert
+    expected_boundary_time = nominal_time * MinimumSnap.START_END_TIME_FACTOR
+    assert minimum_snap.times[0] == pytest.approx(expected_boundary_time)
+    assert minimum_snap.times[1] == pytest.approx(nominal_time)
+    assert minimum_snap.times[-1] == pytest.approx(expected_boundary_time)
