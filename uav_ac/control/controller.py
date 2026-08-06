@@ -47,9 +47,7 @@ class CascadedController:
 
         c = -quad.m * acc_z
 
-        # reserve some thrust margin for angle control
-        thrust_margin = 0.2 * (quad.max_thrust - quad.min_thrust)
-        c = np.clip(c, (quad.min_thrust + thrust_margin) * 4, (quad.max_thrust - thrust_margin) * 4)
+        c = np.clip(c, quad.min_thrust * 4, quad.max_thrust * 4)
 
         return c
 
@@ -106,7 +104,7 @@ class CascadedController:
         :param kp_yaw: Proportional gain for yaw control
         """
         pq_c = self.roll_pitch_controller(bxy_cmd, rot_mat, kp_roll, kp_pitch)
-        r_c = self.yaw_controller(quad, psi_des, kp_yaw)
+        r_c = self.yaw_controller(quad, psi_des, kp_yaw, pq_c[1])
         pqr_cmd = np.append(pq_c, r_c)
         return pqr_cmd
 
@@ -124,10 +122,7 @@ class CascadedController:
         pqr_actual = np.array([quad.p, quad.q, quad.r])
 
         moment_cmd = I * kp_pqr * (pqr_cmd - pqr_actual)
-
-        moment_mag = np.linalg.norm(moment_cmd)
-        if moment_mag > quad.max_torque:
-            moment_cmd = moment_cmd * quad.max_torque / moment_mag
+        moment_cmd += np.cross(pqr_actual, I * pqr_actual)
         return moment_cmd
 
     def roll_pitch_controller(self, bxy_cmd, rot_mat, kp_roll, kp_pitch):
@@ -154,16 +149,18 @@ class CascadedController:
 
         return pq_cmd
 
-    def yaw_controller(self, quad, psi_des, kp_yaw):
+    def yaw_controller(self, quad, psi_des, kp_yaw, q_cmd=0.0):
         """
-        Compute the desired yaw rate.
+        Convert the desired Euler yaw rate into a body yaw rate.
         :param quad: The quadrotor object
         :param psi_des: The desired yaw angle
         :param kp_yaw: Proportional gain for yaw control
+        :param q_cmd: Desired pitch body rate
         """
         psi_des = CascadedController.wrap_to_2pi(psi_des)
         yaw_err = CascadedController.wrap_to_pi(psi_des - quad.psi)
-        r_c = kp_yaw * yaw_err
+        yaw_rate_cmd = kp_yaw * yaw_err
+        r_c = (yaw_rate_cmd * np.cos(quad.theta) - q_cmd * np.sin(quad.phi)) / np.cos(quad.phi)
         return r_c
 
     @staticmethod

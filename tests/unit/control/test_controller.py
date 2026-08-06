@@ -124,14 +124,13 @@ def test_altitude_thrust_stays_within_rotor_bounds(controller, quad):
     # Arrange
     des_z = np.array([quad.z - 100.0, 0.0, 0.0])  # huge error far below current altitude
     rot_mat = np.eye(3)
-    thrust_margin = 0.2 * (quad.max_thrust - quad.min_thrust)
 
     # Act
     result = controller.altitude(quad, des_z, rot_mat, quad.kp_z, quad.kd_z, quad.ki_z)
 
     # Assert
-    assert result <= (quad.max_thrust - thrust_margin) * 4
-    assert result >= (quad.min_thrust + thrust_margin) * 4
+    assert result <= quad.max_thrust * 4
+    assert result >= quad.min_thrust * 4
 
 
 def test_altitude_integral_error_is_bounded(controller, quad):
@@ -171,20 +170,22 @@ def test_body_rate_controller_moment_is_proportional_to_rate_error(controller, q
     assert result == pytest.approx(np.array([quad.i_x * quad.kp_p, 0.0, 0.0]))
 
 
-def test_body_rate_controller_saturates_moment_norm(controller, quad):
+def test_body_rate_controller_compensates_gyroscopic_moment(controller, quad):
     # Arrange
-    pqr_cmd = np.array([100.0, 100.0, 100.0])
+    quad.X[10:13] = np.array([1.0, 2.0, 3.0])
+    pqr_cmd = quad.body_angular_velocity.copy()
+    inertia = np.array([quad.i_x, quad.i_y, quad.i_z])
 
     # Act
     result = controller.body_rate_controller(quad, pqr_cmd, quad.kp_p, quad.kp_q, quad.kp_r)
 
     # Assert
-    assert np.linalg.norm(result) == pytest.approx(quad.max_torque)
+    assert result == pytest.approx(np.cross(quad.body_angular_velocity, inertia * quad.body_angular_velocity))
 
 
 def test_yaw_controller_takes_shortest_direction(controller):
     # Arrange
-    quad_stub = SimpleNamespace(psi=0.1)
+    quad_stub = SimpleNamespace(phi=0.0, theta=0.0, psi=0.1)
     psi_des = -0.1
     kp_yaw = 2.0
 
@@ -193,3 +194,19 @@ def test_yaw_controller_takes_shortest_direction(controller):
 
     # Assert
     assert result == pytest.approx(kp_yaw * -0.2)
+
+
+def test_yaw_controller_converts_euler_yaw_rate_to_body_rate_when_tilted(controller):
+    # Arrange
+    quad_stub = SimpleNamespace(phi=0.3, theta=-0.2, psi=0.1)
+    psi_des = 0.4
+    kp_yaw = 2.0
+    q_cmd = 0.5
+    yaw_rate_cmd = kp_yaw * (psi_des - quad_stub.psi)
+    expected = (yaw_rate_cmd * np.cos(quad_stub.theta) - q_cmd * np.sin(quad_stub.phi)) / np.cos(quad_stub.phi)
+
+    # Act
+    result = controller.yaw_controller(quad_stub, psi_des, kp_yaw, q_cmd)
+
+    # Assert
+    assert result == pytest.approx(expected)

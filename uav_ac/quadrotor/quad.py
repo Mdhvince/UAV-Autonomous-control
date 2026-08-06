@@ -29,25 +29,33 @@ class Quad:
         self.i_z = 0.0046
         self.max_thrust = 4.5  # N
         self.min_thrust = 0.1
-        self.max_torque = 1.0  # Nm
         self.max_ascent_rate = 3
         self.max_descent_rate = 2
         self.max_speed_xy = 3
         self.max_horiz_accel = 12
         self.max_tilt_angle = 0.7
 
-        # Controller gains (hardcoded), tuned on the step response of uav_ac/control/controller.py
-        self.kp_xy = 16
-        self.kd_xy = 7
-        self.kp_z = 22
-        self.kd_z = 8
+        # Controller response parameters, tuned on the step response of uav_ac/control/controller.py
+        self.tau_xy = 0.25
+        self.zeta_xy = 0.875
+        self.tau_altitude = 0.2
+        self.zeta_altitude = 0.8
+        self.tau_roll = 0.07
+        self.tau_pitch = 0.07
+        self.tau_yaw = 0.25
+        self.tau_p = 0.008
+        self.tau_q = 0.008
+        self.tau_r = 0.09
+
+        self.kp_xy, self.kd_xy = Quad.second_order_gains(self.tau_xy, self.zeta_xy)
+        self.kp_z, self.kd_z = Quad.second_order_gains(self.tau_altitude, self.zeta_altitude)
         self.ki_z = 0.1
-        self.kp_roll = 14
-        self.kp_pitch = 14
-        self.kp_yaw = 4
-        self.kp_p = 120
-        self.kp_q = 120
-        self.kp_r = 11
+        self.kp_roll = 1 / self.tau_roll
+        self.kp_pitch = 1 / self.tau_pitch
+        self.kp_yaw = 1 / self.tau_yaw
+        self.kp_p = 1 / self.tau_p
+        self.kp_q = 1 / self.tau_q
+        self.kp_r = 1 / self.tau_r
 
         # State (position, quaternion, velocity, angular velocity body)
         # x = [x, y, z, q0, q1, q2, q3, x_dot, y_dot, z_dot, p, q, r]
@@ -60,8 +68,11 @@ class Quad:
         # x_dot = [x_dot, y_dot, z_dot, q0_dot, q1_dot, q2_dot, q3_dot, x_ddot, y_ddot, z_ddot, p_dot, q_dot, r_dot]
         self.dX = np.zeros(13)
 
-        # Propeller speed
+        # Propeller speed and first-order motor response
+        self.motor_rise_time_constant = 0.0125
+        self.motor_fall_time_constant = 0.025
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
+        self.omega_command = np.array([0.0, 0.0, 0.0, 0.0])
 
     def update_state(self):
         """
@@ -82,17 +93,40 @@ class Quad:
         :param thrust_cmd: desired collective thrust [N]
         :param moment_cmd: desired moments about the body axes [tau_x, tau_y, tau_z] [N m]
         """
-        c_bar = thrust_cmd
+        rotor_forces = self._allocate_rotor_forces(thrust_cmd, moment_cmd)
+        self.omega_command = np.sqrt(rotor_forces / self.kf)
+
+        time_constants = np.where(
+            self.omega_command > self.omega,
+            self.motor_rise_time_constant,
+            self.motor_fall_time_constant,
+        )
+        response = 1 - np.exp(-self.dt / time_constants)
+        self.omega += response * (self.omega_command - self.omega)
+
+    def _allocate_rotor_forces(self, thrust_cmd: float, moment_cmd: np.ndarray) -> np.ndarray:
+        """Preserve feasible collective thrust while scaling moments to rotor limits."""
+        c_bar = np.clip(thrust_cmd, self.min_thrust * 4, self.max_thrust * 4)
         p_bar = moment_cmd[0] / self.l
         q_bar = moment_cmd[1] / self.l
         r_bar = -moment_cmd[2] / self.kappa
 
-        u_bar = np.array([p_bar, q_bar, r_bar, c_bar])
+        moment_forces = Quad.propeller_coeffs() @ np.array([p_bar, q_bar, r_bar, 0.0]) / 4
+        collective_force = c_bar / 4
+        scale_limits = np.ones(4)
+        positive = moment_forces > 0
+        negative = moment_forces < 0
+        scale_limits[positive] = (self.max_thrust - collective_force) / moment_forces[positive]
+        scale_limits[negative] = (self.min_thrust - collective_force) / moment_forces[negative]
+        moment_scale = np.clip(np.min(scale_limits), 0.0, 1.0)
 
-        rotor_forces = Quad.propeller_coeffs() @ u_bar / 4
-        # rotors cannot push downward: negative force demands are physically unreachable
-        rotor_forces = np.clip(rotor_forces, 0.0, None)
-        self.omega = np.sqrt(rotor_forces / self.kf)
+        rotor_forces = collective_force + moment_scale * moment_forces
+        return np.clip(rotor_forces, self.min_thrust, self.max_thrust)
+
+    @staticmethod
+    def second_order_gains(time_constant: float, damping_ratio: float) -> tuple[float, float]:
+        """Derive proportional and derivative gains from response parameters."""
+        return 1 / time_constant ** 2, 2 * damping_ratio / time_constant
 
     def update_acceleration(self):  # used for state update
         """

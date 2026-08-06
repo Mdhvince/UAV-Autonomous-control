@@ -79,9 +79,10 @@ def test_set_propeller_speed_zero_moments_produces_commanded_total_thrust(quad):
 
     # Act
     quad.set_propeller_speed(thrust_cmd, moment_cmd)
+    commanded_forces = quad.kf * quad.omega_command ** 2
 
     # Assert
-    assert quad.f_total == pytest.approx(thrust_cmd)
+    assert np.sum(commanded_forces) == pytest.approx(thrust_cmd)
 
 
 def test_set_propeller_speed_produces_commanded_roll_moment(quad):
@@ -91,10 +92,13 @@ def test_set_propeller_speed_produces_commanded_roll_moment(quad):
 
     # Act
     quad.set_propeller_speed(thrust_cmd, moment_cmd)
+    forces = quad.kf * quad.omega_command ** 2
+    commanded_roll_moment = quad.l * (forces[0] + forces[3] - forces[1] - forces[2])
+    commanded_pitch_moment = quad.l * (forces[0] + forces[1] - forces[2] - forces[3])
 
     # Assert
-    assert quad.tau_x == pytest.approx(0.2)
-    assert quad.tau_y == pytest.approx(0.0, abs=1e-12)
+    assert commanded_roll_moment == pytest.approx(0.2)
+    assert commanded_pitch_moment == pytest.approx(0.0, abs=1e-12)
 
 
 def test_set_propeller_speed_produces_commanded_yaw_moment(quad):
@@ -104,29 +108,88 @@ def test_set_propeller_speed_produces_commanded_yaw_moment(quad):
 
     # Act
     quad.set_propeller_speed(thrust_cmd, moment_cmd)
+    forces = quad.kf * quad.omega_command ** 2
+    commanded_yaw_moment = quad.km * (-forces[0] + forces[1] - forces[2] + forces[3])
 
     # Assert
-    assert quad.tau_z == pytest.approx(0.01)
+    assert commanded_yaw_moment == pytest.approx(0.01)
 
 
-def test_set_propeller_speed_clips_unreachable_negative_rotor_forces(quad):
+def test_set_propeller_speed_scales_moments_to_keep_all_rotors_within_bounds(quad):
     # Arrange
-    thrust_cmd = 0.4
+    thrust_cmd = 4.0
     moment_cmd = np.array([0.0, 0.0, 0.5])  # yaw demand far beyond rotor authority
 
     # Act
     quad.set_propeller_speed(thrust_cmd, moment_cmd)
 
     # Assert
-    forces = np.array([quad.f_1, quad.f_2, quad.f_3, quad.f_4])
-    assert np.all(forces >= 0.0)
-    assert not np.any(np.isnan(quad.omega))
+    commanded_forces = quad.kf * quad.omega_command ** 2
+    assert np.all(commanded_forces >= quad.min_thrust)
+    assert np.all(commanded_forces <= quad.max_thrust)
+    assert np.sum(commanded_forces) == pytest.approx(thrust_cmd)
+
+
+def test_set_propeller_speed_clips_collective_thrust_to_rotor_limits(quad):
+    # Arrange
+    thrust_cmd = 100.0
+    moment_cmd = np.zeros(3)
+
+    # Act
+    quad.set_propeller_speed(thrust_cmd, moment_cmd)
+
+    # Assert
+    commanded_forces = quad.kf * quad.omega_command ** 2
+    assert commanded_forces == pytest.approx(np.full(4, quad.max_thrust))
+
+
+def test_set_propeller_speed_applies_first_order_motor_rise_dynamics(quad):
+    # Arrange
+    thrust_cmd = 4.0
+    expected_target = np.sqrt(thrust_cmd / 4 / quad.kf)
+    expected_alpha = 1 - np.exp(-quad.dt / quad.motor_rise_time_constant)
+
+    # Act
+    quad.set_propeller_speed(thrust_cmd, np.zeros(3))
+
+    # Assert
+    assert quad.omega_command == pytest.approx(np.full(4, expected_target))
+    assert quad.omega == pytest.approx(np.full(4, expected_alpha * expected_target))
+
+
+def test_set_propeller_speed_uses_slower_motor_dynamics_when_speed_decreases(quad):
+    # Arrange
+    initial_speed = np.sqrt(quad.max_thrust / quad.kf)
+    target_speed = np.sqrt(quad.min_thrust / quad.kf)
+    quad.omega = np.full(4, initial_speed)
+    expected_alpha = 1 - np.exp(-quad.dt / quad.motor_fall_time_constant)
+    expected_speed = initial_speed + expected_alpha * (target_speed - initial_speed)
+
+    # Act
+    quad.set_propeller_speed(0.0, np.zeros(3))
+
+    # Assert
+    assert quad.omega == pytest.approx(np.full(4, expected_speed))
+
+
+def test_controller_gains_are_derived_from_response_parameters(quad):
+    # Arrange
+    expected_kp_xy = 1 / quad.tau_xy ** 2
+    expected_kd_xy = 2 * quad.zeta_xy / quad.tau_xy
+    expected_kp_p = 1 / quad.tau_p
+
+    # Act
+    gains = np.array([quad.kp_xy, quad.kd_xy, quad.kp_p])
+
+    # Assert
+    assert gains == pytest.approx(np.array([expected_kp_xy, expected_kd_xy, expected_kp_p]))
 
 
 def test_update_state_hover_thrust_keeps_altitude(quad):
     # Arrange
     quad.X[2] = 1.0
-    quad.set_propeller_speed(quad.m * G, np.zeros(3))
+    hover_speed = np.sqrt(quad.m * G / 4 / quad.kf)
+    quad.omega = np.full(4, hover_speed)
 
     # Act
     for _ in range(1000):
