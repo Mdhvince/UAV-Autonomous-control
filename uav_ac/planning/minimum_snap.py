@@ -8,6 +8,7 @@ class MinimumSnap:
     # so at constant time allocation they would concentrate the strongest
     # accelerations (hence the largest commanded tilts) of the whole trajectory.
     START_END_TIME_FACTOR = 1.5
+    MIN_HORIZONTAL_SPEED_FOR_YAW = 1e-3
 
     def __init__(self, path, obstacles, velocity=1.0, dt=0.01):
         """
@@ -29,7 +30,7 @@ class MinimumSnap:
         self.positions = []  # will hold the desired positions of the trajectory
         self.velocities = []  # will hold the desired velocities of the trajectory
         self.accelerations = []  # will hold the desired accelerations of the trajectory
-        self.yaws = []  # will hold the desired yaws of the trajectory (yaw is hard coded to 0)
+        self.yaws = []  # will hold the desired yaws of the trajectory
         self.jerks = []  # will hold the desired jerks of the trajectory
         self.snap = []  # will hold the desired snap of the trajectory
 
@@ -113,14 +114,26 @@ class MinimumSnap:
                 self.positions.append(position)
                 self.velocities.append(velocity)
                 self.accelerations.append(acceleration)
-                self.yaws.append(np.array([0.0]))
                 self.spline_id.append(np.array([it]))
                 # self.jerks.append(jerk)
                 # self.snap.append(snap)
 
+        self.yaws = self._calculate_yaws(np.asarray(self.velocities))[:, np.newaxis]
         self.full_trajectory = np.hstack(
             (self.positions, self.velocities, self.accelerations, self.yaws, self.spline_id))
         return self.full_trajectory
+
+    @staticmethod
+    def _calculate_yaws(velocities: np.ndarray) -> np.ndarray:
+        horizontal_speeds = np.linalg.norm(velocities[:, :2], axis=1)
+        valid_indices = np.flatnonzero(horizontal_speeds >= MinimumSnap.MIN_HORIZONTAL_SPEED_FOR_YAW)
+        if len(valid_indices) == 0:
+            return np.zeros(len(velocities))
+
+        valid_yaws = np.unwrap(np.arctan2(velocities[valid_indices, 1], velocities[valid_indices, 0]))
+        previous_valid_indices = np.searchsorted(valid_indices, np.arange(len(velocities)), side="right") - 1
+        previous_valid_indices = np.clip(previous_valid_indices, 0, len(valid_indices) - 1)
+        return valid_yaws[previous_valid_indices]
 
     def _compute_spline_parameters(self, method):
         self._create_polynom_matrices()

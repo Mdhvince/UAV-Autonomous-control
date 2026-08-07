@@ -86,8 +86,54 @@ def test_get_trajectory_returns_positions_velocities_accelerations_yaw_and_splin
 
     # Assert
     assert trajectory.shape[1] == 11
-    assert np.all(trajectory[:, 9] == 0.0)  # yaw is hardcoded to 0
+    assert trajectory[:, 9] == pytest.approx(np.zeros(len(trajectory)))
     assert np.all(trajectory[:, 10] == 0.0)  # single spline
+
+
+def test_get_trajectory_should_point_yaw_along_horizontal_velocity():
+    # Arrange
+    waypoints = np.array([[0., 0., -1.], [0., 3., -1.]])
+    minimum_snap = MinimumSnap(waypoints, None, velocity=2.0, dt=0.01)
+
+    # Act
+    trajectory = minimum_snap.get_trajectory()
+
+    # Assert
+    assert trajectory[:, 9] == pytest.approx(np.pi / 2)
+
+
+def test_calculate_yaws_should_hold_direction_while_horizontal_speed_is_negligible():
+    # Arrange
+    velocities = np.array([[0., 0., -1.], [0., 2., 0.], [0., 0., 1.]])
+
+    # Act
+    yaws = MinimumSnap._calculate_yaws(velocities)
+
+    # Assert
+    assert yaws == pytest.approx(np.full(3, np.pi / 2))
+
+
+def test_calculate_yaws_should_stay_continuous_when_direction_crosses_pi():
+    # Arrange
+    velocities = np.array([[-1., 0.01, 0.], [-1., -0.01, 0.]])
+
+    # Act
+    yaws = MinimumSnap._calculate_yaws(velocities)
+
+    # Assert
+    assert abs(yaws[1] - yaws[0]) < 0.1
+    assert yaws[1] > np.pi
+
+
+def test_calculate_yaws_should_default_to_zero_without_horizontal_motion():
+    # Arrange
+    velocities = np.array([[0., 0., -1.], [0., 0., 0.], [0., 0., 1.]])
+
+    # Act
+    yaws = MinimumSnap._calculate_yaws(velocities)
+
+    # Assert
+    assert yaws == pytest.approx(np.zeros(3))
 
 
 def test_get_trajectory_velocity_is_continuous_across_splines():
