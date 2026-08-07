@@ -1,9 +1,7 @@
-import ast
 import copy
 import time
 
 import numpy as np
-import plotly.graph_objects as go
 
 
 class RRTStar:
@@ -301,41 +299,3 @@ class RRTStar:
 
         cost = RRTStar.path_cost(path)
         return np.array(path[::-1]).reshape(-1, 3), cost
-
-
-if __name__ == "__main__":
-
-    # NED frame: z points down, so flying 7 m above ground means z = -7
-    start = np.array([0, 0, 0])
-    goal = np.array([7, 7, -7])
-
-    space_limits = np.array([[0., 0., -10.], [10., 10., 0.]])
-
-    rrt = RRTStar(
-        space_limits,
-        start=start,
-        goal=goal,
-        max_distance=3,
-        max_iterations=1000,
-        obstacles=None,
-    )
-    rrt.run()
-
-    fig = go.Figure()
-
-    # plot start and goal nodes in red and green
-    fig.add_trace(go.Scatter3d(x=[start[0]], y=[start[1]], z=[start[2]], mode='markers', marker=dict(size=5, color='red')))
-    fig.add_trace(go.Scatter3d(x=[goal[0]], y=[goal[1]], z=[goal[2]], mode='markers', marker=dict(size=5, color='green')))
-
-    tree = rrt.best_tree
-    for node, parent in tree.items():
-        node = np.array(ast.literal_eval(node))
-        fig.add_trace(go.Scatter3d(x=[node[0], parent[0]], y=[node[1], parent[1]], z=[node[2], parent[2]], mode='lines', line=dict(width=1, color='blue')))
-
-    # find the path from the start node to the goal node
-    path = rrt.best_path
-
-    # Plot the paths
-    fig.add_trace(go.Scatter3d(x=path[:, 0], y=path[:, 1], z=path[:, 2], mode='lines', line=dict(width=5, color='yellow')))
-
-    fig.show()

@@ -1,8 +1,6 @@
 [run]
 omit = */__init__.py
        */main.py
-       */plot.py
-       */response.py
 
 [report]
 exclude_lines =

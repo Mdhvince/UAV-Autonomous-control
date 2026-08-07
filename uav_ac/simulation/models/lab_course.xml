@@ -1,0 +1,122 @@
+<mujoco model="uav_laboratory_course">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.001" gravity="0 0 -9.81" integrator="Euler"/>
+  <size nuser_site="1"/>
+  <statistic center="12 -7 2.5" extent="15"/>
+
+  <custom>
+    <numeric name="planning_bounds" data="0 0 -6 24 14 0"/>
+    <numeric name="rotor_force_coefficient" data="1"/>
+    <numeric name="rotor_drag_to_thrust" data="0.016"/>
+    <numeric name="rotor_thrust_limits" data="0.1 4.5"/>
+    <numeric name="motor_time_constants" data="0.0125 0.025"/>
+    <numeric name="flight_limits" data="3 2 3 12 0.7"/>
+  </custom>
+
+  <visual>
+    <global azimuth="140" elevation="-22"/>
+    <map znear="0.01" zfar="100"/>
+  </visual>
+
+  <asset>
+    <texture name="ground_grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1="0.55 0.55 0.55" rgb2="0.35 0.35 0.35"/>
+    <material name="ground" texture="ground_grid" texrepeat="8 4.6667" texuniform="true"
+              reflectance="0.1"/>
+    <material name="frame" rgba="0.35 0.40 0.46 0.65"/>
+    <material name="ring" rgba="0.05 0.80 0.85 0.9"/>
+    <material name="low_obstacle" rgba="0.95 0.55 0.08 0.75"/>
+    <material name="tall_obstacle" rgba="0.80 0.18 0.18 0.7"/>
+  </asset>
+
+  <worldbody>
+    <light name="sun" pos="12 -7 18" dir="-0.3 0.2 -1" directional="true"/>
+    <geom name="ground" type="plane" size="30 20 0.1" material="ground"/>
+
+    <!-- A suspended gate forces a low passage. -->
+    <geom name="obstacle_00" type="box" pos="4 -7 3.1" size="0.3 3 0.3" material="frame"/>
+    <geom name="gate_00_left" type="box" pos="4 -4 1.55" size="0.3 0.12 1.55" material="frame"/>
+    <geom name="gate_00_right" type="box" pos="4 -10 1.55" size="0.3 0.12 1.55" material="frame"/>
+
+    <!-- Physical octagonal ring with a circular-looking opening. -->
+    <geom name="ring_00_segment_00" type="capsule" fromto="7.5 -2.8 3 7.5 -3.1515 3.8485" size="0.09" material="ring"/>
+    <geom name="ring_00_segment_01" type="capsule" fromto="7.5 -3.1515 3.8485 7.5 -4 4.2" size="0.09" material="ring"/>
+    <geom name="ring_00_segment_02" type="capsule" fromto="7.5 -4 4.2 7.5 -4.8485 3.8485" size="0.09" material="ring"/>
+    <geom name="ring_00_segment_03" type="capsule" fromto="7.5 -4.8485 3.8485 7.5 -5.2 3" size="0.09" material="ring"/>
+    <geom name="ring_00_segment_04" type="capsule" fromto="7.5 -5.2 3 7.5 -4.8485 2.1515" size="0.09" material="ring"/>
+    <geom name="ring_00_segment_05" type="capsule" fromto="7.5 -4.8485 2.1515 7.5 -4 1.8" size="0.09" material="ring"/>
+    <geom name="ring_00_segment_06" type="capsule" fromto="7.5 -4 1.8 7.5 -3.1515 2.1515" size="0.09" material="ring"/>
+    <geom name="ring_00_segment_07" type="capsule" fromto="7.5 -3.1515 2.1515 7.5 -2.8 3" size="0.09" material="ring"/>
+    <site name="ring_center_00" type="sphere" pos="7.5 -4 3" size="0.06" rgba="1 0.85 0.1 0.8"/>
+
+    <!-- A low wall forces an overflight, followed by a tall pillar to go around. -->
+    <geom name="obstacle_01" type="box" pos="11 -7 1.1" size="0.3 3 1.1" material="low_obstacle"/>
+    <geom name="obstacle_02" type="box" pos="14 -7 3" size="0.7 0.7 3" material="tall_obstacle"/>
+
+    <geom name="ring_01_segment_00" type="capsule" fromto="17 -8.8 3.2 17 -9.1515 4.0485" size="0.09" material="ring"/>
+    <geom name="ring_01_segment_01" type="capsule" fromto="17 -9.1515 4.0485 17 -10 4.4" size="0.09" material="ring"/>
+    <geom name="ring_01_segment_02" type="capsule" fromto="17 -10 4.4 17 -10.8485 4.0485" size="0.09" material="ring"/>
+    <geom name="ring_01_segment_03" type="capsule" fromto="17 -10.8485 4.0485 17 -11.2 3.2" size="0.09" material="ring"/>
+    <geom name="ring_01_segment_04" type="capsule" fromto="17 -11.2 3.2 17 -10.8485 2.3515" size="0.09" material="ring"/>
+    <geom name="ring_01_segment_05" type="capsule" fromto="17 -10.8485 2.3515 17 -10 2" size="0.09" material="ring"/>
+    <geom name="ring_01_segment_06" type="capsule" fromto="17 -10 2 17 -9.1515 2.3515" size="0.09" material="ring"/>
+    <geom name="ring_01_segment_07" type="capsule" fromto="17 -9.1515 2.3515 17 -8.8 3.2" size="0.09" material="ring"/>
+    <site name="ring_center_01" type="sphere" pos="17 -10 3.2" size="0.06" rgba="1 0.85 0.1 0.8"/>
+
+    <!-- Final suspended bar asks the vehicle to descend before the goal. -->
+    <geom name="obstacle_03" type="box" pos="20.5 -7 3" size="0.3 3 0.3" material="frame"/>
+    <geom name="gate_01_left" type="box" pos="20.5 -4 1.5" size="0.3 0.12 1.5" material="frame"/>
+    <geom name="gate_01_right" type="box" pos="20.5 -10 1.5" size="0.3 0.12 1.5" material="frame"/>
+
+    <geom name="world_boundary_north" type="box" pos="12 0 3" size="12 0.1 3" rgba="0 0 0 0"/>
+    <geom name="world_boundary_south" type="box" pos="12 -14 3" size="12 0.1 3" rgba="0 0 0 0"/>
+    <geom name="world_boundary_west" type="box" pos="0 -7 3" size="0.1 7 3" rgba="0 0 0 0"/>
+    <geom name="world_boundary_east" type="box" pos="24 -7 3" size="0.1 7 3" rgba="0 0 0 0"/>
+    <geom name="world_boundary_ceiling" type="box" pos="12 -7 6.2" size="12 7 0.1" rgba="0 0 0 0"/>
+
+    <!-- Ordered mandatory checkpoints, read directly by the Python adapter. -->
+    <site name="waypoint_00" type="sphere" pos="1 -7 1.3" size="0.08" rgba="1 0.85 0.1 0.8"/>
+    <site name="waypoint_01" type="sphere" pos="4 -7 1.3" size="0.08" rgba="1 0.85 0.1 0.8"/>
+    <site name="waypoint_02" type="sphere" pos="7.5 -4 3" size="0.08" rgba="1 0.85 0.1 0.8"/>
+    <site name="waypoint_03" type="sphere" pos="11 -7 3.5" size="0.08" rgba="1 0.85 0.1 0.8"/>
+    <site name="waypoint_04" type="sphere" pos="14 -10 2.5" size="0.08" rgba="1 0.85 0.1 0.8"/>
+    <site name="waypoint_05" type="sphere" pos="17 -10 3.2" size="0.08" rgba="1 0.85 0.1 0.8"/>
+    <site name="waypoint_06" type="sphere" pos="20.5 -7 1.4" size="0.08" rgba="1 0.85 0.1 0.8"/>
+
+    <!-- Non-colliding segments positioned from Python after Minimum Snap planning. -->
+    <replicate count="200">
+      <geom name="trajectory_segment" type="capsule" pos="0 0 -20" size="0.025 0.01"
+            contype="0" conaffinity="0" rgba="1 0.25 0.05 0"/>
+    </replicate>
+    <replicate count="200">
+      <geom name="actual_trajectory_segment" type="capsule" pos="0 0 -20" size="0.015 0.01"
+            contype="0" conaffinity="0" rgba="0.1 0.4 1 0"/>
+    </replicate>
+
+    <site name="goal" type="sphere" pos="23 -7 2" size="0.25" rgba="0.1 0.9 0.2 0.8"/>
+
+    <body name="quadrotor" pos="1 -7 0.021">
+      <freejoint name="quadrotor_freejoint"/>
+      <inertial pos="0 0 0" mass="0.5" diaginertia="0.0023 0.0023 0.0046"/>
+      <geom name="body" type="box" size="0.08 0.05 0.02" rgba="0.08 0.12 0.16 1"/>
+      <geom name="arm_0" type="capsule" fromto="-0.120208 0.120208 0 0.120208 -0.120208 0"
+            size="0.008" contype="0" conaffinity="0" rgba="0.25 0.25 0.28 1"/>
+      <geom name="arm_1" type="capsule" fromto="-0.120208 -0.120208 0 0.120208 0.120208 0"
+            size="0.008" contype="0" conaffinity="0" rgba="0.25 0.25 0.28 1"/>
+
+      <geom name="rotor_visual_0" type="cylinder" pos="0.120208 0.120208 0" size="0.055 0.002"
+            contype="0" conaffinity="0" rgba="0.1 0.7 0.9 1"/>
+      <geom name="rotor_visual_1" type="cylinder" pos="0.120208 -0.120208 0" size="0.055 0.002"
+            contype="0" conaffinity="0" rgba="0.1 0.7 0.9 1"/>
+      <geom name="rotor_visual_2" type="cylinder" pos="-0.120208 -0.120208 0" size="0.055 0.002"
+            contype="0" conaffinity="0" rgba="0.1 0.7 0.9 1"/>
+      <geom name="rotor_visual_3" type="cylinder" pos="-0.120208 0.120208 0" size="0.055 0.002"
+            contype="0" conaffinity="0" rgba="0.1 0.7 0.9 1"/>
+
+      <site name="rotor_0" pos="0.120208 0.120208 0" size="0.008" user="1" rgba="0 0.7 1 1"/>
+      <site name="rotor_1" pos="0.120208 -0.120208 0" size="0.008" user="-1" rgba="0 0.7 1 1"/>
+      <site name="rotor_2" pos="-0.120208 -0.120208 0" size="0.008" user="1" rgba="0 0.7 1 1"/>
+      <site name="rotor_3" pos="-0.120208 0.120208 0" size="0.008" user="-1" rgba="0 0.7 1 1"/>
+    </body>
+  </worldbody>
+</mujoco>

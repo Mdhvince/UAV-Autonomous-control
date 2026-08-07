@@ -1,92 +1,124 @@
-import warnings
-
 import numpy as np
 
-import utils
-from quadrotor.quad import Quad
-from control.controller import CascadedController
-from planning.minimum_snap import MinimumSnap
-from planning.rrt import RRTStar
-from visualization.flight_dashboard import FlightDashboard
-
-warnings.filterwarnings('ignore')
+from uav_ac import utils
+from uav_ac.control.controller import CascadedController
+from uav_ac.planning.minimum_snap import MinimumSnap
+from uav_ac.quadrotor.quad import Quad
+from uav_ac.simulation.mujoco_sim import MujocoSimulation
 
 
-def fly(state_history, omega_history, controller, quad, des_x, des_y, des_z, des_yaw, frequency):
-    R = quad.R()
-    F_cmd = controller.altitude(quad, des_z, R, quad.kp_z, quad.kd_z, quad.ki_z)
-    bxy_cmd = controller.lateral(quad, des_x, des_y, F_cmd, quad.kp_xy, quad.kd_xy)
-    pqr_cmd = controller.reduced_attitude(quad, bxy_cmd, des_yaw, R, quad.kp_roll, quad.kp_pitch, quad.kp_yaw)
+class TrajectoryController:
+    """Drive the existing cascaded controller from a time-parameterized trajectory."""
 
-    for _ in range(frequency):
-        # flight controller
-        moment_cmd = controller.body_rate_controller(quad, pqr_cmd, quad.kp_p, quad.kp_q, quad.kp_r)
-        quad.set_propeller_speed(F_cmd, moment_cmd)
-        quad.update_state()
+    def __init__(
+            self,
+            controller: CascadedController,
+            quad: Quad,
+            trajectory: np.ndarray,
+            inner_loop_frequency: int,
+    ):
+        self.controller = controller
+        self.quad = quad
+        self.trajectory = trajectory
+        self.inner_loop_frequency = inner_loop_frequency
+        self.trajectory_index = 0
+        self.inner_step = 0
+        self.thrust_cmd = 0.0
+        self.pqr_cmd = np.zeros(3)
 
-    state_history = np.vstack((state_history, quad.X))
-    omega_history = np.vstack((omega_history, quad.omega))
+    def reset(self) -> None:
+        """Restart trajectory tracking from its initial state."""
+        self.controller.reset()
+        self.trajectory_index = 0
+        self.inner_step = 0
+        self.thrust_cmd = 0.0
+        self.pqr_cmd.fill(0.0)
 
-    return state_history, omega_history
+    def step(self) -> None:
+        """Execute one inner body-rate control cycle."""
+        if self.inner_step % self.inner_loop_frequency == 0:
+            self._update_outer_loop()
+
+        moment_cmd = self.controller.body_rate_controller(
+            self.quad, self.pqr_cmd, self.quad.kp_p, self.quad.kp_q, self.quad.kp_r)
+        self.quad.set_propeller_speed(self.thrust_cmd, moment_cmd)
+        self.inner_step += 1
+
+    def _update_outer_loop(self) -> None:
+        target = self.trajectory[self.trajectory_index]
+        rotation = self.quad.R()
+        thrust_cmd = self.controller.altitude(
+            self.quad, target[[2, 5, 8]], rotation,
+            self.quad.kp_z, self.quad.kd_z, self.quad.ki_z)
+        bxy_cmd = self.controller.lateral(
+            self.quad, target[[0, 3, 6]], target[[1, 4, 7]], thrust_cmd,
+            self.quad.kp_xy, self.quad.kd_xy)
+
+        self.thrust_cmd = thrust_cmd
+        self.pqr_cmd = self.controller.reduced_attitude(
+            self.quad, bxy_cmd, target[9], rotation,
+            self.quad.kp_roll, self.quad.kp_pitch, self.quad.kp_yaw)
+        self.trajectory_index = min(self.trajectory_index + 1, len(self.trajectory) - 1)
 
 
-if __name__ == "__main__":
-    cfg, cfg_rrt, cfg_flight = utils.get_config()
+def _trajectory_after_takeoff(
+        trajectory: np.ndarray,
+        takeoff_waypoint: np.ndarray,
+) -> np.ndarray:
+    """Return the trajectory from the sample nearest the takeoff waypoint."""
+    distances = np.linalg.norm(trajectory[:, :3] - takeoff_waypoint, axis=1)
+    return trajectory[np.argmin(distances):]
 
-    g = cfg.getfloat("g")
-    dt = cfg.getfloat("dt")
+
+def _generate_mission_trajectory(
+        waypoints: np.ndarray,
+        obstacles: np.ndarray,
+        velocity: float,
+        dt: float,
+) -> np.ndarray:
+    """Generate an isolated vertical takeoff followed by the laboratory course."""
+    takeoff_trajectory = MinimumSnap(
+        waypoints[:2], obstacles, velocity, dt).get_trajectory()
+    course_trajectory = MinimumSnap(
+        waypoints[1:], obstacles, velocity, dt).get_trajectory()
+    return np.vstack((takeoff_trajectory, course_trajectory))
+
+
+def main() -> None:
+    cfg, cfg_flight = utils.get_config()
+
     frequency = cfg.getint("frequency")
 
-    # FLIGHT
     velocity = cfg_flight.getfloat("velocity")
-    obstacles = utils.parse_array(cfg_flight, "coord_obstacles")
     min_distance_target = cfg_flight.getfloat("min_dist_target")
-    start_loc = utils.parse_array(cfg_flight, "start_loc")
-    goal_loc = utils.parse_array(cfg_flight, "goal_loc")
-    visible_obstacle_count = cfg_flight.getint("visible_obstacle_count")
 
-    # RRT
-    space_limits = utils.parse_array(cfg_rrt, "space_limits")
-    max_distance = cfg_rrt.getfloat("max_distance")
-    max_iterations = cfg_rrt.getint("max_iterations")
-    random_seed = cfg_rrt.getint("random_seed")
+    simulation = MujocoSimulation()
+    quad = simulation.quad
+    trajectory_dt = quad.dt * frequency
+    ctrl = CascadedController(quad.g, trajectory_dt)
 
-    ctrl = CascadedController(g, dt)
-    quad = Quad(g, dt / frequency)
-    quad.X[:3] = start_loc
-    state_history, omega_history = quad.X, quad.omega
+    global_trajectory = _generate_mission_trajectory(
+        simulation.mission_waypoints,
+        simulation.obstacles,
+        velocity,
+        trajectory_dt,
+    )
+    visible_trajectory = _trajectory_after_takeoff(
+        global_trajectory, simulation.mission_waypoints[1])
+    simulation.set_trajectory_visualization(visible_trajectory[:, :3])
 
-    np.random.seed(random_seed)
-    rrt = RRTStar(space_limits, start_loc, goal_loc, max_distance, max_iterations, obstacles)
-    rrt.run()
-    global_path = rrt.simplify_path(rrt.best_path)
+    trajectory_controller = TrajectoryController(ctrl, quad, global_trajectory, frequency)
 
-    min_snap = MinimumSnap(global_path, obstacles, velocity, dt)
-    global_trajectory = min_snap.get_trajectory()
+    print("Trajectory ready. Press Backspace in the MuJoCo viewer to replay the flight.")
+    simulation.run_interactive(trajectory_controller.step, trajectory_controller.reset)
 
-    # the trajectory is time-parameterized at dt per row and each fly() call spans dt,
-    # so following it in real time means consuming one row per control cycle
-    for target in global_trajectory:
-        des_x = target[[0, 3, 6]]
-        des_y = target[[1, 4, 7]]
-        des_z = target[[2, 5, 8]]
-        des_yaw = target[9]
-
-        state_history, omega_history = fly(
-            state_history, omega_history, ctrl, quad, des_x, des_y, des_z, des_yaw, frequency
-        )
-
-    distance_to_goal = np.linalg.norm(quad.X[:3] - goal_loc)
+    distance_to_goal = np.linalg.norm(quad.position - simulation.goal_position)
     goal_has_been_reached = distance_to_goal < min_distance_target
     print(f"Flight finished {distance_to_goal:.2f} m away from the goal "
           f"({'reached' if goal_has_been_reached else 'missed'}).")
+    if simulation.collision_detected:
+        print("At least one collision occurred during the flight.")
 
-    # single cockpit view: animated 3D scene + in-flight controller response.
-    # World boundaries remain active for collision checks but are not rendered,
-    # otherwise they would visually bury the flight.
-    dashboard = FlightDashboard(
-        quad, state_history[1:], omega_history[1:], global_trajectory, dt,
-        obstacles=obstacles[:visible_obstacle_count], planned_path=global_path,
-        follow_drone=False,
-    )
-    dashboard.show()
+
+if __name__ == "__main__":
+    main()

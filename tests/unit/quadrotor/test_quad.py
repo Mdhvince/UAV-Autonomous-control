@@ -2,15 +2,12 @@ import numpy as np
 import pytest
 
 from uav_ac.quadrotor.quad import Quad
-
-
-G = 9.81
-DT = 0.001
+from uav_ac.simulation.mujoco_sim import MujocoSimulation
 
 
 @pytest.fixture
 def quad():
-    return Quad(g=G, dt=DT)
+    return MujocoSimulation().quad
 
 
 def test_quat_to_rot_identity_quaternion_returns_identity():
@@ -109,7 +106,7 @@ def test_set_propeller_speed_produces_commanded_yaw_moment(quad):
     # Act
     quad.set_propeller_speed(thrust_cmd, moment_cmd)
     forces = quad.kf * quad.omega_command ** 2
-    commanded_yaw_moment = quad.km * (-forces[0] + forces[1] - forces[2] + forces[3])
+    commanded_yaw_moment = quad.kappa * (-forces[0] + forces[1] - forces[2] + forces[3])
 
     # Assert
     assert commanded_yaw_moment == pytest.approx(0.01)
@@ -183,73 +180,3 @@ def test_controller_gains_are_derived_from_response_parameters(quad):
 
     # Assert
     assert gains == pytest.approx(np.array([expected_kp_xy, expected_kd_xy, expected_kp_p]))
-
-
-def test_update_state_hover_thrust_keeps_altitude(quad):
-    # Arrange
-    quad.X[2] = 1.0
-    hover_speed = np.sqrt(quad.m * G / 4 / quad.kf)
-    quad.omega = np.full(4, hover_speed)
-
-    # Act
-    for _ in range(1000):
-        quad.update_state()
-
-    # Assert
-    assert quad.z == pytest.approx(1.0, abs=1e-6)
-    assert quad.velocity == pytest.approx(np.zeros(3), abs=1e-6)
-
-
-def test_update_state_keeps_quaternion_normalized(quad):
-    # Arrange
-    quad.X[10] = 2.0  # roll rate [rad/s]
-
-    # Act
-    for _ in range(100):
-        quad.update_state()
-
-    # Assert
-    assert np.linalg.norm(quad.quaternion) == pytest.approx(1.0)
-
-
-def test_update_state_free_fall_drifts_toward_positive_z(quad):
-    # Arrange
-    quad.X[:3] = np.array([0.0, 0.0, -5.0])  # NED: 5 m above ground
-    quad.omega = np.zeros(4)
-
-    # Act
-    for _ in range(1000):
-        quad.update_state()
-
-    # Assert
-    assert quad.z > -5.0  # NED: falling means z increases (toward the ground)
-
-
-def test_update_state_positive_roll_at_hover_accelerates_toward_positive_y(quad):
-    # Arrange
-    half_roll = np.radians(10) / 2
-    quad.X[3:7] = np.array([np.cos(half_roll), np.sin(half_roll), 0.0, 0.0])
-    hover_force_per_rotor = quad.m * G / 4
-    quad.omega = np.sqrt(hover_force_per_rotor / quad.kf) * np.ones(4)
-
-    # Act
-    for _ in range(1000):
-        quad.update_state()
-
-    # Assert
-    assert quad.y_vel > 0.0  # NED: roll right pushes the drone to the right (+y)
-
-
-def test_update_state_positive_pitch_at_hover_accelerates_toward_negative_x(quad):
-    # Arrange
-    half_pitch = np.radians(10) / 2
-    quad.X[3:7] = np.array([np.cos(half_pitch), 0.0, np.sin(half_pitch), 0.0])
-    hover_force_per_rotor = quad.m * G / 4
-    quad.omega = np.sqrt(hover_force_per_rotor / quad.kf) * np.ones(4)
-
-    # Act
-    for _ in range(1000):
-        quad.update_state()
-
-    # Assert
-    assert quad.x_vel < 0.0  # NED: pitch up tilts the thrust backward (-x)

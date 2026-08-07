@@ -7,17 +7,16 @@ import numpy as np
 
 def get_config():
     """
-    :return: config object (default, rrt, flight)
+    :return: config object (default, flight)
     """
     config = configparser.ConfigParser(inline_comment_prefixes="#")
     config_file = Path(Path(__file__).parent, "config.ini")
     config.read(config_file)
 
     cfg = config["DEFAULT"]
-    cfg_rrt = config["RRT"]
     cfg_flight = config["SIM_FLIGHT"]
 
-    return cfg, cfg_rrt, cfg_flight
+    return cfg, cfg_flight
 
 
 def parse_array(section: configparser.SectionProxy, key: str) -> np.ndarray:

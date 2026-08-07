@@ -4,73 +4,59 @@ import numpy as np
 import pytest
 
 from uav_ac import utils
+from uav_ac.simulation.mujoco_sim import MujocoSimulation
 
 
 def test_get_config_returns_all_sections():
     # Arrange
     # Act
-    cfg, cfg_rrt, cfg_flight = utils.get_config()
+    cfg, cfg_flight = utils.get_config()
 
     # Assert
-    assert cfg.getfloat("g") == pytest.approx(9.81)
-    assert cfg_rrt.getint("max_iterations") > 0
+    assert cfg.getint("frequency") > 0
     assert cfg_flight.getfloat("velocity") > 0
 
 
-def test_large_world_should_provide_long_route_and_many_visible_obstacles():
+def test_laboratory_course_should_provide_compact_multi_challenge_route():
     # Arrange
-    _, cfg_rrt, cfg_flight = utils.get_config()
-    space_limits = utils.parse_array(cfg_rrt, "space_limits")
-    start = utils.parse_array(cfg_flight, "start_loc")
-    goal = utils.parse_array(cfg_flight, "goal_loc")
-    obstacles = utils.parse_array(cfg_flight, "coord_obstacles")
-    visible_obstacle_count = cfg_flight.getint("visible_obstacle_count")
+    simulation = MujocoSimulation()
 
     # Act
-    world_size = space_limits[1] - space_limits[0]
-    route_length = np.linalg.norm(goal - start)
+    world_size = simulation.space_limits[1] - simulation.space_limits[0]
+    segment_lengths = np.linalg.norm(np.diff(simulation.mission_waypoints, axis=0), axis=1)
 
     # Assert
-    assert world_size[0] >= 80.0
-    assert world_size[1] >= 60.0
-    assert route_length >= 90.0
-    assert visible_obstacle_count >= 18
-    assert len(obstacles) > visible_obstacle_count
-    assert cfg_rrt.getint("random_seed") >= 0
+    assert world_size[0] == pytest.approx(24.0)
+    assert world_size[1] == pytest.approx(14.0)
+    assert np.sum(segment_lengths) > 25.0
+    assert len(simulation.mission_waypoints) == 9
 
 
-def test_large_world_should_use_city_blocks_that_cannot_be_overflown():
+def test_laboratory_course_should_use_obstacles_at_multiple_heights():
     # Arrange
-    _, cfg_rrt, cfg_flight = utils.get_config()
-    space_limits = utils.parse_array(cfg_rrt, "space_limits")
-    start = utils.parse_array(cfg_flight, "start_loc")
-    goal = utils.parse_array(cfg_flight, "goal_loc")
-    obstacles = utils.parse_array(cfg_flight, "coord_obstacles")
-    visible_obstacle_count = cfg_flight.getint("visible_obstacle_count")
+    simulation = MujocoSimulation()
 
     # Act
-    buildings = obstacles[:visible_obstacle_count]
-    direct_route_is_blocked = any(
-        _segment_intersects_cuboid(start, goal, building) for building in buildings
+    obstacle_lower_altitudes = -simulation.obstacles[:, 5]
+    obstacle_upper_altitudes = -simulation.obstacles[:, 4]
+
+    # Assert
+    assert np.any(obstacle_lower_altitudes > 2.0)
+    assert np.any(np.isclose(obstacle_lower_altitudes, 0.0))
+    assert np.any(obstacle_upper_altitudes < 3.0)
+
+
+@pytest.mark.parametrize("waypoint_index", range(8))
+def test_laboratory_course_should_keep_mission_waypoints_inside_planning_limits(waypoint_index):
+    # Arrange
+    simulation = MujocoSimulation()
+    location = simulation.mission_waypoints[waypoint_index]
+
+    # Act
+    is_inside = (
+        np.all(location >= simulation.space_limits[0])
+        and np.all(location <= simulation.space_limits[1])
     )
-
-    # Assert
-    assert direct_route_is_blocked
-    assert np.all(buildings[:, 4] <= space_limits[0, 2])
-    assert np.all(buildings[:, 5] >= 0.0)
-    assert np.all((buildings[:, 1] - buildings[:, 0]) >= 5.0)
-    assert np.all((buildings[:, 3] - buildings[:, 2]) >= 5.0)
-
-
-@pytest.mark.parametrize("location_key", ["start_loc", "goal_loc"])
-def test_large_world_should_keep_route_endpoints_inside_planning_limits(location_key):
-    # Arrange
-    _, cfg_rrt, cfg_flight = utils.get_config()
-    space_limits = utils.parse_array(cfg_rrt, "space_limits")
-    location = utils.parse_array(cfg_flight, location_key)
-
-    # Act
-    is_inside = np.all(location >= space_limits[0]) and np.all(location <= space_limits[1])
 
     # Assert
     assert is_inside
@@ -99,24 +85,3 @@ def test_parse_array_rejects_arbitrary_code():
     # Assert
     with pytest.raises(ValueError):
         utils.parse_array(section, "points")
-
-
-def _segment_intersects_cuboid(start, end, cuboid):
-    direction = end - start
-    minimum_time = 0.0
-    maximum_time = 1.0
-
-    for axis in range(3):
-        low, high = cuboid[2 * axis:2 * axis + 2]
-        if abs(direction[axis]) < 1e-12:
-            if start[axis] < low or start[axis] > high:
-                return False
-            continue
-
-        times = sorted(((low - start[axis]) / direction[axis], (high - start[axis]) / direction[axis]))
-        minimum_time = max(minimum_time, times[0])
-        maximum_time = min(maximum_time, times[1])
-        if minimum_time > maximum_time:
-            return False
-
-    return True

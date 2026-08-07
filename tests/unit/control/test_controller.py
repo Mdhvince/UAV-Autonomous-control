@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from uav_ac.control.controller import CascadedController
-from uav_ac.quadrotor.quad import Quad
+from uav_ac.simulation.mujoco_sim import MujocoSimulation
 
 
 G = 9.81
@@ -18,7 +18,7 @@ def controller():
 
 @pytest.fixture
 def quad():
-    return Quad(g=G, dt=DT)
+    return MujocoSimulation().quad
 
 
 @pytest.mark.parametrize("angle, expected", [

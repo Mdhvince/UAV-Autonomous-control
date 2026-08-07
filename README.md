@@ -1,17 +1,15 @@
 ## 3D UAV simulation and autonomous control for path tracking
 ![coverage](docs/coverage.svg)
 
-The whole project (dynamics, controller, planner, config) uses the aerospace NED
-convention, as on real flight controllers (PX4/ArduPilot): world x forward, y right,
-z DOWN - an altitude of h meters is z = -h. The 3D views reverse the y and z display
-axes (a proper rotation, not a mirror) so altitude reads upward on screen while the
-plotted coordinates and the rendered attitude stay true to the NED state.
+The controller and planner use the aerospace NED convention, as on real flight
+controllers (PX4/ArduPilot): world x forward, y right, z DOWN - an altitude of h meters
+is z = -h. The MuJoCo adapter converts this state to its native ENU/FLU convention.
 
 - [x] Build a controller to follow a trajectory  
 - [x] Follow hardcoded waypoints  
 - [x] From hardcoded waypoints, generate an optimal trajectory (minimum snap)  
-- [x] From hardcoded waypoints and hardcoded obstacles, generate an optimal trajectory (minimum snap + collision-free)  
-- [x] Generate waypoints from a path planning algorithm (RRT*), given hardcoded obstacles and generate an optimal trajectory (minimum snap + collision-free)  
+- [x] Read the mission and physical obstacles from a MuJoCo scene
+- [x] Fly a laboratory course through mandatory MuJoCo checkpoints with Minimum Snap
 - [ ] Localize the UAV using a Map
 - [ ] Localize the UAV and build a map (SLAM)
 - [ ] Handle dynamic obstacles   
@@ -23,26 +21,43 @@ https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/6dff700c-9ed4
 
 https://github.com/Mdhvince/UAV-Autonomous-control/assets/17160701/2dcca69f-2981-4cef-a6e1-313b70ec2882
 
-### Flight dashboard
+#### Current MuJoCo laboratory course
 
-![Flight dashboard](docs/flight_dashboard.png "")
+- [MuJoCo flight demonstration 1 (13.6 s)](docs/videos/mujoco_lab_flight_01.mov)
+- [MuJoCo flight demonstration 2 (15.6 s)](docs/videos/mujoco_lab_flight_02.mov)
+- [MuJoCo flight demonstration 3 (12.1 s)](docs/videos/mujoco_lab_flight_03.mov)
 
-Running `main.py` opens a single cockpit view, rendered by `FlightDashboard`
-(`uav_ac/visualization/flight_dashboard.py`). On the left, an interactive 3D animation
-on a clean background (no grid): the drone frame placed and oriented from the simulated
-attitude quaternion, the four propellers spinning in their physical direction at the
-recorded speeds, the body axes attached to the drone, the executed trajectory against
-the minimum snap reference, the RRT path, and the obstacles as translucent boxes (the
-perimeter walls and the ceiling are not rendered, they would bury the scene). With
-`follow_drone=True` (the default in `main.py`) the camera chases the drone during
-playback; the view stays freely rotatable while paused. On the right, the in-flight
-controller response as four time series synchronized with the animation through a
-moving time cursor: position per axis versus the reference, attitude angles, propeller
-speeds, and position tracking error. Playback is controlled with Play/Pause buttons
-and a time slider; the title displays time, roll/pitch/yaw and propeller speeds. The
-drone geometry is visually magnified (`drone_scale`, 1.0 renders the true size);
-position, attitude and speeds are untouched. The step-response tuning tool remains
-available separately: `python uav_ac/control/controller.py`.
+### MuJoCo simulation on macOS
+
+The main entry point runs the flight in the MuJoCo rigid-body physics engine. The scene
+`uav_ac/simulation/models/lab_course.xml` is the single source of truth for the drone
+mass, inertia, rotor geometry, propulsion limits, motor response, start, goal,
+mandatory checkpoints and obstacles. Minimum Snap, the cascaded controller and
+constrained rotor allocation remain project code. No ROS 2, Gazebo, PX4 or virtual
+machine is required.
+
+```bash
+uv sync
+uv run python -m uav_ac.main
+```
+
+At startup, the adapter reads the ordered `waypoint_*` sites and extracts the
+axis-aligned `obstacle_*` geometries from the same scene. Minimum Snap connects the
+mandatory passages under beams, through suspended rings, over a low wall and around a
+tall obstacle. The native MuJoCo window then opens in real time with play, pause,
+rotate, pan and zoom controls. Its wheel zoom is centered on the camera look-at point,
+not the mouse cursor. The drone takes off vertically from the checkered ground; the
+planned Minimum Snap path appears as a thin transparent orange line after takeoff,
+while the actual MuJoCo flight path is drawn in blue. The physical world boundaries
+remain invisible. Press `Backspace` in the viewer to reset and replay the complete
+flight without restarting Python. Closing the window prints the final distance and
+whether a collision occurred. The state supplied to the controller is MuJoCo ground
+truth; no GPS or estimator is used yet.
+
+Edit `lab_course.xml` to change the simulated vehicle, obstacles or ordered mandatory
+waypoints. `config.ini` contains only controller scheduling and mission execution
+settings. RRT* remains available as a standalone planner, but the laboratory mission
+does not use it.
 
 The minimum snap time allocation grants extra time to the first and last splines
 (`MinimumSnap.START_END_TIME_FACTOR`): they start and end at rest, so this keeps the
@@ -54,10 +69,6 @@ arrival.
 
 ### RRT*
 ![RRT*](docs/rrt_star.png "")  
-
-### Controller response
-![Controller response](docs/controller_response.png "")
-
 
 ### 1. Control  
 
@@ -342,5 +353,4 @@ $$
 - install [uv](https://docs.astral.sh/uv/)
 - `uv sync`
 - `uv run pytest`
-- `uv run python uav_ac/planning/rrt.py` to run an example of the RRT* algorithm
-- `uv run python uav_ac/main.py`
+- `uv run python -m uav_ac.main`

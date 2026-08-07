@@ -19,6 +19,10 @@ class CascadedController:
 
         self.integral_error = 0
 
+    def reset(self) -> None:
+        """Clear the state accumulated across control cycles."""
+        self.integral_error = 0
+
     def altitude(self, quad, des_z, rot_mat, kp_z, kd_z, ki_z):
         """
         Compute the desired thrust command.
@@ -185,75 +189,3 @@ class CascadedController:
         d_term = kd * error_dot
         i_term = ki * i_error
         return p_term + i_term + d_term + des
-
-
-if __name__ == "__main__":
-    # Step-response plots on every controlled dimension, to help with gain tuning.
-    # Gains are the ones defined on Quad: edit them there, re-run this script, compare curves.
-    import sys
-    from pathlib import Path
-
-    import matplotlib.pyplot as plt
-
-    sys.path.append(str(Path(__file__).parents[1]))
-    from quadrotor.quad import Quad
-
-    g, dt, frequency = 9.81, 0.01, 10
-    duration = 6.0  # [s]
-
-    controller = CascadedController(g, dt)
-    quad = Quad(g, dt / frequency)
-    quad.X[:3] = np.array([0.0, 0.0, -1.0])
-
-    setpoint_position = np.array([1.0, -1.0, -2.0])
-    setpoint_yaw = 0.8
-
-    des_x = np.array([setpoint_position[0], 0.0, 0.0])
-    des_y = np.array([setpoint_position[1], 0.0, 0.0])
-    des_z = np.array([setpoint_position[2], 0.0, 0.0])
-
-    n_steps = int(duration / dt)
-    time = np.arange(n_steps) * dt
-    actual_positions = np.zeros((n_steps, 3))
-    actual_attitudes = np.zeros((n_steps, 3))
-
-    for i in range(n_steps):
-        R = quad.R()
-        thrust_cmd = controller.altitude(quad, des_z, R, quad.kp_z, quad.kd_z, quad.ki_z)
-        bxy_cmd = controller.lateral(quad, des_x, des_y, thrust_cmd, quad.kp_xy, quad.kd_xy)
-        pqr_cmd = controller.reduced_attitude(
-            quad, bxy_cmd, setpoint_yaw, R, quad.kp_roll, quad.kp_pitch, quad.kp_yaw)
-
-        for _ in range(frequency):
-            moment_cmd = controller.body_rate_controller(quad, pqr_cmd, quad.kp_p, quad.kp_q, quad.kp_r)
-            quad.set_propeller_speed(thrust_cmd, moment_cmd)
-            quad.update_state()
-
-        actual_positions[i] = quad.position
-        actual_attitudes[i] = quad.euler_angles
-
-    fig, axes = plt.subplots(2, 3, figsize=(15, 8), sharex=True)
-    fig.suptitle("Controller step response", fontsize=16, fontweight="bold")
-
-    position_labels = ["x [m]", "y [m]", "z [m]"]
-    for axis in range(3):
-        ax = axes[0, axis]
-        ax.plot(time, actual_positions[:, axis], "b-", linewidth=2, label="actual")
-        ax.axhline(setpoint_position[axis], color="k", linestyle="--", linewidth=1, label="setpoint")
-        ax.set_ylabel(position_labels[axis])
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-
-    attitude_setpoints = [0.0, 0.0, setpoint_yaw]
-    attitude_labels = ["roll [rad]", "pitch [rad]", "yaw [rad]"]
-    for axis in range(3):
-        ax = axes[1, axis]
-        ax.plot(time, actual_attitudes[:, axis], "r-", linewidth=2, label="actual")
-        ax.axhline(attitude_setpoints[axis], color="k", linestyle="--", linewidth=1, label="setpoint")
-        ax.set_xlabel("time [s]")
-        ax.set_ylabel(attitude_labels[axis])
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-
-    plt.tight_layout()
-    plt.show()

@@ -4,9 +4,8 @@ version = "0.1.0"
 description = "3D UAV simulation and autonomous control: RRT* path planning, minimum snap trajectories and a cascaded flight controller"
 requires-python = ">=3.13"
 dependencies = [
-    "matplotlib>=3.10.7",
+    "mujoco>=3.3.7",
     "numpy>=2.3.4",
-    "plotly>=6.3.1",
 ]
 
 [dependency-groups]

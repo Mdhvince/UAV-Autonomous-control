@@ -1,41 +1,56 @@
-import math
 import numpy as np
 
 
 class Quad:
     """
-    Quadrotor model in the NED convention: world x forward, y right, z DOWN.
-    Gravity acts along +z, collective thrust along -z of the body frame, and
-    altitude h above ground maps to z = -h.
+    Quadrotor state, control parameters and rotor actuation in NED/FRD.
+
+    MuJoCo owns the rigid-body dynamics and synchronizes the state vector.
     """
 
-    def __init__(self, g: float, dt: float):
+    def __init__(
+            self,
+            g: float,
+            dt: float,
+            mass: float,
+            inertia: np.ndarray,
+            arm_length: float,
+            force_coefficient: float,
+            drag_to_thrust: float,
+            thrust_limits: np.ndarray,
+            motor_time_constants: np.ndarray,
+            flight_limits: np.ndarray,
+    ):
         """
         :param g: gravity acceleration
-        :param dt: integration time step of the state update
+        :param dt: MuJoCo and motor update time step
+        :param mass: vehicle mass read from the MuJoCo body
+        :param inertia: diagonal body inertia read from MuJoCo
+        :param arm_length: roll and pitch lever arm of each rotor
+        :param force_coefficient: rotor speed-to-thrust coefficient
+        :param drag_to_thrust: rotor reaction torque-to-thrust ratio
+        :param thrust_limits: minimum and maximum thrust per rotor
+        :param motor_time_constants: rise and fall time constants
+        :param flight_limits: ascent, descent, horizontal speed, acceleration and tilt limits
         """
         self.g = g
         self.dt = dt
 
-        # Vehicle physical/geometrical properties (hardcoded)
-        distance_rotor_to_rotor = 0.17  # [m]
-        self.l = distance_rotor_to_rotor / math.sqrt(2)  # distance from center to rotor
-        self.m = 0.5  # [kg]
-        self.kf = 1.0
-        self.kappa = 0.016  # drag/thrust ratio
-        self.km = self.kappa * self.kf  # reactive torque coefficient, tied to kappa so tau_z matches the command
-        self.i_x = 0.0023  # [kg m2]
-        self.i_y = 0.0023
-        self.i_z = 0.0046
-        self.max_thrust = 4.5  # N
-        self.min_thrust = 0.1
-        self.max_ascent_rate = 3
-        self.max_descent_rate = 2
-        self.max_speed_xy = 3
-        self.max_horiz_accel = 12
-        self.max_tilt_angle = 0.7
+        self.l = float(arm_length)
+        self.m = float(mass)
+        self.kf = float(force_coefficient)
+        self.kappa = float(drag_to_thrust)
+        self.i_x, self.i_y, self.i_z = np.asarray(inertia, dtype=float)
+        self.min_thrust, self.max_thrust = np.asarray(thrust_limits, dtype=float)
+        (
+            self.max_ascent_rate,
+            self.max_descent_rate,
+            self.max_speed_xy,
+            self.max_horiz_accel,
+            self.max_tilt_angle,
+        ) = np.asarray(flight_limits, dtype=float)
 
-        # Controller response parameters, tuned on the step response of uav_ac/control/controller.py
+        # Controller response parameters
         self.tau_xy = 0.25
         self.zeta_xy = 0.875
         self.tau_altitude = 0.2
@@ -57,35 +72,18 @@ class Quad:
         self.kp_q = 1 / self.tau_q
         self.kp_r = 1 / self.tau_r
 
-        # State (position, quaternion, velocity, angular velocity body)
+        # State synchronized from MuJoCo (position, quaternion, velocity, angular velocity body)
         # x = [x, y, z, q0, q1, q2, q3, x_dot, y_dot, z_dot, p, q, r]
         # quaternion q = [q0, q1, q2, q3] where q0 is the scalar part
         self.X = np.zeros(13)
         # Initialize quaternion to identity (no rotation)
         self.X[3] = 1.0  # q0 = 1, representing identity rotation
 
-        # Derivative of state (velocity, quaternion derivative, acceleration, angular acceleration body)
-        # x_dot = [x_dot, y_dot, z_dot, q0_dot, q1_dot, q2_dot, q3_dot, x_ddot, y_ddot, z_ddot, p_dot, q_dot, r_dot]
-        self.dX = np.zeros(13)
-
         # Propeller speed and first-order motor response
-        self.motor_rise_time_constant = 0.0125
-        self.motor_fall_time_constant = 0.025
+        self.motor_rise_time_constant, self.motor_fall_time_constant = np.asarray(
+            motor_time_constants, dtype=float)
         self.omega = np.array([0.0, 0.0, 0.0, 0.0])
         self.omega_command = np.array([0.0, 0.0, 0.0, 0.0])
-
-    def update_state(self):
-        """
-        Simulate evolution of the vehicle state over time. Not needed when running on real drone,
-        since we can get the values from the sensors.
-        """
-        self.dX[:3] = self.velocity
-        self.update_quaternion_derivatives()
-        self.update_body_angular_acceleration()
-        self.update_acceleration()
-        self.X = self.X + self.dX * self.dt  # integrate using euler method
-        # Normalize quaternion to prevent drift
-        self.X[3:7] = self.X[3:7] / np.linalg.norm(self.X[3:7])
 
     def set_propeller_speed(self, thrust_cmd: float, moment_cmd: np.ndarray):
         """
@@ -127,47 +125,6 @@ class Quad:
     def second_order_gains(time_constant: float, damping_ratio: float) -> tuple[float, float]:
         """Derive proportional and derivative gains from response parameters."""
         return 1 / time_constant ** 2, 2 * damping_ratio / time_constant
-
-    def update_acceleration(self):  # used for state update
-        """
-        Convert the thrust body frame to world frame , divide by the mass and add the gravity
-        in order to have the linear acceleration x_acc, y_acc, z_acc in the world frame
-        """
-        R = self.R()
-        G = np.array([0, 0, self.g]).T
-        F = np.array([0, 0, -self.f_total]).T
-
-        # linear accelerations along x, y, z
-        self.dX[7:10] = G + np.matmul(R, F) / self.m
-
-    def update_body_angular_acceleration(self):  # used for state update
-        """Angular acceleration in the body frame"""
-        p_dot = (self.tau_x - self.r * self.q * (self.i_z - self.i_y)) / self.i_x
-        q_dot = (self.tau_y - self.r * self.p * (self.i_x - self.i_z)) / self.i_y
-        r_dot = (self.tau_z - self.q * self.p * (self.i_y - self.i_x)) / self.i_z
-
-        self.dX[-3:] = np.array([p_dot, q_dot, r_dot])
-
-    def update_quaternion_derivatives(self):  # used for state update
-        """Compute quaternion derivative from body angular velocities"""
-        # Get body angular velocities
-        p, q, r = self.p, self.q, self.r
-        
-        # Build the omega matrix: 4x4 matrix for quaternion derivative computation
-        # q_dot = 0.5 * Omega * q
-        omega_matrix = np.array([
-            [0, -p, -q, -r],
-            [p,  0,  r, -q],
-            [q, -r,  0,  p],
-            [r,  q, -p,  0]
-        ])
-        
-        # Compute quaternion derivative
-        q_current = self.quaternion
-        q_dot = 0.5 * np.matmul(omega_matrix, q_current)
-        
-        # Store in derivative vector
-        self.dX[3:7] = q_dot
 
     def R(self):
         """Rotation matrix from quaternion"""
@@ -291,72 +248,3 @@ class Quad:
     @property
     def body_angular_velocity(self):
         return np.array([self.p, self.q, self.r])
-
-    # forces from the four propellers [N]
-    @property
-    def f_1(self):
-        f = self.kf * self.omega[0] ** 2
-        return f
-
-    @property
-    def f_2(self):
-        f = self.kf * self.omega[1] ** 2
-        return f
-
-    @property
-    def f_3(self):
-        f = self.kf * self.omega[2] ** 2
-        return f
-
-    @property
-    def f_4(self):
-        f = self.kf * self.omega[3] ** 2
-        return f
-
-    # collective force
-    @property
-    def f_total(self):
-        """Actual Thrust. Different from the Desired thrust in (thrust_cmd)"""
-        f_t = self.f_1 + self.f_2 + self.f_3 + self.f_4
-        return f_t
-
-    # reactive moments [N * m]
-    @property
-    def tau_1(self):
-        tau = -self.km * self.omega[0] ** 2
-        return tau
-
-    @property
-    def tau_2(self):
-        tau = self.km * self.omega[1] ** 2
-        return tau
-
-    @property
-    def tau_3(self):
-        tau = -self.km * self.omega[2] ** 2
-        return tau
-
-    @property
-    def tau_4(self):
-        tau = self.km * self.omega[3] ** 2
-        return tau
-
-    # moments about axes [N * m]
-    @property
-    def tau_x(self):
-        tau = self.l * (self.f_1 + self.f_4 - self.f_2 - self.f_3)
-        return tau
-
-    @property
-    def tau_y(self):
-        tau = self.l * (self.f_1 + self.f_2 - self.f_3 - self.f_4)
-        return tau
-
-    @property
-    def tau_z(self):
-        tau = self.tau_1 + self.tau_2 + self.tau_3 + self.tau_4
-        return tau
-
-
-if __name__ == "__main__":
-    pass
