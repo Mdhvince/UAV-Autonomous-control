@@ -96,6 +96,31 @@ class RRTStar:
             cost += np.linalg.norm(path[i + 1] - path[i])
         return cost
 
+    def simplify_path(self, path: np.ndarray) -> np.ndarray:
+        """
+        Remove waypoints bypassed by a collision-free direct connection.
+
+        :param path: ordered waypoints from start to goal
+        :return: shortest greedy subsequence preserving collision-free connections
+        """
+        if len(path) <= 2:
+            return np.asarray(path)
+
+        simplified_path = [path[0]]
+        current_index = 0
+
+        while current_index < len(path) - 1:
+            next_index = len(path) - 1
+            while next_index > current_index + 1:
+                if self._is_valid_connection(path[current_index], path[next_index]):
+                    break
+                next_index -= 1
+
+            simplified_path.append(path[next_index])
+            current_index = next_index
+
+        return np.asarray(simplified_path)
+
     def _generate_random_node(self):
         # with probability epsilon, sample the goal
         if np.random.uniform(0, 1) < self.epsilon:

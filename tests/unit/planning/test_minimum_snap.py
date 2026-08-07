@@ -105,6 +105,23 @@ def test_get_trajectory_velocity_is_continuous_across_splines():
     assert velocity_jumps.max() < 0.5  # no discontinuity, even at the spline junction
 
 
+def test_compute_spline_parameters_should_minimize_integrated_snap():
+    # Arrange
+    waypoints = np.array([[0., 0., -1.], [2., 1., -1.], [4., -1., -2.], [6., 0., -2.]])
+    minimum_snap = MinimumSnap(waypoints, None, velocity=2.0, dt=0.01)
+
+    # Act
+    minimum_snap._compute_spline_parameters("lstsq")
+    cost_matrix = minimum_snap._create_snap_cost_matrix()
+    _, singular_values, right_vectors = np.linalg.svd(minimum_snap.A, full_matrices=True)
+    rank = np.sum(singular_values > 1e-10)
+    feasible_directions = right_vectors[rank:].T
+    projected_gradient = feasible_directions.T @ cost_matrix @ minimum_snap.coeffs
+
+    # Assert
+    assert np.linalg.norm(projected_gradient) < 1e-6
+
+
 def test_get_trajectory_corrects_splines_that_cut_through_an_obstacle():
     # Arrange
     waypoints = np.array([[0., 0., 1.], [3., 0., 1.], [3., 3., 1.]])

@@ -124,10 +124,36 @@ class MinimumSnap:
 
     def _compute_spline_parameters(self, method):
         self._create_polynom_matrices()
+        cost_matrix = self._create_snap_cost_matrix()
+        constraint_count = self.A.shape[0]
+        optimality_system = np.block([
+            [cost_matrix, self.A.T],
+            [self.A, np.zeros((constraint_count, constraint_count))],
+        ])
+        right_hand_side = np.vstack((np.zeros((cost_matrix.shape[0], self.b.shape[1])), self.b))
+
         if method == "lstsq":
-            self.coeffs, residuals, rank, s = np.linalg.lstsq(self.A, self.b, rcond=None)
+            solution = np.linalg.lstsq(optimality_system, right_hand_side, rcond=None)[0]
         else:
-            self.coeffs = np.linalg.solve(self.A, self.b)
+            solution = np.linalg.solve(optimality_system, right_hand_side)
+
+        self.coeffs = solution[:cost_matrix.shape[0]]
+
+    def _create_snap_cost_matrix(self):
+        cost_matrix = np.zeros((self.n_coeffs * self.nb_splines, self.n_coeffs * self.nb_splines))
+
+        for spline_index, duration in enumerate(self.times):
+            block_start = spline_index * self.n_coeffs
+            for row in range(4, self.n_coeffs):
+                row_factor = row * (row - 1) * (row - 2) * (row - 3)
+                for column in range(4, self.n_coeffs):
+                    column_factor = column * (column - 1) * (column - 2) * (column - 3)
+                    exponent = row + column - 7
+                    cost_matrix[block_start + row, block_start + column] = (
+                        row_factor * column_factor * duration ** exponent / exponent
+                    )
+
+        return cost_matrix
 
     def _create_polynom_matrices(self):
         """Populate matrices A and b with the constraints/boundary conditions"""
@@ -260,13 +286,14 @@ class MinimumSnap:
         - m-1 constraints for position at t=T (end of spline, first waypoint is excluded)
         - 1 constraint for velocity at t=0, acceleration at t=0, jerk at t=0 (3 constraints)
         - 1 constraint for velocity at t=T, acceleration at t=T, jerk at t=T (3 constraints)
-        - m-2 constraints for continuity of each derivative (1...6) (first and last waypoints are excluded) - (m-2)*6
+        - m-2 constraints for continuity of each derivative (1...4) (first and last waypoints are excluded) - (m-2)*4
 
-        Total number of constraints: 2(m-1) + 6 + 6(m-2)
+        Total number of constraints: 2(m-1) + 6 + 4(m-2)
         expected number of unknown coefficients: 8 * m-1 or 8 * number of splines
         """
-        self.A = np.zeros((self.n_coeffs * self.nb_splines, self.n_coeffs * self.nb_splines))
-        self.b = np.zeros((self.n_coeffs * self.nb_splines, len(self.waypoints[0])))
+        constraint_count = 2 * self.nb_splines + 6 + 4 * (self.nb_splines - 1)
+        self.A = np.zeros((constraint_count, self.n_coeffs * self.nb_splines))
+        self.b = np.zeros((constraint_count, len(self.waypoints[0])))
 
     def _generate_time_per_spline(self):
         """

@@ -41,22 +41,25 @@ if __name__ == "__main__":
     velocity = cfg_flight.getfloat("velocity")
     obstacles = utils.parse_array(cfg_flight, "coord_obstacles")
     min_distance_target = cfg_flight.getfloat("min_dist_target")
+    start_loc = utils.parse_array(cfg_flight, "start_loc")
     goal_loc = utils.parse_array(cfg_flight, "goal_loc")
-    start_loc = np.array([0., 0., -1.0])  # NED: 1 m above ground
+    visible_obstacle_count = cfg_flight.getint("visible_obstacle_count")
 
     # RRT
     space_limits = utils.parse_array(cfg_rrt, "space_limits")
     max_distance = cfg_rrt.getfloat("max_distance")
     max_iterations = cfg_rrt.getint("max_iterations")
+    random_seed = cfg_rrt.getint("random_seed")
 
     ctrl = CascadedController(g, dt)
     quad = Quad(g, dt / frequency)
     quad.X[:3] = start_loc
     state_history, omega_history = quad.X, quad.omega
 
+    np.random.seed(random_seed)
     rrt = RRTStar(space_limits, start_loc, goal_loc, max_distance, max_iterations, obstacles)
     rrt.run()
-    global_path = rrt.best_path
+    global_path = rrt.simplify_path(rrt.best_path)
 
     min_snap = MinimumSnap(global_path, obstacles, velocity, dt)
     global_trajectory = min_snap.get_trajectory()
@@ -79,11 +82,11 @@ if __name__ == "__main__":
           f"({'reached' if goal_has_been_reached else 'missed'}).")
 
     # single cockpit view: animated 3D scene + in-flight controller response.
-    # Only the floor and the pillars are rendered: the perimeter walls and the
-    # ceiling would visually bury the flight (collisions still use all of them).
+    # World boundaries remain active for collision checks but are not rendered,
+    # otherwise they would visually bury the flight.
     dashboard = FlightDashboard(
         quad, state_history[1:], omega_history[1:], global_trajectory, dt,
-        obstacles=np.array(obstacles)[:5], planned_path=rrt.best_path,
-        follow_drone=True,
+        obstacles=obstacles[:visible_obstacle_count], planned_path=global_path,
+        follow_drone=False,
     )
     dashboard.show()

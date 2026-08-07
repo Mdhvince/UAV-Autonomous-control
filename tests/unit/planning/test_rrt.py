@@ -15,6 +15,31 @@ def test_path_cost():
     assert np.isclose(result, 29.1, atol=0.1)
 
 
+def test_simplify_path_should_remove_redundant_waypoints_when_direct_connection_is_clear(rrt_object):
+    # Arrange
+    rrt_object.obstacles = None
+    path = np.array([[0., 0., 0.], [2., 0., 0.], [4., 0., 0.], [6., 0., 0.]])
+
+    # Act
+    result = rrt_object.simplify_path(path)
+
+    # Assert
+    assert result == pytest.approx(np.array([[0., 0., 0.], [6., 0., 0.]]))
+
+
+def test_simplify_path_should_preserve_collision_free_detour_around_obstacle(rrt_object):
+    # Arrange
+    rrt_object.obstacles = np.array([[5., 7., -1., 1., -1., 1.]])
+    path = np.array([[0., 0., 0.], [4., 2., 0.], [8., 2., 0.], [12., 0., 0.]])
+
+    # Act
+    result = rrt_object.simplify_path(path)
+
+    # Assert
+    assert len(result) > 2
+    assert all(rrt_object._is_valid_connection(start, end) for start, end in zip(result[:-1], result[1:]))
+
+
 def test__generate_random_node_in_limits(rrt_object):
     # Act
     result = rrt_object._generate_random_node()
